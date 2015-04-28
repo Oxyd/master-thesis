@@ -15,9 +15,11 @@ QMAKE_CXXFLAGS += -std=c++14
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    world.cpp
+    world.cpp \
+    worlddisplaywidget.cpp
 
 HEADERS  += mainwindow.hpp \
-    world.hpp
+    world.hpp \
+    worlddisplaywidget.hpp
 
 FORMS    += mainwindow.ui

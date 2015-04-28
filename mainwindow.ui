@@ -31,14 +31,7 @@
        </property>
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <item>
-         <widget class="QLabel" name="map_label">
-          <property name="text">
-           <string>No map loaded</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignCenter</set>
-          </property>
-         </widget>
+         <widget class="world_display_widget" name="world_display" native="true"/>
         </item>
        </layout>
       </widget>
@@ -89,7 +82,7 @@
          <number>1</number>
         </property>
         <property name="value">
-         <number>3</number>
+         <number>2</number>
         </property>
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -180,6 +173,18 @@
   </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>world_display_widget</class>
+   <extends>QWidget</extends>
+   <header>worlddisplaywidget.hpp</header>
+   <container>1</container>
+   <slots>
+    <signal>tile_clicked(unsigned,unsigned)</signal>
+    <slot>zoom(int)</slot>
+   </slots>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections>
   <connection>
@@ -233,16 +238,32 @@
   <connection>
    <sender>horizontalSlider</sender>
    <signal>valueChanged(int)</signal>
-   <receiver>MainWindow</receiver>
-   <slot>change_zoom(int)</slot>
+   <receiver>world_display</receiver>
+   <slot>zoom(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>101</x>
-     <y>483</y>
+     <x>98</x>
+     <y>485</y>
     </hint>
     <hint type="destinationlabel">
-     <x>187</x>
-     <y>498</y>
+     <x>139</x>
+     <y>365</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>world_display</sender>
+   <signal>tile_clicked(unsigned,unsigned)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>tile_activate(unsigned,unsigned)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>441</x>
+     <y>375</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>462</x>
+     <y>506</y>
     </hint>
    </hints>
   </connection>
@@ -250,5 +271,6 @@
  <slots>
   <slot>open_map()</slot>
   <slot>change_zoom(int)</slot>
+  <slot>tile_activate(unsigned,unsigned)</slot>
  </slots>
 </ui>

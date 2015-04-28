@@ -21,13 +21,11 @@ public:
 
 private slots:
   void open_map();
-  void redraw_map();
-  void change_zoom(int);
+  void tile_activate(unsigned, unsigned);
 
 private:
   Ui::MainWindow ui_;
   boost::optional<map> map_;
-  unsigned zoom_level_ = 4;
 };
 
 #endif // MAINWINDOW_HPP
