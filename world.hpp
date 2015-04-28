@@ -2,10 +2,12 @@
 #define MAP_HPP
 
 #include <boost/iterator/iterator_facade.hpp>
+#include <boost/optional.hpp>
 
 #include <cstdlib>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 enum class tile : char {
@@ -16,9 +18,17 @@ enum class tile : char {
   water
 };
 
+bool
+traversable(tile);
+
+struct position {
+  using coord_type = std::size_t;
+  coord_type x, y;
+};
+
 class map {
 public:
-  using coord_type = std::size_t;
+  using coord_type = position::coord_type;
 
   struct value_type {
     coord_type x, y;
@@ -71,12 +81,20 @@ public:
   tile
   get(coord_type x, coord_type y) const { return tiles_[y * width_ + x]; }
 
+  tile
+  get(position p) const { return get(p.x, p.y); }
+
   coord_type width() const  { return width_; }
   coord_type height() const { return height_; }
 
   void
   put(coord_type x, coord_type y, tile t) {
     tiles_[y * width_ + x] = t;
+  }
+
+  void
+  put(position p, tile t) {
+    put(p.x, p.y, t);
   }
 
   iterator begin() const { return {this, 0}; }
@@ -98,6 +116,60 @@ struct map_format_error : std::runtime_error {
 
 map
 load(std::string const& filename);
+
+using team_type = unsigned;
+
+class agent {
+public:
+  agent(position pos, boost::optional<position> target, team_type team)
+    : position_(pos)
+    , target_(target)
+    , team_{team}
+  { }
+
+  position position() const { return position_; }
+  boost::optional<::position> target() const { return target_; }
+  team_type team() const { return team_; }
+
+private:
+  ::position position_;
+  boost::optional<::position> target_;
+  team_type team_;
+};
+
+class world {
+  struct agent_tile {
+    bool valid;
+    boost::optional<position> target;
+    team_type team;
+  };
+
+public:
+  explicit
+  world(map m);
+
+  boost::optional<agent>
+  get_agent(position p) const;
+
+  void
+  put_agent(position p, agent a);  // Throws std::logic_error if p not empty.
+
+  void
+  remove_agent(position p);  // Throws std::logic_error if p empty.
+
+  map const&
+  map() { return map_; }
+
+private:
+  ::map map_;
+  std::vector<agent_tile> agents_;
+
+  agent_tile&
+  tile_at(position p);
+
+  agent_tile
+  tile_at(position p) const;
+};
 
 #endif // MAP_HPP
 

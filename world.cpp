@@ -1,4 +1,4 @@
-#include "map.hpp"
+#include "world.hpp"
 
 #include <fstream>
 #include <string>
@@ -37,6 +37,19 @@ char_to_tile(char c) {
   case 'S': return tile::swamp;
   case 'W': return tile::water;
   default: throw std::logic_error{"Not a valid tile char"};
+  }
+}
+
+bool
+traversable(tile t) {
+  switch (t) {
+  case tile::passable:
+  case tile::swamp:
+  case tile::water:
+    return true;
+
+  default:
+    return false;
   }
 }
 
@@ -81,4 +94,47 @@ load(std::string const& filename) {
   }
 
   return result;
+}
+
+world::world(::map m)
+  : map_(m)
+  , agents_(map_.width() * map_.height(), agent_tile{false, {}, {}})
+{ }
+
+boost::optional<agent>
+world::get_agent(position p) const {
+  agent_tile const a = tile_at(p);
+  if (a.valid)
+    return agent{p, a.target, a.team};
+  else
+    return {};
+}
+
+void
+world::put_agent(position p, agent a) {
+  agent_tile& t = tile_at(p);
+  if (t.valid)
+    throw std::logic_error{"put_agent: Position not empty"};
+
+  t.valid = true;
+  t.target = a.target();
+  t.team = a.team();
+}
+
+void
+world::remove_agent(position p) {
+  agent_tile& t = tile_at(p);
+  if (!t.valid)
+    throw std::logic_error{"remove_agent: Tile empty"};
+  t.valid = false;
+}
+
+auto
+world::tile_at(position p) -> agent_tile& {
+  return agents_[p.y * map_.width() + p.x];
+}
+
+auto
+world::tile_at(position p) const -> agent_tile {
+  return agents_[p.y * map_.width() + p.x];
 }

@@ -15,9 +15,9 @@ QMAKE_CXXFLAGS += -std=c++14
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    map.cpp
+    world.cpp
 
 HEADERS  += mainwindow.hpp \
-    map.hpp
+    world.hpp
 
 FORMS    += mainwindow.ui

@@ -1,6 +1,6 @@
 #include "mainwindow.hpp"
 
-#include "map.hpp"
+#include "world.hpp"
 
 #include <QFileDialog>
 #include <QPainter>

@@ -4,7 +4,7 @@
 #include <QMainWindow>
 #include "ui_mainwindow.h"
 
-#include "map.hpp"
+#include "world.hpp"
 
 #include <boost/optional.hpp>
 
