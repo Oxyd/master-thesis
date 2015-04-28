@@ -11,10 +11,13 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = diplomka
 TEMPLATE = app
 
+QMAKE_CXXFLAGS += -std=c++14
 
 SOURCES += main.cpp\
-        mainwindow.cpp
+        mainwindow.cpp \
+    map.cpp
 
-HEADERS  += mainwindow.hpp
+HEADERS  += mainwindow.hpp \
+    map.hpp
 
 FORMS    += mainwindow.ui
