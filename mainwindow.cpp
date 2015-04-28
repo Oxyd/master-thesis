@@ -6,16 +6,18 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QMessageBox>
+#include <QString>
 
 #include <cassert>
 #include <cstddef>
+#include <sstream>
 
 static QColor
 tile_color(tile t) {
   switch (t) {
   case tile::passable: return {255, 255, 255};
   case tile::out_of_bounds: return {0, 0, 0};
-  case tile::tree: return {0, 255, 0};
+  case tile::tree: return {30, 200, 30};
   case tile::swamp: return {127, 127, 127};
   case tile::water: return {0, 0, 255};
   }
@@ -36,6 +38,10 @@ main_window::open_map() {
   try {
     map_ = load(filename.toStdString());
     redraw_map();
+
+    std::ostringstream os;
+    os << "Map size: " << map_->width() << "x" << map_->height();
+    ui_.size_label->setText(QString::fromStdString(os.str()));
   } catch (map_format_error& e) {
     QMessageBox::critical(this, "Error", e.what());
   }
@@ -44,7 +50,7 @@ main_window::open_map() {
 void
 main_window::redraw_map() {
   if (!map_) {
-    ui_.map_label->setText("No map loaded");\
+    ui_.map_label->setText("No map loaded");
     return;
   }
 
