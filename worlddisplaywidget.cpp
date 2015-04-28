@@ -17,6 +17,14 @@ tile_color(tile t) {
   }
 }
 
+static QColor
+team_color(team_type t) {
+  if (t == 0)
+    return {0, 255, 255};
+  else
+    return {255, 0, 0};
+}
+
 world_display_widget::world_display_widget(QWidget* parent)
   : QWidget(parent)
 {
@@ -26,8 +34,8 @@ world_display_widget::world_display_widget(QWidget* parent)
 }
 
 void
-world_display_widget::attach(map* m) {
-  map_ = m;
+world_display_widget::attach(world* m) {
+  world_ = m;
   update_size();
 }
 
@@ -41,14 +49,26 @@ world_display_widget::zoom(int z) {
 }
 
 void
+world_display_widget::update() {
+  repaint(rect());
+}
+
+void
 world_display_widget::paintEvent(QPaintEvent*) {
-  if (!map_)
+  if (!world_)
     return;
 
   QPainter painter(this);
-  for (auto const& t : *map_)
-    painter.fillRect(t.x * zoom_, t.y * zoom_, zoom_, zoom_,
-                     tile_color(t.tile));
+  for (auto const& t : world_->map()) {
+    QColor color;
+
+    if (auto agent = world_->get_agent({t.x, t.y}))
+      color = team_color(agent->team());
+    else
+      color = tile_color(t.tile);
+
+    painter.fillRect(t.x * zoom_, t.y * zoom_, zoom_, zoom_, color);
+  }
 }
 
 void
@@ -58,9 +78,9 @@ world_display_widget::mousePressEvent(QMouseEvent* ev) {
 
 void
 world_display_widget::update_size() {
-  if (map_) {
-    unsigned const w = map_->width() * zoom_;
-    unsigned const h = map_->height() * zoom_;
+  if (world_) {
+    unsigned const w = world_->map().width() * zoom_;
+    unsigned const h = world_->map().height() * zoom_;
     setMinimumSize(w, h);
     resize(w, h);
   }

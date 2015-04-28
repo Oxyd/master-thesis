@@ -12,8 +12,6 @@
 #include <cstddef>
 #include <sstream>
 
-#include <iostream>
-
 main_window::main_window(QWidget *parent) :
   QMainWindow(parent)
 {
@@ -27,11 +25,13 @@ main_window::open_map() {
     return;
 
   try {
-    map_ = load(filename.toStdString());
-    ui_.world_display->attach(&*map_);
+    map m = load(filename.toStdString());
+    world_ = world{m};
+    ui_.world_display->attach(&*world_);
 
     std::ostringstream os;
-    os << "Map size: " << map_->width() << "x" << map_->height();
+    os << "Map size: " << world_->map().width()
+       << "x" << world_->map().height();
     ui_.size_label->setText(QString::fromStdString(os.str()));
   } catch (map_format_error& e) {
     QMessageBox::critical(this, "Error", e.what());
@@ -40,5 +40,19 @@ main_window::open_map() {
 
 void
 main_window::tile_activate(unsigned x, unsigned y) {
-  std::cerr << x << ", " << y << '\n';
+  if (!world_)
+    return;
+
+  if (!traversable(world_->map().get(x, y)))
+    return;
+
+  if (world_->get_agent({x, y}))
+    world_->remove_agent({x, y});
+  else
+    world_->put_agent(
+      {x, y},
+      agent{{x, y}, {}, ui_.attacker_radio->isChecked() ? 0u : 1u}
+  );
+
+  ui_.world_display->update();
 }

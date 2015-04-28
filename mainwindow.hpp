@@ -25,7 +25,7 @@ private slots:
 
 private:
   Ui::MainWindow ui_;
-  boost::optional<map> map_;
+  boost::optional<world> world_;
 };
 
 #endif // MAINWINDOW_HPP

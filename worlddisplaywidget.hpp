@@ -3,7 +3,7 @@
 
 #include <QWidget>
 
-class map;
+class world;
 
 class world_display_widget : public QWidget {
   Q_OBJECT
@@ -11,20 +11,21 @@ class world_display_widget : public QWidget {
 public:
   world_display_widget(QWidget* parent = nullptr);
 
-  void attach(map*);
+  void attach(world*);
 
 signals:
   void tile_clicked(unsigned x, unsigned y);
 
 public slots:
   void zoom(int);
+  void update();
 
 protected:
   void paintEvent(QPaintEvent* ev) override;
   void mousePressEvent(QMouseEvent* ev) override;
 
 private:
-  map* map_ = nullptr;
+  world* world_ = nullptr;
   unsigned zoom_ = 1 << 2;
 
   void update_size();
