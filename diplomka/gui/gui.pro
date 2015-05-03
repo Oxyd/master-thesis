@@ -14,11 +14,9 @@ TEMPLATE = app
 QMAKE_CXXFLAGS += -std=c++14
 
 SOURCES += main.cpp\
-        mainwindow.cpp \
-    worlddisplaywidget.cpp
+        mainwindow.cpp
 
-HEADERS  += mainwindow.hpp \
-    worlddisplaywidget.hpp
+HEADERS  += mainwindow.hpp
 
 FORMS    += mainwindow.ui
 

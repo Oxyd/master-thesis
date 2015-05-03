@@ -1,6 +1,7 @@
 #ifndef MAINWINDOW_HPP
 #define MAINWINDOW_HPP
 
+#include <QGraphicsScene>
 #include <QMainWindow>
 #include "ui_mainwindow.h"
 
@@ -21,11 +22,14 @@ public:
 
 private slots:
   void open_map();
-  void tile_activate(unsigned, unsigned);
+  void change_zoom(int);
 
 private:
   Ui::MainWindow ui_;
   boost::optional<world> world_;
+  QGraphicsScene world_scene_;
+
+  void update_world_view();
 };
 
 #endif // MAINWINDOW_HPP

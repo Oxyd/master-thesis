@@ -16,68 +16,7 @@
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_3">
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_4">
-        <item>
-         <widget class="QScrollArea" name="scrollArea">
-          <property name="widgetResizable">
-           <bool>true</bool>
-          </property>
-          <widget class="QWidget" name="scrollAreaWidgetContents">
-           <property name="geometry">
-            <rect>
-             <x>0</x>
-             <y>0</y>
-             <width>589</width>
-             <height>396</height>
-            </rect>
-           </property>
-           <layout class="QHBoxLayout" name="horizontalLayout_2">
-            <item>
-             <widget class="world_display_widget" name="world_display" native="true"/>
-            </item>
-           </layout>
-          </widget>
-         </widget>
-        </item>
-        <item>
-         <layout class="QVBoxLayout" name="verticalLayout_2">
-          <item>
-           <widget class="QRadioButton" name="attacker_radio">
-            <property name="text">
-             <string>Attac&amp;ker</string>
-            </property>
-            <property name="checked">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QRadioButton" name="radioButton_2">
-            <property name="text">
-             <string>Defender</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <spacer name="verticalSpacer">
-            <property name="orientation">
-             <enum>Qt::Vertical</enum>
-            </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>40</height>
-             </size>
-            </property>
-           </spacer>
-          </item>
-         </layout>
-        </item>
-       </layout>
-      </item>
-     </layout>
+     <widget class="QGraphicsView" name="world_view"/>
     </item>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout">
@@ -115,16 +54,16 @@
          </size>
         </property>
         <property name="minimum">
-         <number>1</number>
+         <number>-4</number>
         </property>
         <property name="maximum">
-         <number>5</number>
+         <number>4</number>
         </property>
         <property name="pageStep">
          <number>1</number>
         </property>
         <property name="value">
-         <number>2</number>
+         <number>0</number>
         </property>
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
@@ -140,6 +79,13 @@
         </property>
         <property name="tickInterval">
          <number>1</number>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="zoom_text">
+        <property name="text">
+         <string>1.0</string>
         </property>
        </widget>
       </item>
@@ -215,18 +161,6 @@
   </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <customwidgets>
-  <customwidget>
-   <class>world_display_widget</class>
-   <extends>QWidget</extends>
-   <header>worlddisplaywidget.hpp</header>
-   <container>1</container>
-   <slots>
-    <signal>tile_clicked(unsigned,unsigned)</signal>
-    <slot>zoom(int)</slot>
-   </slots>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections>
   <connection>
@@ -280,32 +214,16 @@
   <connection>
    <sender>horizontalSlider</sender>
    <signal>valueChanged(int)</signal>
-   <receiver>world_display</receiver>
-   <slot>zoom(int)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>98</x>
-     <y>485</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>139</x>
-     <y>365</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>world_display</sender>
-   <signal>tile_clicked(unsigned,unsigned)</signal>
    <receiver>MainWindow</receiver>
-   <slot>tile_activate(unsigned,unsigned)</slot>
+   <slot>change_zoom(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>441</x>
-     <y>375</y>
+     <x>92</x>
+     <y>487</y>
     </hint>
     <hint type="destinationlabel">
-     <x>462</x>
-     <y>506</y>
+     <x>208</x>
+     <y>496</y>
     </hint>
    </hints>
   </connection>
@@ -313,6 +231,5 @@
  <slots>
   <slot>open_map()</slot>
   <slot>change_zoom(int)</slot>
-  <slot>tile_activate(unsigned,unsigned)</slot>
  </slots>
 </ui>
