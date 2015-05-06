@@ -39,8 +39,8 @@ main_window::open_map() {
     world_ = load_world(filename.toStdString());
 
     std::ostringstream os;
-    os << "Map size: " << world_->map().width()
-       << "x" << world_->map().height();
+    os << "Map size: " << world_->map()->width()
+       << "x" << world_->map()->height();
     ui_.size_label->setText(QString::fromStdString(os.str()));
 
     update_world_view();
@@ -82,7 +82,7 @@ main_window::update_world_view() {
   QPen const target_pen{QBrush{QColor{127, 127, 127}}, 3};
   QBrush const nontraversable_brush{QColor{0, 0, 0}};
 
-  for (auto t : world_->map()) {
+  for (auto t : *world_->map()) {
     if (!traversable(t.tile))
       world_scene_.addRect(tile_rect(t.x, t.y), black_pen, nontraversable_brush);
   }

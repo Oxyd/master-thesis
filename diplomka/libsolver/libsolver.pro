@@ -13,10 +13,12 @@ CONFIG += staticlib
 QMAKE_CXXFLAGS += -std=c++14
 
 SOURCES += \
-    world.cpp
+    world.cpp \
+    action.cpp
 
 HEADERS += \
-    world.hpp
+    world.hpp \
+    action.hpp
 unix {
     target.path = /usr/lib
     INSTALLS += target

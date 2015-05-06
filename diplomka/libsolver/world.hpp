@@ -20,7 +20,7 @@ bool
 traversable(tile);
 
 struct position {
-  using coord_type = std::size_t;
+  using coord_type = int;
   coord_type x, y;
 };
 
@@ -133,6 +133,9 @@ enum class team_type {
   attacker, defender
 };
 
+bool
+in_bounds(position p, map const& m);
+
 constexpr std::size_t team_count = 2;
 
 class agent {
@@ -158,7 +161,7 @@ class world {
 
 public:
   explicit
-  world(map m);
+  world(std::shared_ptr<map const> const& m);
 
   boost::optional<agent>
   get_agent(position p) const;
@@ -169,14 +172,14 @@ public:
   void
   remove_agent(position p);  // Throws std::logic_error if p empty.
 
-  map const&
+  std::shared_ptr<::map const>
   map() const { return map_; }
 
   agents_list const&
   agents() const { return agents_; }
 
 private:
-  ::map map_;
+  std::shared_ptr<::map const> map_;
   agents_list agents_;
 };
 

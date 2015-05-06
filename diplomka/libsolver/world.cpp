@@ -53,7 +53,13 @@ traversable(tile t) {
   return t == tile::passable;
 }
 
-world::world(::map m)
+bool
+in_bounds(position p, map const& m) {
+  return p.x >= 0 && p.y >= 0
+      && p.x < m.width() && p.y < m.height();
+}
+
+world::world(const std::shared_ptr<::map const>& m)
   : map_(m)
 { }
 
@@ -82,7 +88,7 @@ world::remove_agent(position p) {
   agents_.erase(a);
 }
 
-static map
+static std::shared_ptr<map>
 load_map(std::string const& filename) {
   using namespace std::string_literals;
 
@@ -102,7 +108,7 @@ load_map(std::string const& filename) {
 
   expect_word(in, "map");
 
-  map result(width, height);
+  auto result = std::make_shared<map>(width, height);
 
   map::coord_type i = 0;
   map::coord_type max = width * height;
@@ -118,7 +124,7 @@ load_map(std::string const& filename) {
     if (i >= max)
       throw bad_world_format{"Too many tiles"};
 
-    result.put(i % width, i / width, char_to_tile(c));
+    result->put(i % width, i / width, char_to_tile(c));
     ++i;
   }
 
@@ -159,9 +165,9 @@ load_world(std::string const& filename) {
         position::coord_type const x = expect_num(line, "X coordinate");
         position::coord_type const y = expect_num(line, "Y coordinate");
 
-        if (x >= world.map().width())
+        if (x >= world.map()->width())
           throw bad_world_format{"X coordinate out of bounds"};
-        if (y >= world.map().height())
+        if (y >= world.map()->height())
           throw bad_world_format{"Y coordinate out of bounds"};
 
         if (keyword == "position"s) {
