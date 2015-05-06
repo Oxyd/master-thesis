@@ -77,6 +77,9 @@ world::put_agent(position p, agent a) {
   if (agents_.find(p) != agents_.end())
     throw std::logic_error{"put_agent: Position not empty"};
 
+  if (!traversable(map_->get(p)))
+    throw std::logic_error{"put_agent: Position not traversable"};
+
   agents_.insert({p, a});
 }
 

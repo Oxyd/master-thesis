@@ -1,5 +1,7 @@
 #include "mainwindow.hpp"
 
+#include "action.hpp"
+#include "solvers.hpp"
 #include "world.hpp"
 
 #include <QBrush>
@@ -27,6 +29,9 @@ main_window::main_window(QWidget *parent) :
 {
   ui_.setupUi(this);
   ui_.world_view->setScene(&world_scene_);
+  run_timer_.setSingleShot(false);
+  run_timer_.setInterval(100);
+  connect(&run_timer_, SIGNAL(timeout()), this, SLOT(step()));
 }
 
 void
@@ -35,18 +40,7 @@ main_window::open_map() {
   if (filename.isEmpty())
     return;
 
-  try {
-    world_ = load_world(filename.toStdString());
-
-    std::ostringstream os;
-    os << "Map size: " << world_->map()->width()
-       << "x" << world_->map()->height();
-    ui_.size_label->setText(QString::fromStdString(os.str()));
-
-    update_world_view();
-  } catch (bad_world_format& e) {
-    QMessageBox::critical(this, "Error", e.what());
-  }
+  load_world(filename.toStdString());
 }
 
 void
@@ -56,6 +50,48 @@ main_window::change_zoom(int exponent) {
 
   ui_.world_view->resetTransform();
   ui_.world_view->scale(zoom, zoom);
+}
+
+void
+main_window::step() {
+  if (!world_)
+    return;
+
+  if (solved(*world_)) {
+    stop();
+    return;
+  }
+
+  joint_action action = greedy_action(*world_, to_move_, rng_);
+  *world_ = apply(action, *world_);
+
+  if (to_move_ == team_type::attacker)
+    to_move_ = team_type::defender;
+  else
+    to_move_ = team_type::attacker;
+
+  update_world_view();
+}
+
+void
+main_window::run() {
+  if (!run_timer_.isActive()) {
+    run_timer_.start();
+    ui_.start_stop_button->setText("Stop");
+  } else {
+    stop();
+  }
+}
+
+void
+main_window::change_run_interval(double d) {
+  run_timer_.setInterval(d * 1000);
+}
+
+void
+main_window::reset_world() {
+  if (!world_file_.empty())
+    load_world(world_file_);
 }
 
 constexpr double tile_size = 30;
@@ -68,6 +104,31 @@ tile_rect(position::coord_type x, position::coord_type y) {
 static QRectF
 tile_rect(position p) {
   return tile_rect(p.x, p.y);
+}
+
+void
+main_window::stop() {
+  run_timer_.stop();
+  ui_.start_stop_button->setText("Run");
+}
+
+void
+main_window::load_world(std::string const& filename) {
+  try {
+    world_ = ::load_world(filename);
+    world_file_ = filename;
+
+    std::ostringstream os;
+    os << "Map size: " << world_->map()->width()
+       << "x" << world_->map()->height();
+    ui_.size_label->setText(QString::fromStdString(os.str()));
+
+    to_move_ = team_type::attacker;
+
+    update_world_view();
+  } catch (bad_world_format& e) {
+    QMessageBox::critical(this, "Error", e.what());
+  }
 }
 
 void

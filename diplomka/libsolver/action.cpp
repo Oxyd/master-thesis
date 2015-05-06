@@ -24,6 +24,9 @@ valid(action a, world const& w) {
   if (w.get_agent(dest))
     return false;
 
+  if (!traversable(w.map()->get(dest)))
+    return false;
+
   return true;
 }
 

@@ -10,6 +10,6 @@ bool
 solved(world const& w);
 
 joint_action
-greedy_action(world const& w, team_type team, std::default_random_engine&);
+greedy_action(world w, team_type team, std::default_random_engine&);
 
 #endif // SOLVERS_HPP

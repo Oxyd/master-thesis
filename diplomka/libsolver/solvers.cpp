@@ -42,15 +42,15 @@ solved(world const& w) {
 }
 
 joint_action
-greedy_action(world const& w, team_type team, std::default_random_engine& rng) {
-  std::vector<std::tuple<position, agent>> agents(w.agents().begin(),
-                                                  w.agents().end());
+greedy_action(world temp_world, team_type team,
+              std::default_random_engine& rng) {
+  std::vector<std::tuple<position, agent>> agents(temp_world.agents().begin(),
+                                                  temp_world.agents().end());
   std::shuffle(agents.begin(), agents.end(), rng);
 
   std::discrete_distribution<bool> random_move{0.9, 0.1};
 
   joint_action result;
-  world temp_world(w.map());
 
   for (auto const& pos_agent : agents) {
     position const& pos = std::get<0>(pos_agent);
