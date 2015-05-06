@@ -11,12 +11,9 @@
 #include <unordered_map>
 #include <vector>
 
-enum class tile : char {
+enum class tile : bool {
   passable,
-  out_of_bounds,
-  tree,
-  swamp,
-  water
+  impassable
 };
 
 bool

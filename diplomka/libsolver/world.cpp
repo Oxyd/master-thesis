@@ -39,26 +39,18 @@ is_tile_char(char c) {
 static tile
 char_to_tile(char c) {
   switch (c) {
-  case '.': case 'G': return tile::passable;
-  case '@': case 'O': return tile::out_of_bounds;
-  case 'T': return tile::tree;
-  case 'S': return tile::swamp;
-  case 'W': return tile::water;
-  default: throw std::logic_error{"Not a valid tile char"};
+  case '.': case 'G':
+    return tile::passable;
+  case '@': case 'O': case 'T': case 'S': case 'W':
+    return tile::impassable;
+  default:
+    throw std::logic_error{"Not a valid tile char"};
   }
 }
 
 bool
 traversable(tile t) {
-  switch (t) {
-  case tile::passable:
-  case tile::swamp:
-  case tile::water:
-    return true;
-
-  default:
-    return false;
-  }
+  return t == tile::passable;
 }
 
 world::world(::map m)
