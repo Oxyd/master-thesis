@@ -13,6 +13,8 @@ TEMPLATE = app
 
 QMAKE_CXXFLAGS += -std=c++14
 
+LIBS += -lboost_filesystem -lboost_system
+
 SOURCES += main.cpp\
         mainwindow.cpp
 

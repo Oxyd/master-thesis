@@ -1,23 +1,31 @@
 #include "world.hpp"
 
+#include <boost/algorithm/string/trim.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/optional.hpp>
+
+#include <cassert>
 #include <fstream>
+#include <sstream>
 #include <string>
 
 static void
-expect_word(std::ifstream& in, std::string word) {
+expect_word(std::istream& in, std::string word) {
   using namespace std::string_literals;
 
   std::string buffer;
   in >> buffer;
   if (!in || buffer != word)
-    throw map_format_error{"Expected "s + word};
+    throw bad_world_format{"Expected "s + word};
 }
 
-static map::coord_type
-expect_dim(std::ifstream& in) {
-  map::coord_type x;
+static unsigned
+expect_num(std::istream& in, std::string name = "number") {
+  using namespace std::string_literals;
+
+  unsigned x;
   if (!(in >> x))
-    throw map_format_error{"Expected dimension"};
+    throw bad_world_format{"Expected "s + name};
   return x;
 }
 
@@ -53,23 +61,52 @@ traversable(tile t) {
   }
 }
 
-map
-load(std::string const& filename) {
+world::world(::map m)
+  : map_(m)
+{ }
+
+boost::optional<agent>
+world::get_agent(position p) const {
+  auto const a = agents_.find(p);
+  if (a != agents_.end())
+    return a->second;
+  else
+    return {};
+}
+
+void
+world::put_agent(position p, agent a) {
+  if (agents_.find(p) != agents_.end())
+    throw std::logic_error{"put_agent: Position not empty"};
+
+  agents_.insert({p, a});
+}
+
+void
+world::remove_agent(position p) {
+  auto const a = agents_.find(p);
+  if (a == agents_.end())
+    throw std::logic_error{"remove_agent: Tile empty"};
+  agents_.erase(a);
+}
+
+static map
+load_map(std::string const& filename) {
   using namespace std::string_literals;
 
   std::ifstream in{filename};
-  std::string buffer;
 
   if (!in)
-    throw map_format_error{"Could not open file"};
+    throw bad_world_format{"Could not open "s + filename};
 
+  std::string buffer;
   if (!std::getline(in, buffer) || buffer != "type octile")
-    throw map_format_error{"Expected 'type octile'"};
+    throw bad_world_format{"Expected 'type octile'"};
 
   expect_word(in, "height");
-  map::coord_type const height = expect_dim(in);
+  map::coord_type const height = expect_num(in, "map height");
   expect_word(in, "width");
-  map::coord_type const width = expect_dim(in);
+  map::coord_type const width = expect_num(in, "map width");
 
   expect_word(in, "map");
 
@@ -84,10 +121,10 @@ load(std::string const& filename) {
       continue;
 
     if (!is_tile_char(c))
-      throw map_format_error{"Not a valid tile character: "s + c};
+      throw bad_world_format{"Not a valid tile character: "s + c};
 
     if (i >= max)
-      throw map_format_error{"Too many tiles"};
+      throw bad_world_format{"Too many tiles"};
 
     result.put(i % width, i / width, char_to_tile(c));
     ++i;
@@ -96,45 +133,76 @@ load(std::string const& filename) {
   return result;
 }
 
-world::world(::map m)
-  : map_(m)
-  , agents_(map_.width() * map_.height(), agent_tile{false, {}, {}})
-{ }
+world
+load_world(std::string const& filename) {
+  using namespace std::string_literals;
 
-boost::optional<agent>
-world::get_agent(position p) const {
-  agent_tile const a = tile_at(p);
-  if (a.valid)
-    return agent{p, a.target, a.team};
-  else
-    return {};
-}
+  std::ifstream in{filename};
+  if (!in)
+    throw bad_world_format{"Could not open "s + filename};
 
-void
-world::put_agent(position p, agent a) {
-  agent_tile& t = tile_at(p);
-  if (t.valid)
-    throw std::logic_error{"put_agent: Position not empty"};
+  expect_word(in, "map");
+  std::string map_filename;
+  if (!std::getline(in, map_filename))
+    throw bad_world_format{"Expected map filename"};
 
-  t.valid = true;
-  t.target = a.target();
-  t.team = a.team();
-}
+  using boost::filesystem::path;
+  using boost::algorithm::trim_copy;
 
-void
-world::remove_agent(position p) {
-  agent_tile& t = tile_at(p);
-  if (!t.valid)
-    throw std::logic_error{"remove_agent: Tile empty"};
-  t.valid = false;
-}
+  path const map_path = path{filename}.parent_path() / trim_copy(map_filename);
+  world world{load_map(map_path.string())};
 
-auto
-world::tile_at(position p) -> agent_tile& {
-  return agents_[p.y * map_.width() + p.x];
-}
+  std::string line_buffer;
+  while (std::getline(in, line_buffer)) {
+    std::istringstream line{line_buffer};
+    expect_word(line, "agent");
 
-auto
-world::tile_at(position p) const -> agent_tile {
-  return agents_[p.y * map_.width() + p.x];
+    boost::optional<position> pos;
+    boost::optional<position> target;
+    boost::optional<team_type> team;
+
+    std::string keyword;
+    while (line >> keyword) {
+      if (keyword == "position"s || keyword == "goal"s) {
+        position::coord_type const x = expect_num(line, "X coordinate");
+        position::coord_type const y = expect_num(line, "Y coordinate");
+
+        if (x >= world.map().width())
+          throw bad_world_format{"X coordinate out of bounds"};
+        if (y >= world.map().height())
+          throw bad_world_format{"Y coordinate out of bounds"};
+
+        if (keyword == "position"s) {
+          if (pos)
+            throw bad_world_format{"Duplicate position"};
+          pos = position{x, y};
+        } else {
+          if (target)
+            throw bad_world_format{"Duplicate goal"};
+          target = position{x, y};
+        }
+      } else if (keyword == "team"s) {
+        if (team)
+          throw bad_world_format{"Duplicate team number"};
+        unsigned const team_num = expect_num(line, "team number");
+        switch (team_num) {
+        case 0: team = team_type::attacker; break;
+        case 1: team = team_type::defender; break;
+        default:
+          throw bad_world_format{"Bad team number"};
+        }
+      } else {
+        throw bad_world_format{"Unrecognised keyword "s + keyword};
+      }
+    }
+
+    if (!pos)
+      throw bad_world_format{"Missing position"};
+    if (!team)
+      throw bad_world_format{"Missing team number"};
+
+    world.put_agent(*pos, agent{target, *team});
+  }
+
+  return world;
 }

@@ -1,6 +1,7 @@
 #ifndef MAP_HPP
 #define MAP_HPP
 
+#include <boost/functional/hash.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/optional.hpp>
 
@@ -25,6 +26,32 @@ struct position {
   using coord_type = std::size_t;
   coord_type x, y;
 };
+
+inline bool
+operator == (position lhs, position rhs) {
+  return lhs.x == rhs.x && lhs.y == rhs.y;
+}
+
+inline bool
+operator != (position lhs, position rhs) {
+  return !operator == (lhs, rhs);
+}
+
+namespace std {
+template <>
+struct hash<position> {
+  using argument_type = position;
+  using result_type = std::size_t;
+
+  result_type
+  operator () (argument_type p) const {
+    std::size_t seed{};
+    boost::hash_combine(seed, p.x);
+    boost::hash_combine(seed, p.y);
+    return seed;
+  }
+};
+}
 
 class map {
 public:
@@ -105,44 +132,32 @@ private:
   coord_type width_, height_;
 };
 
-struct map_format_error : std::runtime_error {
-  map_format_error() : std::runtime_error{"Bad map file format"} { }
-
-  explicit
-  map_format_error(std::string const& e)
-    : std::runtime_error{std::string{"Bad map file format: "} + e}
-  { }
+enum class team_type {
+  attacker, defender
 };
 
-map
-load(std::string const& filename);
-
-using team_type = unsigned;
+constexpr std::size_t team_count = 2;
 
 class agent {
 public:
-  agent(position pos, boost::optional<position> target, team_type team)
-    : position_(pos)
-    , target_(target)
+  agent(boost::optional<position> target, team_type team)
+    : target_(target)
     , team_{team}
   { }
 
-  position position() const { return position_; }
-  boost::optional<::position> target() const { return target_; }
-  team_type team() const { return team_; }
+  boost::optional<::position>
+  target() const { return target_; }
+
+  team_type
+  team() const { return team_; }
 
 private:
-  ::position position_;
   boost::optional<::position> target_;
   team_type team_;
 };
 
 class world {
-  struct agent_tile {
-    bool valid;
-    boost::optional<position> target;
-    team_type team;
-  };
+  using agents_list = std::unordered_map<position, agent>;
 
 public:
   explicit
@@ -158,18 +173,27 @@ public:
   remove_agent(position p);  // Throws std::logic_error if p empty.
 
   map const&
-  map() { return map_; }
+  map() const { return map_; }
+
+  agents_list const&
+  agents() const { return agents_; }
 
 private:
   ::map map_;
-  std::vector<agent_tile> agents_;
-
-  agent_tile&
-  tile_at(position p);
-
-  agent_tile
-  tile_at(position p) const;
+  agents_list agents_;
 };
+
+struct bad_world_format : std::runtime_error {
+  bad_world_format() : std::runtime_error{"Bad map file format"} { }
+
+  explicit
+  bad_world_format(std::string const& e)
+    : std::runtime_error{std::string{"Bad map file format: "} + e}
+  { }
+};
+
+world
+load_world(std::string const& filename);
 
 #endif // MAP_HPP
 
