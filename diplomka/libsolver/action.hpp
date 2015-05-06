@@ -8,7 +8,7 @@
 #include <unordered_map>
 
 enum class direction {
-  north, east, south, west
+  north = 0, east, south, west
 };
 
 position

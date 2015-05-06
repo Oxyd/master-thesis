@@ -14,11 +14,13 @@ QMAKE_CXXFLAGS += -std=c++14
 
 SOURCES += \
     world.cpp \
-    action.cpp
+    action.cpp \
+    solvers.cpp
 
 HEADERS += \
     world.hpp \
-    action.hpp
+    action.hpp \
+    solvers.hpp
 unix {
     target.path = /usr/lib
     INSTALLS += target
