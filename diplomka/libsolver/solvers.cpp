@@ -11,14 +11,16 @@ random_dir(std::default_random_engine& rng) {
   return static_cast<direction>(d(rng));
 }
 
-static void make_random_action(position from, world& w, joint_action& actions,
-                               std::default_random_engine& rng) {
+static void
+make_random_action(position from, world& w, joint_action& actions,
+                   std::default_random_engine& rng)
+{
   direction const d = random_dir(rng);
   action const a{from, d};
 
   if (valid(a, w)) {
     actions.add(a);
-    apply(a, w);
+    w = apply(a, w);
   }
 }
 
@@ -81,7 +83,7 @@ greedy_action(world temp_world, team_type team,
       action const a{pos, d};
       if (valid(a, temp_world)) {
         result.add(a);
-        apply(a, temp_world);
+        temp_world = apply(a, temp_world);
       } else {
         make_random_action(pos, temp_world, result, rng);
       }

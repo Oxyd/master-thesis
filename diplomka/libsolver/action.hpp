@@ -5,6 +5,7 @@
 
 #include <boost/optional.hpp>
 
+#include <iostream>
 #include <unordered_map>
 
 enum class direction {
@@ -30,6 +31,9 @@ private:
   direction where_;
 };
 
+std::ostream&
+operator << (std::ostream&, action);
+
 bool
 valid(action, world const&);
 
@@ -45,9 +49,15 @@ public:
   boost::optional<action>
   action_for(position) const;
 
+  void
+  show(std::ostream&) const;
+
 private:
   std::unordered_map<position, direction> actions_;
 };
+
+std::ostream&
+operator << (std::ostream&, joint_action const&);
 
 world
 apply(joint_action const&, world const&);

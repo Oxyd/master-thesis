@@ -6,6 +6,7 @@
 #include <boost/optional.hpp>
 
 #include <cstdlib>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -23,6 +24,9 @@ struct position {
   using coord_type = int;
   coord_type x, y;
 };
+
+std::ostream&
+operator << (std::ostream&, position);
 
 inline bool
 operator == (position lhs, position rhs) {

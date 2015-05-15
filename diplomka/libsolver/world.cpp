@@ -53,6 +53,11 @@ traversable(tile t) {
   return t == tile::passable;
 }
 
+std::ostream&
+operator << (std::ostream& out, position p) {
+  return out << "[" << p.x << ", " << p.y << "]";
+}
+
 bool
 in_bounds(position p, map const& m) {
   return p.x >= 0 && p.y >= 0
@@ -149,12 +154,17 @@ load_world(std::string const& filename) {
 
   using boost::filesystem::path;
   using boost::algorithm::trim_copy;
+  using boost::algorithm::trim;
 
   path const map_path = path{filename}.parent_path() / trim_copy(map_filename);
   world world{load_map(map_path.string())};
 
   std::string line_buffer;
   while (std::getline(in, line_buffer)) {
+    trim(line_buffer);
+    if (line_buffer.empty())
+      continue;
+
     std::istringstream line{line_buffer};
     expect_word(line, "agent");
 

@@ -12,6 +12,12 @@ translate(position p, direction d) {
   }
 }
 
+std::ostream&
+operator << (std::ostream& out, action a) {
+  return out << "{" << a.from() << " -> "
+             << translate(a.from(), a.where()) << "}";
+}
+
 bool
 valid(action a, world const& w) {
   if (!w.get_agent(a.from()))
@@ -54,6 +60,24 @@ joint_action::action_for(position p) const {
     return action{p, it->second};
   else
     return {};
+}
+
+void
+joint_action::show(std::ostream& out) const {
+  out << "{";
+  bool first = true;
+  for (auto const pd : actions_) {
+    if (!first)
+      out << ", ";
+    out << action{pd.first, pd.second};
+    first = false;
+  }
+}
+
+std::ostream&
+operator << (std::ostream& out, joint_action const& a) {
+  a.show(out);
+  return out;
 }
 
 world
