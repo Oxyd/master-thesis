@@ -10,6 +10,8 @@ translate(position p, direction d) {
   case direction::south: return {p.x, p.y + 1};
   case direction::west:  return {p.x - 1, p.y};
   }
+  assert(!"Unreachable");
+  return {};
 }
 
 std::ostream&

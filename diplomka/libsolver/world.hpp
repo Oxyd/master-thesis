@@ -60,7 +60,7 @@ public:
 
   struct value_type {
     coord_type x, y;
-    tile tile;
+    ::tile tile;
   };
 
   class iterator : public boost::iterator_facade<
@@ -165,7 +165,7 @@ class world {
 
 public:
   explicit
-  world(std::shared_ptr<map const> const& m);
+  world(std::shared_ptr<::map const> const& m);
 
   boost::optional<agent>
   get_agent(position p) const;
