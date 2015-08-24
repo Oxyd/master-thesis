@@ -38,7 +38,6 @@ private:
   boost::optional<world> world_;
   QGraphicsScene world_scene_;
   std::default_random_engine rng_;
-  team_type to_move_;
   QTimer run_timer_;
 
   void stop();

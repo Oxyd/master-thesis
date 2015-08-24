@@ -133,31 +133,13 @@ private:
   coord_type width_, height_;
 };
 
-enum class team_type {
-  attacker, defender
-};
-
 bool
 in_bounds(position p, map const& m);
 
 constexpr std::size_t team_count = 2;
 
-class agent {
-public:
-  agent(boost::optional<position> target, team_type team)
-    : target_(target)
-    , team_{team}
-  { }
-
-  boost::optional<::position>
-  target() const { return target_; }
-
-  team_type
-  team() const { return team_; }
-
-private:
-  boost::optional<::position> target_;
-  team_type team_;
+struct agent {
+  position target;
 };
 
 class world {

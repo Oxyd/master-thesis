@@ -26,26 +26,19 @@ make_random_action(position from, world& w, joint_action& actions,
 
 bool
 solved(world const& w) {
-  std::array<bool, team_count> team;
-  std::fill(team.begin(), team.end(), true);
-
   for (auto const& pos_agent : w.agents()) {
     position const& pos = std::get<0>(pos_agent);
     agent const& agent = std::get<1>(pos_agent);
 
-    if (agent.target() && pos != *agent.target()) {
-      team[static_cast<std::size_t>(agent.team())] = false;
-      if (std::find(team.begin(), team.end(), true) == team.end())
-        return false;
-    }
+    if (pos != agent.target)
+      return false;
   }
 
   return true;
 }
 
 joint_action
-greedy_action(world temp_world, team_type team,
-              std::default_random_engine& rng) {
+greedy_action(world temp_world, std::default_random_engine& rng) {
   std::vector<std::tuple<position, agent>> agents(temp_world.agents().begin(),
                                                   temp_world.agents().end());
   std::shuffle(agents.begin(), agents.end(), rng);
@@ -58,13 +51,7 @@ greedy_action(world temp_world, team_type team,
     position const& pos = std::get<0>(pos_agent);
     agent const& agent = std::get<1>(pos_agent);
 
-    if (agent.team() != team)
-      continue;
-
-    if (!agent.target())
-      continue;
-
-    position const& goal = *agent.target();
+    position const& goal = agent.target;
     if (pos == goal)
       continue;
 

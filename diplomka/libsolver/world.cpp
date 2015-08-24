@@ -170,7 +170,6 @@ load_world(std::string const& filename) {
 
     boost::optional<position> pos;
     boost::optional<position> target;
-    boost::optional<team_type> team;
 
     std::string keyword;
     while (line >> keyword) {
@@ -192,16 +191,6 @@ load_world(std::string const& filename) {
             throw bad_world_format{"Duplicate goal"};
           target = position{x, y};
         }
-      } else if (keyword == "team"s) {
-        if (team)
-          throw bad_world_format{"Duplicate team number"};
-        unsigned const team_num = expect_num(line, "team number");
-        switch (team_num) {
-        case 0: team = team_type::attacker; break;
-        case 1: team = team_type::defender; break;
-        default:
-          throw bad_world_format{"Bad team number"};
-        }
       } else {
         throw bad_world_format{"Unrecognised keyword "s + keyword};
       }
@@ -209,10 +198,10 @@ load_world(std::string const& filename) {
 
     if (!pos)
       throw bad_world_format{"Missing position"};
-    if (!team)
-      throw bad_world_format{"Missing team number"};
+    if (!target)
+      target = pos;
 
-    world.put_agent(*pos, agent{target, *team});
+    world.put_agent(*pos, agent{*target});
   }
 
   return world;
