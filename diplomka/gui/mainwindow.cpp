@@ -150,26 +150,28 @@ main_window::update_world_view() {
     world_scene_.addEllipse(tile_rect(pos), black_pen, brush);
 
     position const target = agent.target;
-    QPointF const start{(pos.x + 0.5) * tile_size, (pos.y + 0.5) * tile_size};
-    QPointF const end{(target.x + 0.5) * tile_size, (target.y + 0.5) * tile_size};
+    if (target != pos) {
+      QPointF const start{(pos.x + 0.5) * tile_size, (pos.y + 0.5) * tile_size};
+      QPointF const end{(target.x + 0.5) * tile_size, (target.y + 0.5) * tile_size};
 
-    world_scene_.addLine(start.x(), start.y(), end.x(), end.y(), target_pen);
+      world_scene_.addLine(start.x(), start.y(), end.x(), end.y(), target_pen);
 
-    double const slope_angle = std::atan2(start.y() - end.y(),
-                                          start.x() - end.x());
-    double const arrow_angle = 3.141592 / 8;
-    double const arrow_len = 0.8 * tile_size;
+      double const slope_angle = std::atan2(start.y() - end.y(),
+                                            start.x() - end.x());
+      double const arrow_angle = 3.141592 / 8;
+      double const arrow_len = 0.8 * tile_size;
 
-    QPointF const a{
-      end.x() + arrow_len * std::cos(slope_angle + arrow_angle),
-      end.y() + arrow_len * std::sin(slope_angle + arrow_angle)
-    };
-    QPointF const b{
-      end.x() + arrow_len * std::cos(slope_angle - arrow_angle),
-      end.y() + arrow_len * std::sin(slope_angle - arrow_angle)
-    };
+      QPointF const a{
+        end.x() + arrow_len * std::cos(slope_angle + arrow_angle),
+        end.y() + arrow_len * std::sin(slope_angle + arrow_angle)
+      };
+      QPointF const b{
+        end.x() + arrow_len * std::cos(slope_angle - arrow_angle),
+        end.y() + arrow_len * std::sin(slope_angle - arrow_angle)
+      };
 
-    world_scene_.addLine(end.x(), end.y(), a.x(), a.y(), target_pen);
-    world_scene_.addLine(end.x(), end.y(), b.x(), b.y(), target_pen);
+      world_scene_.addLine(end.x(), end.y(), a.x(), a.y(), target_pen);
+      world_scene_.addLine(end.x(), end.y(), b.x(), b.y(), target_pen);
+    }
   }
 }
