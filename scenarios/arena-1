@@ -1,0 +1,6 @@
+map maps/arena.map
+agent position 3 5 goal 7 40
+agent position 3 35 goal 40 12
+agent position 10 7
+agent position 15 5 goal 3 5
+agent position 16 35 goal 4 6
