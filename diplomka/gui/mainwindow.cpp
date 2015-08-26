@@ -134,12 +134,14 @@ main_window::update_world_view() {
 
   QPen const black_pen{{0, 0, 0}};
   QPen const target_pen{QBrush{QColor{127, 127, 127}}, 3};
-  QBrush const nontraversable_brush{QColor{0, 0, 0}};
+  QBrush const wall_brush{QColor{0, 0, 0}};
+  QBrush const obstacle_brush{QColor{255, 0, 0}};
 
-  for (auto t : *world_->map()) {
-    if (!traversable(t.tile))
-      world_scene_.addRect(tile_rect(t.x, t.y), black_pen, nontraversable_brush);
-  }
+  for (auto t : *world_->map())
+    if (t.tile == tile::wall)
+      world_scene_.addRect(tile_rect(t.x, t.y), black_pen, wall_brush);
+    else if (t.tile == tile::obstacle)
+      world_scene_.addRect(tile_rect(t.x, t.y), black_pen, obstacle_brush);
 
   QBrush const brush{{0, 255, 0}};
 
