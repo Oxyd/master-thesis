@@ -12,9 +12,10 @@
 #include <unordered_map>
 #include <vector>
 
-enum class tile : bool {
-  passable,
-  impassable
+enum class tile : char {
+  free,
+  wall,  // Permanent obstacle
+  obstacle  // Temporary obstacle
 };
 
 bool
@@ -101,7 +102,7 @@ public:
 
   explicit
   map(coord_type width, coord_type height)
-    : tiles_(width * height, tile::passable)
+    : tiles_(width * height, tile::free)
     , width_{width}
     , height_{height}
   { }

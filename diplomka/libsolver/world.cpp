@@ -40,9 +40,9 @@ static tile
 char_to_tile(char c) {
   switch (c) {
   case '.': case 'G':
-    return tile::passable;
+    return tile::free;
   case '@': case 'O': case 'T': case 'S': case 'W':
-    return tile::impassable;
+    return tile::wall;
   default:
     throw std::logic_error{"Not a valid tile char"};
   }
@@ -50,7 +50,7 @@ char_to_tile(char c) {
 
 bool
 traversable(tile t) {
-  return t == tile::passable;
+  return t == tile::free;
 }
 
 std::ostream&
