@@ -24,6 +24,13 @@ traversable(tile);
 struct position {
   using coord_type = int;
   coord_type x, y;
+
+  coord_type&
+  operator [] (unsigned i) {
+    if (i == 0) return x;
+    else if (i == 1) return y;
+    else throw std::logic_error{"Invalid position coordinate"};
+  }
 };
 
 std::ostream&

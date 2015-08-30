@@ -2,3 +2,4 @@
 /gui/Makefile
 libsolver/
 gui/
+/scenarios/arena-1.json

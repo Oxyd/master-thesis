@@ -3,6 +3,8 @@
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/optional.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
 
 #include <cassert>
 #include <fstream>
@@ -139,70 +141,49 @@ load_map(std::string const& filename) {
   return result;
 }
 
+static position
+read_pos(boost::property_tree::ptree const& tree) {
+  if (tree.count("") != 2)
+    throw bad_world_format{"Coordinates must have exactly two components"};
+
+  position result;
+  unsigned i = 0;
+  for (auto const& coord : tree)
+    result[i++] = coord.second.get_value<unsigned>();
+
+  return result;
+}
+
 world
-load_world(std::string const& filename) {
-  using namespace std::string_literals;
-
-  std::ifstream in{filename};
-  if (!in)
-    throw bad_world_format{"Could not open "s + filename};
-
-  expect_word(in, "map");
-  std::string map_filename;
-  if (!std::getline(in, map_filename))
-    throw bad_world_format{"Expected map filename"};
+load_world(std::string const& filename) try {
+  namespace pt = boost::property_tree;
+  pt::ptree tree;
+  pt::read_json(filename, tree);
 
   using boost::filesystem::path;
   using boost::algorithm::trim_copy;
-  using boost::algorithm::trim;
 
+  std::string const map_filename = tree.get<std::string>("map");
   path const map_path = path{filename}.parent_path() / trim_copy(map_filename);
   world world{load_map(map_path.string())};
 
-  std::string line_buffer;
-  while (std::getline(in, line_buffer)) {
-    trim(line_buffer);
-    if (line_buffer.empty())
-      continue;
+  for (auto const& a : tree.get_child("agents")) {
+    position const pos = read_pos(a.second.get_child("position"));
 
-    std::istringstream line{line_buffer};
-    expect_word(line, "agent");
+    boost::optional<position> goal;
+    if (auto const g = a.second.get_child_optional("goal"))
+      goal = read_pos(*g);
 
-    boost::optional<position> pos;
-    boost::optional<position> target;
+    if (!goal)
+      goal = pos;
 
-    std::string keyword;
-    while (line >> keyword) {
-      if (keyword == "position"s || keyword == "goal"s) {
-        position::coord_type const x = expect_num(line, "X coordinate");
-        position::coord_type const y = expect_num(line, "Y coordinate");
-
-        if (x >= world.map()->width())
-          throw bad_world_format{"X coordinate out of bounds"};
-        if (y >= world.map()->height())
-          throw bad_world_format{"Y coordinate out of bounds"};
-
-        if (keyword == "position"s) {
-          if (pos)
-            throw bad_world_format{"Duplicate position"};
-          pos = position{x, y};
-        } else {
-          if (target)
-            throw bad_world_format{"Duplicate goal"};
-          target = position{x, y};
-        }
-      } else {
-        throw bad_world_format{"Unrecognised keyword "s + keyword};
-      }
-    }
-
-    if (!pos)
-      throw bad_world_format{"Missing position"};
-    if (!target)
-      target = pos;
-
-    world.put_agent(*pos, agent{*target});
+    world.put_agent(pos, agent{*goal});
   }
 
   return world;
+
+} catch (boost::property_tree::json_parser::json_parser_error& e) {
+  throw bad_world_format{e.what()};
+} catch (boost::property_tree::ptree_error& e) {
+  throw bad_world_format{e.what()};
 }
