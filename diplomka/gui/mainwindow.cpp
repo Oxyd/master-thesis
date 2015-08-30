@@ -89,7 +89,7 @@ main_window::reset_world() {
     load_world(world_file_);
 }
 
-constexpr double tile_size = 30;
+constexpr double tile_size = 10;
 
 static QRectF
 tile_rect(position::coord_type x, position::coord_type y) {
