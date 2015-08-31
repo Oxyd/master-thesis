@@ -7,6 +7,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <random>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -15,7 +16,8 @@
 enum class tile : char {
   free,
   wall,  // Permanent obstacle
-  obstacle  // Temporary obstacle
+  obstacle,  // Temporary obstacle
+  agent
 };
 
 bool
@@ -146,16 +148,35 @@ in_bounds(position p, map const& m);
 
 constexpr std::size_t team_count = 2;
 
+using tick_t = unsigned;
+
 struct agent {
   position target;
 };
 
+struct obstacle {
+  tick_t next_change{};
+  bool active = false;
+  std::normal_distribution<> duration;
+
+  explicit
+  obstacle(std::normal_distribution<> d)
+    : duration(std::move(d)) { }
+};
+
 class world {
   using agents_list = std::unordered_map<position, agent>;
+  using obstacle_list = std::unordered_map<position, obstacle>;
 
 public:
   explicit
-  world(std::shared_ptr<::map const> const& m);
+  world(std::shared_ptr<::map const> const& m, obstacle_list = {}, tick_t = {});
+
+  void
+  next_tick(std::default_random_engine&);
+
+  tile
+  get(position) const;
 
   boost::optional<agent>
   get_agent(position p) const;
@@ -166,15 +187,30 @@ public:
   void
   remove_agent(position p);  // Throws std::logic_error if p empty.
 
+  // Throws std::logic_error if p not empty
+  void
+  put_obstacle(position p, obstacle o);
+
+  void
+  remove_obstacle(position p);  // Throws std::logic_error if p empty
+
   std::shared_ptr<::map const>
   map() const { return map_; }
+
+  tick_t
+  tick() const { return tick_; }
 
   agents_list const&
   agents() const { return agents_; }
 
+  obstacle_list const&
+  obstacles() const { return obstacles_; }
+
 private:
   std::shared_ptr<::map const> map_;
   agents_list agents_;
+  obstacle_list obstacles_;
+  tick_t tick_{};
 };
 
 struct bad_world_format : std::runtime_error {
@@ -187,7 +223,6 @@ struct bad_world_format : std::runtime_error {
 };
 
 world
-load_world(std::string const& filename);
+load_world(std::string const& filename, std::default_random_engine& rng);
 
 #endif // MAP_HPP
-

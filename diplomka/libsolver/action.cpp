@@ -29,13 +29,7 @@ valid(action a, world const& w) {
   if (!in_bounds(dest, *w.map()))
     return false;
 
-  if (w.get_agent(dest))
-    return false;
-
-  if (!traversable(w.map()->get(dest)))
-    return false;
-
-  return true;
+  return w.get(dest) == tile::free;
 }
 
 world
@@ -84,7 +78,7 @@ operator << (std::ostream& out, joint_action const& a) {
 
 world
 apply(joint_action const& a, world const& w) {
-  world result{w.map()};
+  world result{w.map(), w.obstacles(), w.tick()};
 
   for (auto const& pos_agent : w.agents()) {
     position const p = pos_agent.first;

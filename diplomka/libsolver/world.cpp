@@ -66,9 +66,44 @@ in_bounds(position p, map const& m) {
       && p.x < m.width() && p.y < m.height();
 }
 
-world::world(const std::shared_ptr<::map const>& m)
+world::world(const std::shared_ptr<::map const>& m,
+             obstacle_list obstacles, tick_t tick)
   : map_(m)
+  , obstacles_(std::move(obstacles))
+  , tick_(tick)
 { }
+
+static void
+flip(obstacle& o, tick_t tick, std::default_random_engine& rng) {
+  o.active = !o.active;
+  o.next_change = tick + std::max(tick_t{1}, (tick_t) o.duration(rng));
+}
+
+void
+world::next_tick(std::default_random_engine& rng) {
+  ++tick_;
+
+  for (auto& pos_obst : obstacles_) {
+    position const& pos = pos_obst.first;
+    obstacle& obstacle = pos_obst.second;
+
+    if (obstacle.next_change == tick_ && (obstacle.active || !get_agent(pos)))
+      flip(obstacle, tick_, rng);
+  }
+}
+
+tile
+world::get(position p) const {
+  if (agents_.count(p))
+    return tile::agent;
+  else {
+    auto it = obstacles_.find(p);
+    if (it != obstacles_.end() && it->second.active)
+      return tile::obstacle;
+  }
+
+  return map_->get(p);
+}
 
 boost::optional<agent>
 world::get_agent(position p) const {
@@ -81,11 +116,8 @@ world::get_agent(position p) const {
 
 void
 world::put_agent(position p, agent a) {
-  if (agents_.find(p) != agents_.end())
+  if (get(p) != tile::free)
     throw std::logic_error{"put_agent: Position not empty"};
-
-  if (!traversable(map_->get(p)))
-    throw std::logic_error{"put_agent: Position not traversable"};
 
   agents_.insert({p, a});
 }
@@ -94,8 +126,23 @@ void
 world::remove_agent(position p) {
   auto const a = agents_.find(p);
   if (a == agents_.end())
-    throw std::logic_error{"remove_agent: Tile empty"};
+    throw std::logic_error{"remove_agent: Agent not found"};
   agents_.erase(a);
+}
+
+void
+world::put_obstacle(position p, obstacle o) {
+  if (obstacles_.count(p))
+    throw std::logic_error{"put_obstacle: obstacle already there"};
+  obstacles_.insert({p, o});
+}
+
+void
+world::remove_obstacle(position p) {
+  auto const it = obstacles_.find(p);
+  if (it == obstacles_.end())
+    throw std::logic_error{"remove_obstacle: Obstacle not found"};
+  obstacles_.erase(it);
 }
 
 static std::shared_ptr<map>
@@ -154,8 +201,42 @@ read_pos(boost::property_tree::ptree const& tree) {
   return result;
 }
 
+static std::normal_distribution<>
+parse_normal(boost::property_tree::ptree const& p) {
+  auto const& params = p.get_child("parameters");
+  if (params.count("") != 2)
+    throw bad_world_format{"Invalid normal distribution parameters"};
+
+  std::array<double, 2> distrib_params;
+  auto par = distrib_params.begin();
+  for (auto const& param: params)
+    *par++ = param.second.get_value<double>();
+
+  return std::normal_distribution<>(distrib_params[0], distrib_params[1]);
+}
+
+static void
+make_obstacles(world& w, boost::property_tree::ptree const& prop,
+               std::default_random_engine& rng) {
+  double const tile_probability = prop.get<double>("tile_probability");
+  auto rand = [&] { return std::generate_canonical<double, 32>(rng); };
+  std::normal_distribution<> duration =
+    parse_normal(prop.get_child("obstacle_duration"));
+
+  for (map::value_type const& tile: *w.map())
+    if (tile.tile == ::tile::free && rand() < tile_probability)
+    {
+      obstacle o{duration};
+      if (rand() < 0.5)
+        o.active = true;
+      o.next_change = w.tick() + std::max(tick_t{1}, (tick_t) o.duration(rng));
+
+      w.put_obstacle({tile.x, tile.y}, std::move(o));
+    }
+}
+
 world
-load_world(std::string const& filename) try {
+load_world(std::string const& filename, std::default_random_engine& rng) try {
   namespace pt = boost::property_tree;
   pt::ptree tree;
   pt::read_json(filename, tree);
@@ -179,6 +260,9 @@ load_world(std::string const& filename) try {
 
     world.put_agent(pos, agent{*goal});
   }
+
+  if (auto const obstacles = tree.get_child_optional("obstacles"))
+    make_obstacles(world, *obstacles, rng);
 
   return world;
 

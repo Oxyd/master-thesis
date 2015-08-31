@@ -62,6 +62,7 @@ main_window::step() {
     return;
   }
 
+  world_->next_tick(rng_);
   joint_action action = greedy_action(*world_, rng_);
   *world_ = apply(action, *world_);
 
@@ -110,7 +111,7 @@ main_window::stop() {
 void
 main_window::load_world(std::string const& filename) {
   try {
-    world_ = ::load_world(filename);
+    world_ = ::load_world(filename, rng_);
     world_file_ = filename;
 
     std::ostringstream os;
@@ -140,8 +141,6 @@ main_window::update_world_view() {
   for (auto t : *world_->map())
     if (t.tile == tile::wall)
       world_scene_.addRect(tile_rect(t.x, t.y), black_pen, wall_brush);
-    else if (t.tile == tile::obstacle)
-      world_scene_.addRect(tile_rect(t.x, t.y), black_pen, obstacle_brush);
 
   QBrush const brush{{0, 255, 0}};
 
@@ -175,5 +174,13 @@ main_window::update_world_view() {
       world_scene_.addLine(end.x(), end.y(), a.x(), a.y(), target_pen);
       world_scene_.addLine(end.x(), end.y(), b.x(), b.y(), target_pen);
     }
+  }
+
+  for (auto const& pos_obstacle : world_->obstacles()) {
+    position const pos = pos_obstacle.first;
+    obstacle const& obstacle = pos_obstacle.second;
+
+    if (obstacle.active)
+      world_scene_.addRect(tile_rect(pos.x, pos.y), black_pen, obstacle_brush);
   }
 }
