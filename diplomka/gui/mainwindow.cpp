@@ -178,9 +178,6 @@ main_window::update_world_view() {
 
   for (auto const& pos_obstacle : world_->obstacles()) {
     position const pos = pos_obstacle.first;
-    obstacle const& obstacle = pos_obstacle.second;
-
-    if (obstacle.active)
-      world_scene_.addRect(tile_rect(pos.x, pos.y), black_pen, obstacle_brush);
+    world_scene_.addRect(tile_rect(pos.x, pos.y), black_pen, obstacle_brush);
   }
 }

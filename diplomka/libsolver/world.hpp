@@ -20,6 +20,10 @@ enum class tile : char {
   agent
 };
 
+enum class direction {
+  north = 0, east, south, west
+};
+
 bool
 traversable(tile);
 
@@ -63,6 +67,9 @@ struct hash<position> {
   }
 };
 }
+
+position
+translate(position, direction);
 
 class map {
 public:
@@ -155,13 +162,12 @@ struct agent {
 };
 
 struct obstacle {
-  tick_t next_change{};
-  bool active = false;
-  std::normal_distribution<> duration;
+  tick_t next_move{};
+  std::normal_distribution<> move_distrib;
 
   explicit
   obstacle(std::normal_distribution<> d)
-    : duration(std::move(d)) { }
+    : move_distrib(std::move(d)) { }
 };
 
 class world {

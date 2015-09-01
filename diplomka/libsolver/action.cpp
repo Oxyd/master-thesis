@@ -2,18 +2,6 @@
 
 #include <cassert>
 
-position
-translate(position p, direction d) {
-  switch (d) {
-  case direction::north: return {p.x, p.y - 1};
-  case direction::east:  return {p.x + 1, p.y};
-  case direction::south: return {p.x, p.y + 1};
-  case direction::west:  return {p.x - 1, p.y};
-  }
-  assert(!"Unreachable");
-  return {};
-}
-
 std::ostream&
 operator << (std::ostream& out, action a) {
   return out << "{" << a.from() << " -> "

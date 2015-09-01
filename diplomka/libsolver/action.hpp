@@ -8,13 +8,6 @@
 #include <iostream>
 #include <unordered_map>
 
-enum class direction {
-  north = 0, east, south, west
-};
-
-position
-translate(position, direction);
-
 // Action of a single agent.
 class action {
 public:

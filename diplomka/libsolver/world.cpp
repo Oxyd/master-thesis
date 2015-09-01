@@ -55,6 +55,18 @@ traversable(tile t) {
   return t == tile::free;
 }
 
+position
+translate(position p, direction d) {
+  switch (d) {
+  case direction::north: return {p.x, p.y - 1};
+  case direction::east:  return {p.x + 1, p.y};
+  case direction::south: return {p.x, p.y + 1};
+  case direction::west:  return {p.x - 1, p.y};
+  }
+  assert(!"Unreachable");
+  return {};
+}
+
 std::ostream&
 operator << (std::ostream& out, position p) {
   return out << "[" << p.x << ", " << p.y << "]";
@@ -74,21 +86,29 @@ world::world(const std::shared_ptr<::map const>& m,
 { }
 
 static void
-flip(obstacle& o, tick_t tick, std::default_random_engine& rng) {
-  o.active = !o.active;
-  o.next_change = tick + std::max(tick_t{1}, (tick_t) o.duration(rng));
+move(obstacle o, position pos, world& w, std::default_random_engine& rng) {
+  std::discrete_distribution<unsigned> dir{0.25, 0.25, 0.25, 0.25};
+  position new_pos = translate(pos, static_cast<direction>(dir(rng)));
+
+  if (in_bounds(new_pos, *w.map()) && traversable(w.get(new_pos))) {
+    w.remove_obstacle(pos);
+    o.next_move = w.tick() + std::max(tick_t{1},
+                                      (tick_t) o.move_distrib(rng));
+    w.put_obstacle(new_pos, o);
+  }
 }
 
 void
 world::next_tick(std::default_random_engine& rng) {
   ++tick_;
 
-  for (auto& pos_obst : obstacles_) {
+  auto obstacles = obstacles_;
+  for (auto& pos_obst : obstacles) {
     position const& pos = pos_obst.first;
     obstacle& obstacle = pos_obst.second;
 
-    if (obstacle.next_change == tick_ && (obstacle.active || !get_agent(pos)))
-      flip(obstacle, tick_, rng);
+    if (obstacle.next_move == tick_)
+      move(obstacle, pos, *this, rng);
   }
 }
 
@@ -96,13 +116,10 @@ tile
 world::get(position p) const {
   if (agents_.count(p))
     return tile::agent;
-  else {
-    auto it = obstacles_.find(p);
-    if (it != obstacles_.end() && it->second.active)
-      return tile::obstacle;
-  }
-
-  return map_->get(p);
+  else if (obstacles_.count(p))
+    return tile::obstacle;
+  else
+    return map_->get(p);
 }
 
 boost::optional<agent>
@@ -132,8 +149,8 @@ world::remove_agent(position p) {
 
 void
 world::put_obstacle(position p, obstacle o) {
-  if (obstacles_.count(p))
-    throw std::logic_error{"put_obstacle: obstacle already there"};
+  if (get(p) != tile::free)
+    throw std::logic_error{"put_obstacle: Position not empty"};
   obstacles_.insert({p, o});
 }
 
@@ -220,16 +237,15 @@ make_obstacles(world& w, boost::property_tree::ptree const& prop,
                std::default_random_engine& rng) {
   double const tile_probability = prop.get<double>("tile_probability");
   auto rand = [&] { return std::generate_canonical<double, 32>(rng); };
-  std::normal_distribution<> duration =
-    parse_normal(prop.get_child("obstacle_duration"));
+  std::normal_distribution<> time_to_move =
+    parse_normal(prop.get_child("obstacle_movement.move_probability"));
 
   for (map::value_type const& tile: *w.map())
-    if (tile.tile == ::tile::free && rand() < tile_probability)
+    if (w.get({tile.x, tile.y}) == ::tile::free && rand() < tile_probability)
     {
-      obstacle o{duration};
-      if (rand() < 0.5)
-        o.active = true;
-      o.next_change = w.tick() + std::max(tick_t{1}, (tick_t) o.duration(rng));
+      obstacle o{time_to_move};
+      o.next_move = w.tick() + std::max(tick_t{1},
+                                        (tick_t) o.move_distrib(rng));
 
       w.put_obstacle({tile.x, tile.y}, std::move(o));
     }
