@@ -32,6 +32,8 @@ main_window::main_window(QWidget *parent) :
   run_timer_.setSingleShot(false);
   run_timer_.setInterval(100);
   connect(&run_timer_, SIGNAL(timeout()), this, SLOT(step()));
+  ui_.algorithm_combo->addItem("Greedy");
+  ui_.algorithm_combo->addItem("LRA*");
 }
 
 void
@@ -62,8 +64,19 @@ main_window::step() {
     return;
   }
 
+  if (!solver_ ||
+      solver_->name() != ui_.algorithm_combo->currentText().toStdString()) {
+    std::string const& s = ui_.algorithm_combo->currentText().toStdString();
+    if (s == "Greedy")
+      solver_ = std::make_unique<greedy>();
+    else if (s == "LRA*")
+      solver_ = std::make_unique<lra>();
+    else
+      throw std::runtime_error{"Unknown solver " + s};
+  }
+
   world_->next_tick(rng_);
-  joint_action action = greedy_action(*world_, rng_);
+  joint_action action = solver_->get_action(*world_, rng_);
   *world_ = apply(action, *world_);
 
   update_world_view();

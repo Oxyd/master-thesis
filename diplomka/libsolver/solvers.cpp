@@ -38,7 +38,7 @@ solved(world const& w) {
 }
 
 joint_action
-greedy_action(world temp_world, std::default_random_engine& rng) {
+greedy::get_action(world temp_world, std::default_random_engine& rng) {
   std::vector<std::tuple<position, agent>> agents(temp_world.agents().begin(),
                                                   temp_world.agents().end());
   std::shuffle(agents.begin(), agents.end(), rng);

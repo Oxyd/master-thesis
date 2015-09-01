@@ -6,10 +6,12 @@
 #include <QTimer>
 #include "ui_mainwindow.h"
 
+#include "solvers.hpp"
 #include "world.hpp"
 
 #include <boost/optional.hpp>
 
+#include <memory>
 #include <random>
 #include <string>
 
@@ -39,6 +41,7 @@ private:
   QGraphicsScene world_scene_;
   std::default_random_engine rng_;
   QTimer run_timer_;
+  std::unique_ptr<solver> solver_;
 
   void stop();
   void load_world(std::string const&);

@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>761</width>
-    <height>537</height>
+    <width>900</width>
+    <height>800</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -67,6 +67,20 @@
              <double>0.100000000000000</double>
             </property>
            </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <item>
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>Algorithm:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="algorithm_combo"/>
           </item>
          </layout>
         </item>
@@ -207,7 +221,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>761</width>
+     <width>900</width>
      <height>27</height>
     </rect>
    </property>
