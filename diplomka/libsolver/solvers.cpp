@@ -43,7 +43,7 @@ greedy_action(world temp_world, std::default_random_engine& rng) {
                                                   temp_world.agents().end());
   std::shuffle(agents.begin(), agents.end(), rng);
 
-  std::discrete_distribution<bool> random_move{0.9, 0.1};
+  std::discrete_distribution<bool> random_move{0.99, 0.01};
 
   joint_action result;
 
