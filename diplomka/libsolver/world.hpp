@@ -5,6 +5,7 @@
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/optional.hpp>
 
+#include <array>
 #include <cstdlib>
 #include <iostream>
 #include <random>
@@ -22,6 +23,17 @@ enum class tile : char {
 
 enum class direction {
   north = 0, east, south, west
+};
+
+std::ostream&
+operator << (std::ostream&, direction);
+
+constexpr std::array<direction, 4>
+all_directions{
+  direction::north,
+  direction::east,
+  direction::south,
+  direction::west
 };
 
 bool
@@ -70,6 +82,9 @@ struct hash<position> {
 
 position
 translate(position, direction);
+
+direction
+direction_to(position from, position to);
 
 class map {
 public:

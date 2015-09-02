@@ -5,7 +5,9 @@
 #include "world.hpp"
 
 #include <random>
+#include <stack>
 #include <string>
+#include <unordered_map>
 
 bool
 solved(world const& w);
@@ -32,17 +34,20 @@ public:
 };
 
 class lra : public solver {
+  using path = std::stack<direction>;
+
 public:
   joint_action
-  get_action(world w, std::default_random_engine& rng) override {
-    return greedy_.get_action(w, rng);
-  }
+  get_action(world w, std::default_random_engine& rng) override;
 
   std::string
   name() const override { return "LRA*"; }
 
 private:
-  greedy greedy_;
+  std::unordered_map<position, path> paths_;
+
+  path
+  recalculate(position, world const&);
 };
 
 #endif // SOLVERS_HPP

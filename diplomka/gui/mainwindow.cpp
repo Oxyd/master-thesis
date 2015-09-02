@@ -99,8 +99,10 @@ main_window::change_run_interval(double d) {
 
 void
 main_window::reset_world() {
-  if (!world_file_.empty())
+  if (!world_file_.empty()) {
     load_world(world_file_);
+    solver_.reset();
+  }
 }
 
 constexpr double tile_size = 10;

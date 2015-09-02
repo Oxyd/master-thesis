@@ -50,6 +50,18 @@ char_to_tile(char c) {
   }
 }
 
+std::ostream&
+operator << (std::ostream& out, direction d) {
+  switch (d) {
+  case direction::north: return out << "north";
+  case direction::south: return out << "south";
+  case direction::east: return out << "east";
+  case direction::west: return out << "west";
+  }
+  assert(!"Can't get here");
+  return out;
+}
+
 bool
 traversable(tile t) {
   return t == tile::free;
@@ -65,6 +77,22 @@ translate(position p, direction d) {
   }
   assert(!"Unreachable");
   return {};
+}
+
+direction
+direction_to(position from, position to) {
+  int dx = to.x - from.x;
+  int dy = to.y - from.y;
+
+  assert((std::abs(dx) == 1 && dy == 0) ||
+         (std::abs(dy) == 1 && dx == 0));
+  if (dx == 1) return direction::east;
+  if (dx == -1) return direction::west;
+  if (dy == 1) return direction::south;
+  if (dy == -1) return direction::north;
+
+  assert(!"Can't get here");
+  return direction::north;
 }
 
 std::ostream&
