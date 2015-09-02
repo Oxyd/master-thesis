@@ -144,8 +144,7 @@ main_window::load_world(std::string const& filename) {
 
 void
 main_window::update_world_view() {
-  for (QGraphicsItem* item : world_scene_.items())
-    world_scene_.removeItem(item);
+  world_scene_.clear();
 
   if (!world_)
     return;
