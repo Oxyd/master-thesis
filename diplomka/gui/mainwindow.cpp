@@ -32,8 +32,8 @@ main_window::main_window(QWidget *parent) :
   run_timer_.setSingleShot(false);
   run_timer_.setInterval(100);
   connect(&run_timer_, SIGNAL(timeout()), this, SLOT(step()));
-  ui_.algorithm_combo->addItem("Greedy");
   ui_.algorithm_combo->addItem("LRA*");
+  ui_.algorithm_combo->addItem("Greedy");
 }
 
 void
