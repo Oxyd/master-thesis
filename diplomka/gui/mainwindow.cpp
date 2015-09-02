@@ -80,6 +80,7 @@ main_window::step() {
   *world_ = apply(action, *world_);
 
   update_world_view();
+  ui_.steps_label->setText(QString::number(world_->tick()));
 }
 
 void
@@ -102,6 +103,7 @@ main_window::reset_world() {
   if (!world_file_.empty()) {
     load_world(world_file_);
     solver_.reset();
+    ui_.steps_label->setText("0");
   }
 }
 
