@@ -113,17 +113,30 @@ world::world(const std::shared_ptr<::map const>& m,
   , tick_(tick)
 { }
 
+static std::vector<position>
+valid_directions(position p, world const& w) {
+  std::vector<position> result;
+  for (auto d : all_directions) {
+    position q = translate(p, d);
+    if (in_bounds(q, *w.map()) && traversable(w.get(q)))
+      result.push_back(q);
+  }
+
+  return result;
+}
+
 static void
 move(obstacle o, position pos, world& w, std::default_random_engine& rng) {
-  std::discrete_distribution<unsigned> dir{0.25, 0.25, 0.25, 0.25};
-  position new_pos = translate(pos, static_cast<direction>(dir(rng)));
+  std::vector<position> choices = valid_directions(pos, w);
+  if (choices.empty())
+    return;
 
-  if (in_bounds(new_pos, *w.map()) && traversable(w.get(new_pos))) {
-    w.remove_obstacle(pos);
-    o.next_move = w.tick() + std::max(tick_t{1},
-                                      (tick_t) o.move_distrib(rng));
-    w.put_obstacle(new_pos, o);
-  }
+  std::uniform_int_distribution<std::size_t> i(0, choices.size() - 1);
+  position p = choices[i(rng)];
+
+  w.remove_obstacle(pos);
+  o.next_move = w.tick() + std::max(tick_t{1}, (tick_t) o.move_distrib(rng));
+  w.put_obstacle(p, o);
 }
 
 void
