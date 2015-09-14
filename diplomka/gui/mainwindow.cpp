@@ -196,4 +196,6 @@ main_window::update_world_view() {
     position const pos = pos_obstacle.first;
     world_scene_.addRect(tile_rect(pos.x, pos.y), black_pen, obstacle_brush);
   }
+
+  ui_.world_view->viewport()->update();
 }
