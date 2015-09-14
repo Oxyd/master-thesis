@@ -168,8 +168,10 @@ main_window::update_world_view() {
 
     position const target = agent.target;
     if (target != pos) {
-      QPointF const start{(pos.x + 0.5) * tile_size, (pos.y + 0.5) * tile_size};
-      QPointF const end{(target.x + 0.5) * tile_size, (target.y + 0.5) * tile_size};
+      QPointF const start{(pos.x + 0.5) * tile_size,
+                          (pos.y + 0.5) * tile_size};
+      QPointF const end{(target.x + 0.5) * tile_size,
+                        (target.y + 0.5) * tile_size};
 
       world_scene_.addLine(start.x(), start.y(), end.x(), end.y(), target_pen);
 
