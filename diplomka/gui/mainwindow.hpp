@@ -19,6 +19,16 @@ namespace Ui {
 class MainWindow;
 }
 
+class mouse_graphics_scene : public QGraphicsScene {
+  Q_OBJECT
+
+signals:
+  void mouse_moved(QPointF scene_pos);
+
+protected:
+  void mouseMoveEvent(QGraphicsSceneMouseEvent*) override;
+};
+
 class main_window : public QMainWindow
 {
   Q_OBJECT
@@ -33,12 +43,13 @@ private slots:
   void run();
   void change_run_interval(double);
   void reset_world();
+  void update_mouse_pos(QPointF pos);
 
 private:
   Ui::MainWindow ui_;
   std::string world_file_;
   boost::optional<world> world_;
-  QGraphicsScene world_scene_;
+  mouse_graphics_scene world_scene_;
   std::default_random_engine rng_;
   QTimer run_timer_;
   std::unique_ptr<solver> solver_;

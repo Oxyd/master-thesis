@@ -8,6 +8,7 @@
 #include <QColor>
 #include <QFileDialog>
 #include <QGraphicsScene>
+#include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
 #include <QPainter>
 #include <QPixmap>
@@ -24,11 +25,18 @@
 
 #include <iostream>
 
+void
+mouse_graphics_scene::mouseMoveEvent(QGraphicsSceneMouseEvent* event) {
+  emit mouse_moved(event->scenePos());
+}
+
 main_window::main_window(QWidget *parent) :
   QMainWindow(parent)
 {
   ui_.setupUi(this);
   ui_.world_view->setScene(&world_scene_);
+  connect(&world_scene_, &mouse_graphics_scene::mouse_moved,
+          this, &main_window::update_mouse_pos);
   run_timer_.setSingleShot(false);
   run_timer_.setInterval(100);
   connect(&run_timer_, SIGNAL(timeout()), this, SLOT(step()));
@@ -108,6 +116,22 @@ main_window::reset_world() {
 }
 
 constexpr double tile_size = 10;
+
+void
+main_window::update_mouse_pos(QPointF pos) {
+  if (!world_)
+    return;
+
+  int x = pos.x() / tile_size;
+  int y = pos.y() / tile_size;
+
+  if (x < 0 || y < 0 ||
+      x > world_->map()->width() || y > world_->map()->height())
+    return;
+
+  ui_.mouse_coord_label->setText(QString("Mouse position: %1, %2")
+                                 .arg(x).arg(y));
+}
 
 static QRectF
 tile_rect(position::coord_type x, position::coord_type y) {
