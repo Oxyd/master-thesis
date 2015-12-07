@@ -38,6 +38,7 @@ public:
 
 private slots:
   void open_map();
+  void scroll_zoom(int);
   void change_zoom(int);
   void step();
   void run();

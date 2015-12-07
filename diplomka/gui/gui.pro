@@ -16,9 +16,10 @@ QMAKE_CXXFLAGS += -std=c++14
 LIBS += -lboost_filesystem -lboost_system
 
 SOURCES += main.cpp\
-        mainwindow.cpp
+        mainwindow.cpp\
+        zoomable_graphics_view.cpp
 
-HEADERS  += mainwindow.hpp
+HEADERS  += mainwindow.hpp zoomable_graphics_view.hpp
 
 FORMS    += mainwindow.ui
 

@@ -37,6 +37,8 @@ main_window::main_window(QWidget *parent) :
   ui_.world_view->setScene(&world_scene_);
   connect(&world_scene_, &mouse_graphics_scene::mouse_moved,
           this, &main_window::update_mouse_pos);
+  connect(ui_.world_view, &zoomable_graphics_view::zoom_changed,
+          this, &main_window::scroll_zoom);
   run_timer_.setSingleShot(false);
   run_timer_.setInterval(100);
   connect(&run_timer_, SIGNAL(timeout()), this, SLOT(step()));
@@ -51,6 +53,16 @@ main_window::open_map() {
     return;
 
   load_world(filename.toStdString());
+}
+
+void
+main_window::scroll_zoom(int change) {
+  int new_value = ui_.zoom_slider->value() + change;
+  if (new_value < ui_.zoom_slider->minimum() ||
+      new_value > ui_.zoom_slider->maximum())
+    return;
+
+  ui_.zoom_slider->setValue(new_value);
 }
 
 void
