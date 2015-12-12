@@ -1,4 +1,5 @@
 #include "solvers.hpp"
+#include "log_sinks.hpp"
 
 #include <boost/heap/fibonacci_heap.hpp>
 
@@ -176,6 +177,12 @@ greedy::get_action(world temp_world, std::default_random_engine& rng) {
   return result;
 }
 
+lra::lra()
+  : log_(null_log_sink) { }
+
+lra::lra(log_sink& log)
+  : log_(log) { }
+
 joint_action
 lra::get_action(world w, std::default_random_engine&) {
   joint_action result;
@@ -207,7 +214,7 @@ lra::get_action(world w, std::default_random_engine&) {
       p = recalculate(pos, w);
 
     if (p.empty()) {
-      std::cout << "No path for " << pos << '\n';
+      log_ << "No path for " << pos << '\n';
       continue;
     }
 
@@ -229,6 +236,6 @@ lra::get_action(world w, std::default_random_engine&) {
 
 path
 lra::recalculate(position from, world const& w) {
-  std::cout << "Recalculating for " << from << '\n';
+  log_ << "Recalculating for " << from << '\n';
   return a_star(from, w);
 }

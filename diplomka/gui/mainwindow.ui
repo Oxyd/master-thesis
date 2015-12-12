@@ -14,21 +14,61 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <layout class="QVBoxLayout" name="verticalLayout_3">
+   <layout class="QVBoxLayout" name="verticalLayout_4">
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_2">
-      <item>
-       <widget class="zoomable_graphics_view" name="world_view">
-        <property name="mouseTracking">
-         <bool>true</bool>
-        </property>
-        <property name="renderHints">
-         <set>QPainter::Antialiasing|QPainter::TextAntialiasing</set>
-        </property>
-       </widget>
-      </item>
-      <item>
+     <widget class="QSplitter" name="splitter">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="opaqueResize">
+       <bool>true</bool>
+      </property>
+      <property name="childrenCollapsible">
+       <bool>false</bool>
+      </property>
+      <widget class="zoomable_graphics_view" name="world_view">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>1</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="mouseTracking">
+        <bool>true</bool>
+       </property>
+       <property name="renderHints">
+        <set>QPainter::Antialiasing|QPainter::TextAntialiasing</set>
+       </property>
+      </widget>
+      <widget class="QFrame" name="frame">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>200</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::StyledPanel</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Raised</enum>
+       </property>
        <layout class="QVBoxLayout" name="verticalLayout_2">
+        <property name="sizeConstraint">
+         <enum>QLayout::SetMinimumSize</enum>
+        </property>
         <item>
          <widget class="QPushButton" name="pushButton">
           <property name="text">
@@ -113,17 +153,30 @@
          </layout>
         </item>
         <item>
-         <spacer name="verticalSpacer">
-          <property name="orientation">
-           <enum>Qt::Vertical</enum>
+         <widget class="QLabel" name="label_5">
+          <property name="text">
+           <string>Algorithm log:</string>
           </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>20</width>
-            <height>40</height>
-           </size>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPlainTextEdit" name="log_edit">
+          <property name="undoRedoEnabled">
+           <bool>false</bool>
           </property>
-         </spacer>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+          <property name="plainText">
+           <string notr="true"/>
+          </property>
+          <property name="textInteractionFlags">
+           <set>Qt::TextSelectableByKeyboard|Qt::TextSelectableByMouse</set>
+          </property>
+          <property name="placeholderText">
+           <string notr="true"/>
+          </property>
+         </widget>
         </item>
         <item>
          <widget class="QPushButton" name="pushButton_2">
@@ -133,11 +186,14 @@
          </widget>
         </item>
        </layout>
-      </item>
-     </layout>
+      </widget>
+     </widget>
     </item>
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout">
+     <layout class="QVBoxLayout" name="verticalLayout" stretch="0">
+      <property name="sizeConstraint">
+       <enum>QLayout::SetDefaultConstraint</enum>
+      </property>
       <property name="leftMargin">
        <number>0</number>
       </property>
@@ -379,7 +435,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>198</x>
-     <y>525</y>
+     <y>788</y>
     </hint>
     <hint type="destinationlabel">
      <x>208</x>
@@ -394,12 +450,12 @@
    <slot>step()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>709</x>
-     <y>80</y>
+     <x>787</x>
+     <y>87</y>
     </hint>
     <hint type="destinationlabel">
-     <x>720</x>
-     <y>217</y>
+     <x>760</x>
+     <y>-9</y>
     </hint>
    </hints>
   </connection>
@@ -410,12 +466,12 @@
    <slot>run()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>690</x>
-     <y>124</y>
+     <x>744</x>
+     <y>125</y>
     </hint>
     <hint type="destinationlabel">
-     <x>669</x>
-     <y>238</y>
+     <x>680</x>
+     <y>-10</y>
     </hint>
    </hints>
   </connection>
@@ -426,12 +482,12 @@
    <slot>change_run_interval(double)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>718</x>
-     <y>158</y>
+     <x>839</x>
+     <y>167</y>
     </hint>
     <hint type="destinationlabel">
-     <x>696</x>
-     <y>366</y>
+     <x>827</x>
+     <y>-15</y>
     </hint>
    </hints>
   </connection>
@@ -442,12 +498,12 @@
    <slot>reset_world()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>666</x>
-     <y>500</y>
+     <x>786</x>
+     <y>736</y>
     </hint>
     <hint type="destinationlabel">
-     <x>658</x>
-     <y>429</y>
+     <x>603</x>
+     <y>-13</y>
     </hint>
    </hints>
   </connection>

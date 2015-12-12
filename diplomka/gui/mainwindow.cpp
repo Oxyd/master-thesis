@@ -13,6 +13,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
+#include <QPlainTextEdit>
 #include <QMessageBox>
 #include <QPen>
 #include <QString>
@@ -31,10 +32,11 @@ mouse_graphics_scene::mouseMoveEvent(QGraphicsSceneMouseEvent* event) {
   emit mouse_moved(event->scenePos());
 }
 
-main_window::main_window(QWidget *parent) :
-  QMainWindow(parent)
+main_window::main_window(QWidget *parent)
+  : QMainWindow(parent)
 {
   ui_.setupUi(this);
+  log_sink_.text_field_ = ui_.log_edit;
   ui_.world_view->setScene(&world_scene_);
   connect(&world_scene_, &mouse_graphics_scene::mouse_moved,
           this, &main_window::update_mouse_pos);
@@ -91,7 +93,7 @@ main_window::step() {
     if (s == "Greedy")
       solver_ = std::make_unique<greedy>();
     else if (s == "LRA*")
-      solver_ = std::make_unique<lra>();
+      solver_ = std::make_unique<lra>(log_sink_);
     else
       throw std::runtime_error{"Unknown solver " + s};
   }
@@ -144,6 +146,13 @@ main_window::update_mouse_pos(QPointF pos) {
 
   ui_.mouse_coord_label->setText(QString("Mouse position: %1, %2")
                                  .arg(x).arg(y));
+}
+
+void
+main_window::gui_log_sink::do_put(std::string msg) {
+  text_field_->moveCursor(QTextCursor::End);
+  text_field_->insertPlainText(QString::fromStdString(std::move(msg)));
+  text_field_->moveCursor(QTextCursor::End);
 }
 
 static QRectF

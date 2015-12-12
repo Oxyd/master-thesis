@@ -1,6 +1,5 @@
 /Makefile
 /gui/Makefile
-libsolver/
 gui/
 build
 debug

@@ -15,7 +15,8 @@ QMAKE_CXXFLAGS += -std=c++14
 SOURCES += \
     world.cpp \
     action.cpp \
-    solvers.cpp
+    solvers.cpp \
+    log_sinks.cpp
 
 HEADERS += \
     world.hpp \
