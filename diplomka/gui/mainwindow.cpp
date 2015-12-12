@@ -11,6 +11,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPixmap>
 #include <QMessageBox>
 #include <QPen>
@@ -187,7 +188,7 @@ main_window::update_world_view() {
     return;
 
   QPen const black_pen{{0, 0, 0}};
-  QPen const target_pen{QBrush{QColor{127, 127, 127}}, 3};
+  QPen const target_pen{QBrush{QColor{127, 127, 127, 127}}, 1};
   QBrush const wall_brush{QColor{0, 0, 0}};
   QBrush const obstacle_brush{QColor{255, 0, 0}};
 
@@ -210,7 +211,8 @@ main_window::update_world_view() {
       QPointF const end{(target.x + 0.5) * tile_size,
                         (target.y + 0.5) * tile_size};
 
-      world_scene_.addLine(start.x(), start.y(), end.x(), end.y(), target_pen);
+      QPainterPath target_path{start};
+      target_path.lineTo(end);
 
       double const slope_angle = std::atan2(start.y() - end.y(),
                                             start.x() - end.x());
@@ -226,8 +228,11 @@ main_window::update_world_view() {
         end.y() + arrow_len * std::sin(slope_angle - arrow_angle)
       };
 
-      world_scene_.addLine(end.x(), end.y(), a.x(), a.y(), target_pen);
-      world_scene_.addLine(end.x(), end.y(), b.x(), b.y(), target_pen);
+      target_path.lineTo(a);
+      target_path.moveTo(end);
+      target_path.lineTo(b);
+
+      world_scene_.addPath(target_path, target_pen);
     }
   }
 
