@@ -173,6 +173,7 @@ main_window::load_world(std::string const& filename) {
     ui_.size_label->setText(QString::fromStdString(os.str()));
 
     update_world_view();
+    world_scene_.setSceneRect(world_scene_.itemsBoundingRect());
   } catch (bad_world_format& e) {
     QMessageBox::critical(this, "Error", e.what());
   }
