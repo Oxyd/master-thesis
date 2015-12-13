@@ -136,6 +136,7 @@ main_window::reset_world() {
     load_world(world_file_);
     solver_.reset();
 
+    log_sink_.clear();
     update_stats_headers();
     update_stats();
   }
@@ -157,6 +158,11 @@ main_window::update_mouse_pos(QPointF pos) {
 
   ui_.mouse_coord_label->setText(QString("Mouse position: %1, %2")
                                  .arg(x).arg(y));
+}
+
+void
+main_window::gui_log_sink::clear() {
+  text_field_->clear();
 }
 
 void

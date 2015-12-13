@@ -53,6 +53,8 @@ private:
   public:
     QPlainTextEdit* text_field_;
 
+    void clear();
+
   private:
     void
     do_put(std::string msg) override;
