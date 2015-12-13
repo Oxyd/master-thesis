@@ -56,8 +56,7 @@ private:
     void clear();
 
   private:
-    void
-    do_put(std::string msg) override;
+    void do_put(std::string msg) override;
   };
 
   Ui::MainWindow ui_;

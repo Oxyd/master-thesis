@@ -21,26 +21,16 @@ public:
   virtual
   ~solver() { }
 
-  virtual joint_action
-  get_action(world w, std::default_random_engine&) = 0;
-
-  virtual std::string
-  name() const = 0;
-
-  virtual std::vector<std::string>
-  stat_names() const { return {}; }
-
-  virtual std::vector<std::string>
-  stat_values() const { return {}; };
+  virtual joint_action get_action(world w, std::default_random_engine&) = 0;
+  virtual std::string name() const = 0;
+  virtual std::vector<std::string> stat_names() const { return {}; }
+  virtual std::vector<std::string> stat_values() const { return {}; };
 };
 
 class greedy : public solver {
 public:
-  joint_action
-  get_action(world w, std::default_random_engine&) override;
-
-  std::string
-  name() const override { return "Greedy"; }
+  joint_action get_action(world w, std::default_random_engine&) override;
+  std::string name() const override { return "Greedy"; }
 };
 
 class lra : public solver {
