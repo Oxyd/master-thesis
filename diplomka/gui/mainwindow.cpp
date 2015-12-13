@@ -202,6 +202,9 @@ main_window::load_world(std::string const& filename) {
     update_world_view();
     world_scene_.setSceneRect(world_scene_.itemsBoundingRect());
 
+    solver_.reset();
+    log_sink_.clear();
+
     update_stats_headers();
     update_stats();
   } catch (bad_world_format& e) {
