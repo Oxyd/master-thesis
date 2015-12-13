@@ -33,7 +33,9 @@ using path = std::stack<direction>;
 
 static unsigned
 distance(position a, position b) {
-  return std::abs(a.x - b.x) + std::abs(a.y - b.y);
+  position::coord_type dx = a.x - b.x;
+  position::coord_type dy = a.y - b.y;
+  return std::sqrt(dx * dx + dy * dy);
 }
 
 static constexpr unsigned
@@ -247,5 +249,8 @@ path
 lra::recalculate(position from, world const& w) {
   log_ << "Recalculating for " << from << '\n';
   ++recalculations_;
-  return a_star(from, w);
+  path new_path = a_star(from, w);
+  if (new_path.empty())
+    log_ << "A* found no path for " << from << '\n';
+  return new_path;
 }
