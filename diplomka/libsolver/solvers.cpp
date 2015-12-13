@@ -215,6 +215,7 @@ lra::get_action(world w, std::default_random_engine&) {
 
     if (p.empty()) {
       log_ << "No path for " << pos << '\n';
+      ++times_without_path_;
       continue;
     }
 
@@ -234,8 +235,17 @@ lra::get_action(world w, std::default_random_engine&) {
   return result;
 }
 
+std::vector<std::string>
+lra::stat_values() const {
+  return {
+    std::to_string(times_without_path_),
+    std::to_string(recalculations_)
+  };
+}
+
 path
 lra::recalculate(position from, world const& w) {
   log_ << "Recalculating for " << from << '\n';
+  ++recalculations_;
   return a_star(from, w);
 }

@@ -16,6 +16,7 @@
 #include <QPlainTextEdit>
 #include <QMessageBox>
 #include <QPen>
+#include <QStandardItem>
 #include <QString>
 
 #include <cassert>
@@ -36,17 +37,23 @@ main_window::main_window(QWidget *parent)
   : QMainWindow(parent)
 {
   ui_.setupUi(this);
+
   log_sink_.text_field_ = ui_.log_edit;
+
   ui_.world_view->setScene(&world_scene_);
   connect(&world_scene_, &mouse_graphics_scene::mouse_moved,
           this, &main_window::update_mouse_pos);
   connect(ui_.world_view, &zoomable_graphics_view::zoom_changed,
           this, &main_window::scroll_zoom);
+
   run_timer_.setSingleShot(false);
   run_timer_.setInterval(100);
   connect(&run_timer_, &QTimer::timeout, this, &main_window::step);
+
   ui_.algorithm_combo->addItem("LRA*");
   ui_.algorithm_combo->addItem("Greedy");
+
+  ui_.stats_view->setModel(&stats_);
 }
 
 void
@@ -96,6 +103,8 @@ main_window::step() {
       solver_ = std::make_unique<lra>(log_sink_);
     else
       throw std::runtime_error{"Unknown solver " + s};
+
+    update_stats_headers();
   }
 
   world_->next_tick(rng_);
@@ -103,7 +112,7 @@ main_window::step() {
   *world_ = apply(action, *world_);
 
   update_world_view();
-  ui_.steps_label->setText(QString::number(world_->tick()));
+  update_stats();
 }
 
 void
@@ -126,7 +135,9 @@ main_window::reset_world() {
   if (!world_file_.empty()) {
     load_world(world_file_);
     solver_.reset();
-    ui_.steps_label->setText("0");
+
+    update_stats_headers();
+    update_stats();
   }
 }
 
@@ -184,6 +195,9 @@ main_window::load_world(std::string const& filename) {
 
     update_world_view();
     world_scene_.setSceneRect(world_scene_.itemsBoundingRect());
+
+    update_stats_headers();
+    update_stats();
   } catch (bad_world_format& e) {
     QMessageBox::critical(this, "Error", e.what());
   }
@@ -251,4 +265,41 @@ main_window::update_world_view() {
   }
 
   ui_.world_view->viewport()->update();
+}
+
+void
+main_window::update_stats_headers() {
+  stats_.clear();
+  if (!world_)
+    return;
+
+  QStringList headers;
+  headers << "Tick";
+
+  if (solver_)
+    for (auto const& header : solver_->stat_names())
+      headers << QString::fromStdString(header);
+
+  stats_.setVerticalHeaderLabels(headers);
+}
+
+void
+main_window::update_stats() {
+  if (!world_)
+    return;
+
+  assert(stats_.rowCount() >= 1);
+  stats_.setItem(0, new QStandardItem{QString::number(world_->tick())});
+
+  if (!solver_)
+  {
+    assert(stats_.rowCount() == 1);
+    return;
+  }
+
+  auto const& stats = solver_->stat_values();
+  assert(stats.size() == stats_.rowCount() - 1u);
+
+  for (unsigned i = 0; i < stats.size(); ++i)
+    stats_.setItem(i + 1, new QStandardItem{QString::fromStdString(stats[i])});
 }

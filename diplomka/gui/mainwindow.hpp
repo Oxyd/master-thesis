@@ -3,6 +3,7 @@
 
 #include <QGraphicsScene>
 #include <QMainWindow>
+#include <QStandardItemModel>
 #include <QTimer>
 #include "ui_mainwindow.h"
 
@@ -65,10 +66,13 @@ private:
   QTimer run_timer_;
   std::unique_ptr<solver> solver_;
   gui_log_sink log_sink_;
+  QStandardItemModel stats_;
 
   void stop();
   void load_world(std::string const&);
   void update_world_view();
+  void update_stats_headers();
+  void update_stats();
 };
 
 #endif // MAINWINDOW_HPP
