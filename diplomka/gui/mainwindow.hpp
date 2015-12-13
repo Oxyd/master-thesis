@@ -47,6 +47,7 @@ private slots:
   void change_run_interval(double);
   void reset_world();
   void update_mouse_pos(QPointF pos);
+  void make_random_seed();
 
 private:
   class gui_log_sink : public log_sink {

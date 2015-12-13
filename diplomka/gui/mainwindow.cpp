@@ -6,6 +6,7 @@
 
 #include <QBrush>
 #include <QColor>
+#include <QDateTime>
 #include <QFileDialog>
 #include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
@@ -161,6 +162,13 @@ main_window::update_mouse_pos(QPointF pos) {
 }
 
 void
+main_window::make_random_seed() {
+  qint64 seed = QDateTime::currentMSecsSinceEpoch();
+  ui_.seed_edit->setText(QString::number(seed));
+  rng_.seed(seed);
+}
+
+void
 main_window::gui_log_sink::clear() {
   text_field_->clear();
 }
@@ -188,9 +196,25 @@ main_window::stop() {
   ui_.start_stop_button->setText("Run");
 }
 
+static std::default_random_engine::result_type
+make_seed(QString const& seed_str) {
+  using seed_type = std::default_random_engine::result_type;
+
+  bool ok;
+  seed_type seed = seed_str.toULongLong(&ok);
+
+  if (!ok)
+    for (QChar c : seed_str)
+      seed += c.unicode();
+
+  return seed;
+}
+
 void
 main_window::load_world(std::string const& filename) {
   try {
+    rng_.seed(make_seed(ui_.seed_edit->text()));
+
     world_ = ::load_world(filename, rng_);
     world_file_ = filename;
 
@@ -207,6 +231,7 @@ main_window::load_world(std::string const& filename) {
 
     update_stats_headers();
     update_stats();
+
   } catch (bad_world_format& e) {
     QMessageBox::critical(this, "Error", e.what());
   }
