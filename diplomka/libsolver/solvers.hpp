@@ -50,7 +50,7 @@ public:
 
   std::vector<std::string>
   stat_names() const override {
-    return {"Times without path", "Recalculations"};
+    return {"Path not found", "Recalculations", "Path invalid"};
   }
 
   std::vector<std::string>
@@ -61,6 +61,7 @@ private:
   log_sink& log_;
   unsigned times_without_path_ = 0;
   unsigned recalculations_ = 0;
+  unsigned path_invalid_ = 0;
 
   path
   recalculate(position, world const&);

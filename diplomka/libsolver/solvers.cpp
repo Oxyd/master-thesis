@@ -31,22 +31,22 @@ make_random_action(position from, world& w, joint_action& actions,
 
 using path = std::stack<direction>;
 
-static unsigned
+static double
 distance(position a, position b) {
   position::coord_type dx = a.x - b.x;
   position::coord_type dy = a.y - b.y;
   return std::sqrt(dx * dx + dy * dy);
 }
 
-static constexpr unsigned
-infinity = std::numeric_limits<unsigned>::max();
+static constexpr double
+infinity = std::numeric_limits<double>::max();
 
 namespace {
 struct a_star_node {
   position pos;
-  unsigned g = infinity;
-  unsigned h = 0;
-  unsigned f() const { return g + h; }
+  double g = infinity;
+  double h = 0;
+  double f() const { return g + h; }
 };
 
 struct a_star_node_comparator {
@@ -56,6 +56,9 @@ struct a_star_node_comparator {
   }
 };
 }
+
+static constexpr double agent_penalty = 100;
+static constexpr double obstacle_penalty = 150;
 
 static path
 a_star(position from, world const& w) {
@@ -94,13 +97,19 @@ a_star(position from, world const& w) {
     for (direction d : all_directions) {
       position const neighbour = translate(current.pos, d);
       if (!in_bounds(neighbour, *w.map()) ||
-          w.get(neighbour) != tile::free)
+          w.get(neighbour) == tile::wall)
         continue;
 
       if (closed.count(neighbour))
         continue;
 
-      auto neighbour_g = current.g + 1;
+      double step_cost = 1;
+      if (w.get(neighbour) == tile::agent)
+        step_cost += agent_penalty / (current.g + 1);
+      if (w.get(neighbour) == tile::obstacle)
+        step_cost += obstacle_penalty / (current.g + 1);
+
+      auto neighbour_g = current.g + step_cost;
       auto n = open.find(neighbour);
       if (n != open.end()) {
         handle neighbour_handle = n->second;
@@ -225,6 +234,12 @@ lra::get_action(world w, std::default_random_engine&) {
     position new_pos = translate(pos, d);
 
     action a{pos, d};
+    if (!valid(a, w)) {
+      log_ << "Path invalid for " << pos << '\n';
+      ++path_invalid_;
+      continue;
+    }
+
     result.add(a);
     w = apply(a, w);
     p.pop();
@@ -241,7 +256,8 @@ std::vector<std::string>
 lra::stat_values() const {
   return {
     std::to_string(times_without_path_),
-    std::to_string(recalculations_)
+    std::to_string(recalculations_),
+    std::to_string(path_invalid_)
   };
 }
 
