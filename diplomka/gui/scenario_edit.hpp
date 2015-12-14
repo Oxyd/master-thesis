@@ -2,6 +2,7 @@
 #define SCENARIO_EDIT_HPP
 
 #include <QMainWindow>
+#include <QString>
 #include "ui_edit.h"
 
 #include "bottom_bar_controller.hpp"
@@ -26,6 +27,9 @@ private slots:
   void reset_goal();
   void mouse_moved(int, int);
 
+protected:
+  void closeEvent(QCloseEvent*);
+
 private:
   Ui::ScenarioEdit ui_;
   boost::optional<world> world_;
@@ -34,8 +38,9 @@ private:
   boost::optional<position> selected_original_goal_;
   position last_mouse_pos_{-1, -1};
   bottom_bar_controller bottom_bar_controller_;
+  bool dirty_ = false;
 
-  void attach(world);
+  void attach(world, QString const& name);
 };
 
 #endif

@@ -1,5 +1,6 @@
 #include "scenario_edit.hpp"
 
+#include <QCloseEvent>
 #include <QFileDialog>
 #include <QMessageBox>
 
@@ -28,7 +29,7 @@ scenario_edit::new_scenario() {
     return;
 
   try {
-    attach(world(load_map(filename.toStdString())));
+    attach(world(load_map(filename.toStdString())), filename);
   } catch (bad_world_format& e) {
     QMessageBox::critical(this, "Error", e.what());
   }
@@ -41,7 +42,7 @@ scenario_edit::open_scenario() {
     return;
 
   try {
-    attach(load_world(filename.toStdString()));
+    attach(load_world(filename.toStdString()), filename);
   } catch (bad_world_format& e) {
     QMessageBox::critical(this, "Error", e.what());
   }
@@ -55,6 +56,8 @@ scenario_edit::save_scenario() {
   QString const filename = QFileDialog::getSaveFileName(this, "Save Scenario");
   if (filename.isEmpty())
     return;
+
+  reset_goal();
 
   obstacle_settings& obstacles = world_->obstacle_settings();
   obstacles.tile_probability = ui_.tile_probability_spin->value();
@@ -73,12 +76,14 @@ scenario_edit::clicked(int x, int y) {
       world_->get({x, y}) == tile::free) {
     world_->put_agent({x, y}, agent{{x, y}});
     scene_.update_agent({x, y});
+    dirty_ = true;
   }
 
   else if (ui_.remove_agent_button->isChecked() &&
            world_->get({x, y}) == tile::agent) {
     world_->remove_agent({x, y});
     scene_.update_agent({x, y});
+    dirty_ = true;
   }
 
   else if (ui_.set_goal_button->isChecked()) {
@@ -97,6 +102,8 @@ scenario_edit::clicked(int x, int y) {
 
       selected_ = boost::none;
       selected_original_goal_ = boost::none;
+
+      dirty_ = true;
     }
   }
 }
@@ -127,7 +134,27 @@ scenario_edit::mouse_moved(int x, int y) {
 }
 
 void
-scenario_edit::attach(world w) {
+scenario_edit::closeEvent(QCloseEvent* event) {
+  if (!dirty_) {
+    event->accept();
+    return;
+  }
+
+  QMessageBox::StandardButton answer = QMessageBox::question(
+    this, "Not saved", "Scenario not saved. Save now?",
+    QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel
+  );
+  if (answer == QMessageBox::Yes)
+    save_scenario();
+
+  if (answer != QMessageBox::Cancel)
+    event->accept();
+  else
+    event->ignore();
+}
+
+void
+scenario_edit::attach(world w, QString const& filename) {
   world_ = std::move(w);
 
   bottom_bar_controller_.set_world(*world_);
@@ -140,4 +167,8 @@ scenario_edit::attach(world w) {
   ui_.tile_probability_spin->setValue(obstacles.tile_probability);
   ui_.mean_ticks_spin->setValue(obstacles.move_probability.mean);
   ui_.std_dev_spin->setValue(obstacles.move_probability.std_dev);
+
+  setWindowTitle(QString(QString("Edit Scenario: %1").arg(filename)));
+
+  dirty_ = false;
 }
