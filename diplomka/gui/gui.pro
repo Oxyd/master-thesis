@@ -17,9 +17,10 @@ LIBS += -lboost_filesystem -lboost_system
 
 SOURCES += main.cpp\
         mainwindow.cpp\
-        zoomable_graphics_view.cpp
+        zoomable_graphics_view.cpp \
+        world_scene.cpp
 
-HEADERS  += mainwindow.hpp zoomable_graphics_view.hpp
+HEADERS  += mainwindow.hpp zoomable_graphics_view.hpp world_scene.hpp
 
 FORMS    += mainwindow.ui
 

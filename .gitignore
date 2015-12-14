@@ -1,6 +1,5 @@
 /Makefile
 /gui/Makefile
-gui/
 build
 debug
 release

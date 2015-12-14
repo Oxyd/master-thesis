@@ -1,7 +1,6 @@
 #ifndef MAINWINDOW_HPP
 #define MAINWINDOW_HPP
 
-#include <QGraphicsScene>
 #include <QMainWindow>
 #include <QStandardItemModel>
 #include <QTimer>
@@ -10,6 +9,7 @@
 #include "log_sinks.hpp"
 #include "solvers.hpp"
 #include "world.hpp"
+#include "world_scene.hpp"
 
 #include <boost/optional.hpp>
 
@@ -20,16 +20,6 @@
 namespace Ui {
 class MainWindow;
 }
-
-class mouse_graphics_scene : public QGraphicsScene {
-  Q_OBJECT
-
-signals:
-  void mouse_moved(QPointF scene_pos);
-
-protected:
-  void mouseMoveEvent(QGraphicsSceneMouseEvent*) override;
-};
 
 class main_window : public QMainWindow
 {
@@ -46,7 +36,7 @@ private slots:
   void run();
   void change_run_interval(double);
   void reset_world();
-  void update_mouse_pos(QPointF pos);
+  void update_mouse_pos(int x, int y);
   void make_random_seed();
 
 private:
@@ -63,7 +53,7 @@ private:
   Ui::MainWindow ui_;
   std::string world_file_;
   boost::optional<world> world_;
-  mouse_graphics_scene world_scene_;
+  world_scene world_scene_;
   std::default_random_engine rng_;
   QTimer run_timer_;
   std::unique_ptr<solver> solver_;
