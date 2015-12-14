@@ -3,6 +3,7 @@
 
 #include <QBrush>
 #include <QColor>
+#include <QGraphicsEllipseItem>
 #include <QGraphicsSceneMouseEvent>
 #include <QPainterPath>
 #include <QPen>
@@ -22,60 +23,68 @@ tile_rect(position p) {
 }
 
 void
-world_scene::render(world const& w) {
-  QPen const black_pen{{0, 0, 0}};
-  QPen const target_pen{QBrush{QColor{127, 127, 127, 127}}, 1};
-  QBrush const wall_brush{QColor{0, 0, 0}};
-  QBrush const obstacle_brush{QColor{255, 0, 0}};
+world_scene::attach(world const* w) {
+  if (world_) {
+    clear();
+    agent_items_.clear();
+  }
 
-  for (auto t : *w.map())
+  world_ = w;
+
+  if (w)
+    re_render();
+}
+
+static QPen const black_pen{{0, 0, 0}};
+static QPen const highlight_pen{QBrush{QColor{0, 0, 0}}, 2};
+static QPen const target_pen{QBrush{QColor{127, 127, 127, 127}}, 1};
+static QBrush const wall_brush{QColor{0, 0, 0}};
+static QBrush const obstacle_brush{QColor{255, 0, 0}};
+static QBrush const brush{{0, 255, 0}};
+
+void
+world_scene::re_render() {
+  if (!world_)
+    return;
+
+  agent_items_.clear();
+  clear();
+
+  for (auto t : *world_->map())
     if (t.tile == tile::wall)
       addRect(tile_rect(t.x, t.y), black_pen, wall_brush);
 
-  QBrush const brush{{0, 255, 0}};
-
-  for (auto const& pos_agent : w.agents()) {
+  for (auto const& pos_agent : world_->agents()) {
     position const pos = pos_agent.first;
     agent const& agent = pos_agent.second;
 
-    addEllipse(tile_rect(pos), black_pen, brush);
-
-    position const target = agent.target;
-    if (target != pos) {
-      QPointF const start{(pos.x + 0.5) * tile_size,
-          (pos.y + 0.5) * tile_size};
-      QPointF const end{(target.x + 0.5) * tile_size,
-          (target.y + 0.5) * tile_size};
-
-      QPainterPath target_path{start};
-      target_path.lineTo(end);
-
-      double const slope_angle = std::atan2(start.y() - end.y(),
-                                            start.x() - end.x());
-      double const arrow_angle = 3.141592 / 8;
-      double const arrow_len = 0.8 * tile_size;
-
-      QPointF const a{
-        end.x() + arrow_len * std::cos(slope_angle + arrow_angle),
-          end.y() + arrow_len * std::sin(slope_angle + arrow_angle)
-          };
-      QPointF const b{
-        end.x() + arrow_len * std::cos(slope_angle - arrow_angle),
-          end.y() + arrow_len * std::sin(slope_angle - arrow_angle)
-          };
-
-      target_path.lineTo(a);
-      target_path.moveTo(end);
-      target_path.lineTo(b);
-
-      addPath(target_path, target_pen);
-    }
+    render_agent(pos, agent);
   }
 
-  for (auto const& pos_obstacle : w.obstacles()) {
+  for (auto const& pos_obstacle : world_->obstacles()) {
     position const pos = pos_obstacle.first;
     addRect(tile_rect(pos.x, pos.y), black_pen, obstacle_brush);
   }
+}
+
+void
+world_scene::update_agent(position pos) {
+  assert(world_);
+
+  if (agent_items_.count(pos))
+    for (QGraphicsItem* item : agent_items_[pos])
+      removeItem(item);
+
+  if (world_->get_agent(pos))
+    render_agent(pos, *world_->get_agent(pos));
+}
+
+void
+world_scene::highlight_agent(position p, bool set) {
+  if (set)
+    highlighted_.insert(p);
+  else
+    highlighted_.erase(p);
 }
 
 void
@@ -84,4 +93,53 @@ world_scene::mouseMoveEvent(QGraphicsSceneMouseEvent* event) {
   int y = event->scenePos().y() / tile_size;
 
   emit mouse_moved(x, y);
+}
+
+void
+world_scene::mouseReleaseEvent(QGraphicsSceneMouseEvent* event) {
+  int x = event->scenePos().x() / tile_size;
+  int y = event->scenePos().y() / tile_size;
+
+  emit mouse_clicked(x, y);
+}
+
+void
+world_scene::render_agent(position pos, agent const& agent) {
+  std::vector<QGraphicsItem*> items;
+
+  QPen const& pen = highlighted_.count(pos) ? highlight_pen : black_pen;
+  items.push_back(addEllipse(tile_rect(pos), pen, brush));
+
+  position const target = agent.target;
+  if (target != pos) {
+    QPointF const start{(pos.x + 0.5) * tile_size,
+        (pos.y + 0.5) * tile_size};
+    QPointF const end{(target.x + 0.5) * tile_size,
+        (target.y + 0.5) * tile_size};
+
+    QPainterPath target_path{start};
+    target_path.lineTo(end);
+
+    double const slope_angle = std::atan2(start.y() - end.y(),
+                                          start.x() - end.x());
+    double const arrow_angle = 3.141592 / 8;
+    double const arrow_len = 0.8 * tile_size;
+
+    QPointF const a{
+      end.x() + arrow_len * std::cos(slope_angle + arrow_angle),
+      end.y() + arrow_len * std::sin(slope_angle + arrow_angle)
+    };
+    QPointF const b{
+      end.x() + arrow_len * std::cos(slope_angle - arrow_angle),
+      end.y() + arrow_len * std::sin(slope_angle - arrow_angle)
+    };
+
+    target_path.lineTo(a);
+    target_path.moveTo(end);
+    target_path.lineTo(b);
+
+    items.push_back(addPath(target_path, target_pen));
+  }
+
+  agent_items_[pos] = std::move(items);
 }

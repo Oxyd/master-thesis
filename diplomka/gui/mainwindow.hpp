@@ -6,6 +6,7 @@
 #include <QTimer>
 #include "ui_mainwindow.h"
 
+#include "bottom_bar_controller.hpp"
 #include "log_sinks.hpp"
 #include "solvers.hpp"
 #include "world.hpp"
@@ -30,14 +31,12 @@ public:
 
 private slots:
   void open_map();
-  void scroll_zoom(int);
-  void change_zoom(int);
   void step();
   void run();
   void change_run_interval(double);
   void reset_world();
-  void update_mouse_pos(int x, int y);
   void make_random_seed();
+  void edit();
 
 private:
   class gui_log_sink : public log_sink {
@@ -59,6 +58,7 @@ private:
   std::unique_ptr<solver> solver_;
   gui_log_sink log_sink_;
   QStandardItemModel stats_;
+  bottom_bar_controller bottom_bar_controller_;
 
   void stop();
   void load_world(std::string const&);

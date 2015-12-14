@@ -1,9 +1,3 @@
-#-------------------------------------------------
-#
-# Project created by QtCreator 2015-04-29T19:59:04
-#
-#-------------------------------------------------
-
 QT       += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
@@ -15,14 +9,20 @@ QMAKE_CXXFLAGS += -std=c++14
 
 LIBS += -lboost_filesystem -lboost_system
 
-SOURCES += main.cpp\
-        mainwindow.cpp\
-        zoomable_graphics_view.cpp \
-        world_scene.cpp
+SOURCES  += bottom_bar_controller.cpp \
+            main.cpp \
+            mainwindow.cpp \
+            scenario_edit.cpp \
+            world_scene.cpp \
+            zoomable_graphics_view.cpp
 
-HEADERS  += mainwindow.hpp zoomable_graphics_view.hpp world_scene.hpp
+HEADERS  += bottom_bar_controller.hpp \
+            mainwindow.hpp \
+            scenario_edit.hpp \
+            world_scene.hpp \
+            zoomable_graphics_view.hpp
 
-FORMS    += mainwindow.ui
+FORMS    += mainwindow.ui edit.ui
 
 win32:CONFIG(release, debug|release): LIBS += -L$$OUT_PWD/../libsolver/release/ -llibsolver
 else:win32:CONFIG(debug, debug|release): LIBS += -L$$OUT_PWD/../libsolver/debug/ -llibsolver

@@ -131,11 +131,11 @@ public:
     distance_to(iterator other) const { return other.i_ - i_; }
   };
 
-  explicit
-  map(coord_type width, coord_type height)
+  map(coord_type width, coord_type height, std::string const& filename)
     : tiles_(width * height, tile::free)
     , width_{width}
     , height_{height}
+    , filename_{filename}
   { }
 
   tile
@@ -160,13 +160,20 @@ public:
   iterator begin() const { return {this, 0}; }
   iterator end() const   { return {this, width_ * height_}; }
 
+  std::string
+  original_filename() const { return filename_; }
+
 private:
   std::vector<tile> tiles_;
   coord_type width_, height_;
+  std::string filename_;
 };
 
-bool
-in_bounds(position p, map const& m);
+std::shared_ptr<map>
+load_map(std::string const& filename);
+
+bool in_bounds(position p, map const& m);
+bool in_bounds(int x, int y, map const& m);
 
 constexpr std::size_t team_count = 2;
 
@@ -185,13 +192,24 @@ struct obstacle {
     : move_distrib(std::move(d)) { }
 };
 
+struct normal_distribution {
+  double mean;
+  double std_dev;
+};
+
+struct obstacle_settings {
+  double tile_probability = 0.05;
+  normal_distribution move_probability = {5, 1};
+};
+
 class world {
   using agents_list = std::unordered_map<position, agent>;
   using obstacle_list = std::unordered_map<position, obstacle>;
 
 public:
   explicit
-  world(std::shared_ptr<::map const> const& m, obstacle_list = {}, tick_t = {});
+  world(std::shared_ptr<::map const> const& m, obstacle_settings = {},
+        obstacle_list = {}, tick_t = {});
 
   void
   next_tick(std::default_random_engine&);
@@ -199,7 +217,10 @@ public:
   tile
   get(position) const;
 
-  boost::optional<agent>
+  boost::optional<agent&>
+  get_agent(position p);
+
+  boost::optional<agent const&>
   get_agent(position p) const;
 
   void
@@ -227,11 +248,18 @@ public:
   obstacle_list const&
   obstacles() const { return obstacles_; }
 
+  ::obstacle_settings&
+  obstacle_settings() { return obstacle_settings_; }
+
+  ::obstacle_settings const&
+  obstacle_settings() const { return obstacle_settings_; }
+
 private:
   std::shared_ptr<::map const> map_;
   agents_list agents_;
   obstacle_list obstacles_;
   tick_t tick_{};
+  ::obstacle_settings obstacle_settings_;
 };
 
 struct bad_world_format : std::runtime_error {
@@ -244,6 +272,12 @@ struct bad_world_format : std::runtime_error {
 };
 
 world
+load_world(std::string const& filename);
+
+world
 load_world(std::string const& filename, std::default_random_engine& rng);
+
+void
+save_world(world const&, std::string const& filename);
 
 #endif // MAP_HPP

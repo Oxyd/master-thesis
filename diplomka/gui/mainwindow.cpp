@@ -1,6 +1,7 @@
 #include "mainwindow.hpp"
 
 #include "action.hpp"
+#include "scenario_edit.hpp"
 #include "solvers.hpp"
 #include "world.hpp"
 
@@ -25,14 +26,16 @@ main_window::main_window(QWidget *parent)
   : QMainWindow(parent)
 {
   ui_.setupUi(this);
+  bottom_bar_controller_.attach_to_ui(ui_.zoom_slider,
+                                      ui_.zoom_text,
+                                      ui_.size_label,
+                                      ui_.mouse_coord_label,
+                                      ui_.world_view,
+                                      world_scene_);
 
   log_sink_.text_field_ = ui_.log_edit;
 
   ui_.world_view->setScene(&world_scene_);
-  connect(&world_scene_, &world_scene::mouse_moved,
-          this, &main_window::update_mouse_pos);
-  connect(ui_.world_view, &zoomable_graphics_view::zoom_changed,
-          this, &main_window::scroll_zoom);
 
   run_timer_.setSingleShot(false);
   run_timer_.setInterval(100);
@@ -46,30 +49,11 @@ main_window::main_window(QWidget *parent)
 
 void
 main_window::open_map() {
-  QString const filename = QFileDialog::getOpenFileName(this, "Open Map");
+  QString const filename = QFileDialog::getOpenFileName(this, "Open Scenario");
   if (filename.isEmpty())
     return;
 
   load_world(filename.toStdString());
-}
-
-void
-main_window::scroll_zoom(int change) {
-  int new_value = ui_.zoom_slider->value() + change;
-  if (new_value < ui_.zoom_slider->minimum() ||
-      new_value > ui_.zoom_slider->maximum())
-    return;
-
-  ui_.zoom_slider->setValue(new_value);
-}
-
-void
-main_window::change_zoom(int exponent) {
-  double const zoom = std::pow(2, exponent);
-  ui_.zoom_text->setText(QString::number(zoom));
-
-  ui_.world_view->resetTransform();
-  ui_.world_view->scale(zoom, zoom);
 }
 
 void
@@ -130,26 +114,18 @@ main_window::reset_world() {
   }
 }
 
-constexpr double tile_size = 10;
-
-void
-main_window::update_mouse_pos(int x, int y) {
-  if (!world_)
-    return;
-
-  if (x < 0 || y < 0 ||
-      x > world_->map()->width() || y > world_->map()->height())
-    return;
-
-  ui_.mouse_coord_label->setText(QString("Mouse position: %1, %2")
-                                 .arg(x).arg(y));
-}
-
 void
 main_window::make_random_seed() {
   qint64 seed = QDateTime::currentMSecsSinceEpoch();
   ui_.seed_edit->setText(QString::number(seed));
   rng_.seed(seed);
+}
+
+void
+main_window::edit() {
+  auto edit = new scenario_edit(this);
+  edit->setAttribute(Qt::WA_DeleteOnClose);
+  edit->show();
 }
 
 void
@@ -192,12 +168,10 @@ main_window::load_world(std::string const& filename) {
     world_ = ::load_world(filename, rng_);
     world_file_ = filename;
 
-    std::ostringstream os;
-    os << "Map size: " << world_->map()->width()
-       << "x" << world_->map()->height();
-    ui_.size_label->setText(QString::fromStdString(os.str()));
+    bottom_bar_controller_.set_world(*world_);
 
-    update_world_view();
+    world_scene_.attach(&*world_);
+    ui_.world_view->viewport()->update();
     world_scene_.setSceneRect(world_scene_.itemsBoundingRect());
 
     solver_.reset();
@@ -213,13 +187,7 @@ main_window::load_world(std::string const& filename) {
 
 void
 main_window::update_world_view() {
-  world_scene_.clear();
-
-  if (!world_)
-    return;
-
-  world_scene_.render(*world_);
-  ui_.world_view->viewport()->update();
+  world_scene_.re_render();
 }
 
 void

@@ -100,17 +100,67 @@ operator << (std::ostream& out, position p) {
   return out << "[" << p.x << ", " << p.y << "]";
 }
 
+std::shared_ptr<map>
+load_map(std::string const& filename) {
+  using namespace std::string_literals;
+
+  std::ifstream in{filename};
+
+  if (!in)
+    throw bad_world_format{"Could not open "s + filename};
+
+  std::string buffer;
+  if (!std::getline(in, buffer) || buffer != "type octile")
+    throw bad_world_format{"Expected 'type octile'"};
+
+  expect_word(in, "height");
+  map::coord_type const height = expect_num(in, "map height");
+  expect_word(in, "width");
+  map::coord_type const width = expect_num(in, "map width");
+
+  expect_word(in, "map");
+
+  auto result = std::make_shared<map>(width, height, filename);
+
+  map::coord_type i = 0;
+  map::coord_type max = width * height;
+
+  char c;
+  while (in && (c = in.get()) != std::ifstream::traits_type::eof()) {
+    if (c == '\n')
+      continue;
+
+    if (!is_tile_char(c))
+      throw bad_world_format{"Not a valid tile character: "s + c};
+
+    if (i >= max)
+      throw bad_world_format{"Too many tiles"};
+
+    result->put(i % width, i / width, char_to_tile(c));
+    ++i;
+  }
+
+  return result;
+}
+
 bool
 in_bounds(position p, map const& m) {
   return p.x >= 0 && p.y >= 0
       && p.x < m.width() && p.y < m.height();
 }
 
+bool
+in_bounds(int x, int y, map const& m) {
+  return in_bounds({x, y}, m);
+}
+
 world::world(const std::shared_ptr<::map const>& m,
+             ::obstacle_settings settings,
              obstacle_list obstacles, tick_t tick)
   : map_(m)
   , obstacles_(std::move(obstacles))
   , tick_(tick)
+  , obstacle_settings_(settings)
 { }
 
 static std::vector<position>
@@ -163,7 +213,16 @@ world::get(position p) const {
     return map_->get(p);
 }
 
-boost::optional<agent>
+boost::optional<agent&>
+world::get_agent(position p) {
+  auto const a = agents_.find(p);
+  if (a != agents_.end())
+    return a->second;
+  else
+    return {};
+}
+
+boost::optional<agent const&>
 world::get_agent(position p) const {
   auto const a = agents_.find(p);
   if (a != agents_.end())
@@ -203,49 +262,6 @@ world::remove_obstacle(position p) {
   obstacles_.erase(it);
 }
 
-static std::shared_ptr<map>
-load_map(std::string const& filename) {
-  using namespace std::string_literals;
-
-  std::ifstream in{filename};
-
-  if (!in)
-    throw bad_world_format{"Could not open "s + filename};
-
-  std::string buffer;
-  if (!std::getline(in, buffer) || buffer != "type octile")
-    throw bad_world_format{"Expected 'type octile'"};
-
-  expect_word(in, "height");
-  map::coord_type const height = expect_num(in, "map height");
-  expect_word(in, "width");
-  map::coord_type const width = expect_num(in, "map width");
-
-  expect_word(in, "map");
-
-  auto result = std::make_shared<map>(width, height);
-
-  map::coord_type i = 0;
-  map::coord_type max = width * height;
-
-  char c;
-  while (in && (c = in.get()) != std::ifstream::traits_type::eof()) {
-    if (c == '\n')
-      continue;
-
-    if (!is_tile_char(c))
-      throw bad_world_format{"Not a valid tile character: "s + c};
-
-    if (i >= max)
-      throw bad_world_format{"Too many tiles"};
-
-    result->put(i % width, i / width, char_to_tile(c));
-    ++i;
-  }
-
-  return result;
-}
-
 static position
 read_pos(boost::property_tree::ptree const& tree) {
   if (tree.count("") != 2)
@@ -259,7 +275,7 @@ read_pos(boost::property_tree::ptree const& tree) {
   return result;
 }
 
-static std::normal_distribution<>
+static normal_distribution
 parse_normal(boost::property_tree::ptree const& p) {
   auto const& params = p.get_child("parameters");
   if (params.count("") != 2)
@@ -270,19 +286,33 @@ parse_normal(boost::property_tree::ptree const& p) {
   for (auto const& param: params)
     *par++ = param.second.get_value<double>();
 
-  return std::normal_distribution<>(distrib_params[0], distrib_params[1]);
+  return normal_distribution{distrib_params[0], distrib_params[1]};
+}
+
+static std::normal_distribution<>
+make_normal(normal_distribution d) {
+  return std::normal_distribution<>(d.mean, d.std_dev);
+}
+
+static obstacle_settings
+parse_obstacle_settings(boost::property_tree::ptree const& p) {
+  obstacle_settings result;
+  result.tile_probability = p.get<double>("tile_probability");
+  result.move_probability =
+    parse_normal(p.get_child("obstacle_movement.move_probability"));
+  return result;
 }
 
 static void
-make_obstacles(world& w, boost::property_tree::ptree const& prop,
+make_obstacles(world& w, obstacle_settings settings,
                std::default_random_engine& rng) {
-  double const tile_probability = prop.get<double>("tile_probability");
   auto rand = [&] { return std::generate_canonical<double, 32>(rng); };
   std::normal_distribution<> time_to_move =
-    parse_normal(prop.get_child("obstacle_movement.move_probability"));
+    make_normal(settings.move_probability);
 
   for (map::value_type const& tile: *w.map())
-    if (w.get({tile.x, tile.y}) == ::tile::free && rand() < tile_probability)
+    if (w.get({tile.x, tile.y}) == ::tile::free &&
+        rand() < settings.tile_probability)
     {
       obstacle o{time_to_move};
       o.next_move = w.tick() + std::max(tick_t{1},
@@ -292,8 +322,8 @@ make_obstacles(world& w, boost::property_tree::ptree const& prop,
     }
 }
 
-world
-load_world(std::string const& filename, std::default_random_engine& rng) try {
+static std::tuple<world, boost::property_tree::ptree>
+load_world_partial(std::string const& filename) try {
   namespace pt = boost::property_tree;
   pt::ptree tree;
   pt::read_json(filename, tree);
@@ -302,8 +332,9 @@ load_world(std::string const& filename, std::default_random_engine& rng) try {
   using boost::algorithm::trim_copy;
 
   std::string const map_filename = tree.get<std::string>("map");
-  path const map_path = path{filename}.parent_path() / trim_copy(map_filename);
-  world world{load_map(map_path.string())};
+  path const map_path = path{filename}.parent_path() / map_filename;
+  world world{load_map(map_path.string()),
+              parse_obstacle_settings(tree.get_child("obstacles"))};
 
   for (auto const& a : tree.get_child("agents")) {
     position const pos = read_pos(a.second.get_child("position"));
@@ -318,13 +349,125 @@ load_world(std::string const& filename, std::default_random_engine& rng) try {
     world.put_agent(pos, agent{*goal});
   }
 
-  if (auto const obstacles = tree.get_child_optional("obstacles"))
-    make_obstacles(world, *obstacles, rng);
-
-  return world;
+  return std::make_tuple(std::move(world), std::move(tree));
 
 } catch (boost::property_tree::json_parser::json_parser_error& e) {
   throw bad_world_format{e.what()};
 } catch (boost::property_tree::ptree_error& e) {
   throw bad_world_format{e.what()};
+}
+
+static boost::filesystem::path
+make_relative(boost::filesystem::path p, boost::filesystem::path relative_to) {
+  using namespace boost::filesystem;
+
+  assert(is_directory(relative_to));
+
+  path::iterator p_it = p.begin();
+  path::iterator r_it = relative_to.begin();
+
+  while (p_it != p.end() && r_it != relative_to.end() && *p_it == *r_it) {
+    ++p_it;
+    ++r_it;
+  }
+
+  path result;
+  while (r_it != relative_to.end()) {
+    result /= "..";
+    ++r_it;
+  }
+
+  while (p_it != p.end())
+    result /= *p_it++;
+
+  return result;
+}
+
+world
+load_world(std::string const& filename) {
+  return std::get<0>(load_world_partial(filename));
+}
+
+world
+load_world(std::string const& filename, std::default_random_engine& rng) {
+  namespace pt = boost::property_tree;
+
+  auto result = load_world_partial(filename);
+  world& world = std::get<0>(result);
+  pt::ptree& tree = std::get<1>(result);
+
+  if (auto const obstacles = tree.get_child_optional("obstacles"))
+    make_obstacles(world, parse_obstacle_settings(*obstacles), rng);
+
+  return world;
+}
+
+static boost::property_tree::ptree
+position_to_ptree(position p) {
+  using namespace boost::property_tree;
+
+  ptree x;
+  x.put("", p.x);
+  ptree y;
+  y.put("", p.y);
+
+  ptree result;
+  result.push_back({"", x});
+  result.push_back({"", y});
+
+  return result;
+}
+
+void
+save_world(world const& world, std::string const& filename) {
+  namespace pt = boost::property_tree;
+
+  pt::ptree tree;
+
+  boost::filesystem::path scenario_path{filename};
+  boost::filesystem::path map_path{world.map()->original_filename()};
+  boost::filesystem::path relative_map_path =
+    make_relative(map_path, scenario_path.parent_path());
+  tree.put("map", relative_map_path.string());
+
+  pt::ptree obstacles;
+  obstacles.add("mode", "random");
+  obstacles.add("tile_probability", world.obstacle_settings().tile_probability);
+
+  pt::ptree move_probability;
+  move_probability.add("distribution", "normal");
+
+  pt::ptree mean;
+  mean.put("", world.obstacle_settings().move_probability.mean);
+
+  pt::ptree std_dev;
+  std_dev.put("", world.obstacle_settings().move_probability.std_dev);
+
+  pt::ptree parameters;
+  parameters.push_back({"", mean});
+  parameters.push_back({"", std_dev});
+  move_probability.add_child("parameters", parameters);
+
+  pt::ptree obstacle_movement;
+  obstacle_movement.add_child("move_probability", move_probability);
+
+  obstacles.add_child("obstacle_movement", obstacle_movement);
+
+  tree.add_child("obstacles", obstacles);
+
+  pt::ptree agents;
+  for (auto pos_agent : world.agents()) {
+    position const pos = std::get<0>(pos_agent);
+    agent const a = std::get<1>(pos_agent);
+
+    pt::ptree agent_tree;
+    agent_tree.add_child("position", position_to_ptree(pos));
+    agent_tree.add_child("goal", position_to_ptree(a.target));
+
+    agents.push_back({"", agent_tree});
+  }
+
+  tree.add_child("agents", agents);
+
+  pt::write_json(filename, tree);
 }
