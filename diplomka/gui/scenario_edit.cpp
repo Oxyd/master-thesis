@@ -65,6 +65,8 @@ scenario_edit::save_scenario() {
   obstacles.move_probability.std_dev = ui_.std_dev_spin->value();
 
   save_world(*world_, filename.toStdString());
+
+  dirty_ = false;
 }
 
 void
