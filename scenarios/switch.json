@@ -1,0 +1,58 @@
+{
+    "map": "maps\/switch.map",
+    "obstacles": {
+        "mode": "random",
+        "tile_probability": "0",
+        "obstacle_movement": {
+            "move_probability": {
+                "distribution": "normal",
+                "parameters": [
+                    "5",
+                    "1"
+                ]
+            }
+        }
+    },
+    "agents": [
+        {
+            "position": [
+                "19",
+                "2"
+            ],
+            "goal": [
+                "1",
+                "2"
+            ]
+        },
+        {
+            "position": [
+                "19",
+                "3"
+            ],
+            "goal": [
+                "1",
+                "3"
+            ]
+        },
+        {
+            "position": [
+                "1",
+                "2"
+            ],
+            "goal": [
+                "19",
+                "3"
+            ]
+        },
+        {
+            "position": [
+                "1",
+                "3"
+            ],
+            "goal": [
+                "19",
+                "2"
+            ]
+        }
+    ]
+}
