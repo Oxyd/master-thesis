@@ -104,8 +104,11 @@ a_star(position from, world const& w) {
         continue;
 
       double step_cost = 1;
-      if (w.get(neighbour) == tile::agent)
+      if (w.get(neighbour) == tile::agent) {
+        if (neighbours(neighbour, from))
+          continue;
         step_cost += agent_penalty / (current.g + 1);
+      }
       if (w.get(neighbour) == tile::obstacle)
         step_cost += obstacle_penalty / (current.g + 1);
 

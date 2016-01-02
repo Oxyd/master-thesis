@@ -95,6 +95,13 @@ direction_to(position from, position to) {
   return direction::north;
 }
 
+bool
+neighbours(position a, position b) {
+  bool const x = std::abs(a.x - b.x) == 1;
+  bool const y = std::abs(a.y - b.y) == 1;
+  return x != y;
+}
+
 std::ostream&
 operator << (std::ostream& out, position p) {
   return out << "[" << p.x << ", " << p.y << "]";

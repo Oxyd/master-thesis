@@ -86,6 +86,9 @@ translate(position, direction);
 direction
 direction_to(position from, position to);
 
+bool
+neighbours(position, position);
+
 class map {
 public:
   using coord_type = position::coord_type;
