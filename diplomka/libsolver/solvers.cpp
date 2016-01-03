@@ -39,53 +39,71 @@ distance(position a, position b) {
 static constexpr double
 infinity = std::numeric_limits<double>::max();
 
-namespace {
-struct a_star_node {
-  position pos;
-  double g = infinity;
-  double h = 0;
-  double f() const { return g + h; }
-};
-
-struct a_star_node_comparator {
-  bool
-  operator () (a_star_node x, a_star_node y) const {
-    return x.f() > y.f();
-  }
-};
-}
-
 static constexpr double agent_penalty = 100;
 static constexpr double obstacle_penalty = 150;
 
-static path
-a_star(position from, world const& w, unsigned& nodes) {
-  position const to = w.get_agent(from)->target;
+namespace {
+
+class a_star {
+public:
+  a_star(position from, position to);
+  path find_path(world const& w);
+
+  unsigned nodes_expanded() const { return expanded_; }
+
+private:
+  struct node {
+    position pos;
+    double g = infinity;
+    double h = 0;
+    double f() const { return g + h; }
+  };
+
+  struct node_comparator {
+    bool
+    operator () (node x, node y) const {
+      return x.f() > y.f();
+    }
+  };
 
   using heap_type = boost::heap::fibonacci_heap<
-    a_star_node, boost::heap::compare<a_star_node_comparator>
+    node, boost::heap::compare<node_comparator>
   >;
-  using handle = heap_type::handle_type;
-  heap_type heap;
-  handle h = heap.push({from, 0, distance(from, to)});
+  using handle_type = heap_type::handle_type;
 
-  std::unordered_map<position, handle> open{{from, h}};
-  std::unordered_set<position> closed;
-  std::unordered_map<position, position> come_from;
-  nodes = 0;
+  position from_;
+  position to_;
+  heap_type heap_;
+  unsigned expanded_ = 0;
+  std::unordered_map<position, handle_type> open_;
+  std::unordered_set<position> closed_;
+  std::unordered_map<position, position> come_from_;
+};
 
-  while (!heap.empty()) {
-    a_star_node current = heap.top();
-    heap.pop();
-    open.erase(current.pos);
-    closed.insert(current.pos);
+}
 
-    if (current.pos == to) {
+a_star::a_star(position from, position to)
+  : from_(from)
+  , to_(to)
+{
+  handle_type h = heap_.push({from, 0, distance(from, to)});
+  open_.insert({from, h});
+}
+
+path
+a_star::find_path(world const& w) {
+  while (!heap_.empty()) {
+    node current = heap_.top();
+    heap_.pop();
+    open_.erase(current.pos);
+    closed_.insert(current.pos);
+
+    if (current.pos == to_) {
       path result;
-      position current = to;
+      position current = to_;
 
-      while (current != from) {
-        position previous = come_from[current];
+      while (current != from_) {
+        position previous = come_from_[current];
         result.push(direction_to(previous, current));
         current = previous;
       }
@@ -93,7 +111,7 @@ a_star(position from, world const& w, unsigned& nodes) {
       return result;
     }
 
-    ++nodes;
+    ++expanded_;
 
     for (direction d : all_directions) {
       position const neighbour = translate(current.pos, d);
@@ -101,12 +119,12 @@ a_star(position from, world const& w, unsigned& nodes) {
           w.get(neighbour) == tile::wall)
         continue;
 
-      if (closed.count(neighbour))
+      if (closed_.count(neighbour))
         continue;
 
       double step_cost = 1;
       if (w.get(neighbour) == tile::agent) {
-        if (neighbours(neighbour, from))
+        if (neighbours(neighbour, from_))
           continue;
         step_cost += agent_penalty / (current.g + 1);
       }
@@ -114,21 +132,21 @@ a_star(position from, world const& w, unsigned& nodes) {
         step_cost += obstacle_penalty / (current.g + 1);
 
       auto neighbour_g = current.g + step_cost;
-      auto n = open.find(neighbour);
-      if (n != open.end()) {
-        handle neighbour_handle = n->second;
+      auto n = open_.find(neighbour);
+      if (n != open_.end()) {
+        handle_type neighbour_handle = n->second;
         if ((*neighbour_handle).g > neighbour_g) {
           (*neighbour_handle).g = neighbour_g;
-          come_from[neighbour] = current.pos;
-          heap.decrease(neighbour_handle);
+          come_from_[neighbour] = current.pos;
+          heap_.decrease(neighbour_handle);
         }
 
       } else {
-        handle h = heap.push(
-          {neighbour, neighbour_g, distance(neighbour, to)}
+        handle_type h = heap_.push(
+          {neighbour, neighbour_g, distance(neighbour, to_)}
         );
-        come_from[neighbour] = current.pos;
-        open.insert({neighbour, h});
+        come_from_[neighbour] = current.pos;
+        open_.insert({neighbour, h});
       }
     }
   }
@@ -281,9 +299,10 @@ lra::recalculate(position from, world const& w) {
   log_ << "Recalculating for " << from << '\n';
   ++recalculations_;
 
-  unsigned new_nodes = 0;
-  path new_path = a_star(from, w, new_nodes);
-  nodes_ += new_nodes;
+  assert(w.get_agent(from));
+  a_star as(from, w.get_agent(from)->target);
+  path new_path = as.find_path(w);
+  nodes_ += as.nodes_expanded();
 
   if (new_path.empty())
     log_ << "A* found no path for " << from << '\n';
