@@ -45,6 +45,9 @@
        <property name="renderHints">
         <set>QPainter::Antialiasing|QPainter::TextAntialiasing</set>
        </property>
+       <property name="viewportUpdateMode">
+        <enum>QGraphicsView::BoundingRectViewportUpdate</enum>
+       </property>
       </widget>
       <widget class="QFrame" name="frame">
        <property name="sizePolicy">
