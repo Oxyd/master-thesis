@@ -62,7 +62,6 @@ private:
 
   void stop();
   void load_world(std::string const&);
-  void update_world_view();
   void update_stats_headers();
   void update_stats();
 };

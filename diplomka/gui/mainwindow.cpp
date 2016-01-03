@@ -186,11 +186,6 @@ main_window::load_world(std::string const& filename) {
 }
 
 void
-main_window::update_world_view() {
-  world_scene_.re_render();
-}
-
-void
 main_window::update_stats_headers() {
   stats_.clear();
   if (!world_)
