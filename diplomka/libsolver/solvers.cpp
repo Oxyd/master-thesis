@@ -59,7 +59,7 @@ static constexpr double agent_penalty = 100;
 static constexpr double obstacle_penalty = 150;
 
 static path
-a_star(position from, world const& w) {
+a_star(position from, world const& w, unsigned& nodes) {
   position const to = w.get_agent(from)->target;
 
   using heap_type = boost::heap::fibonacci_heap<
@@ -72,6 +72,7 @@ a_star(position from, world const& w) {
   std::unordered_map<position, handle> open{{from, h}};
   std::unordered_set<position> closed;
   std::unordered_map<position, position> come_from;
+  nodes = 0;
 
   while (!heap.empty()) {
     a_star_node current = heap.top();
@@ -91,6 +92,8 @@ a_star(position from, world const& w) {
 
       return result;
     }
+
+    ++nodes;
 
     for (direction d : all_directions) {
       position const neighbour = translate(current.pos, d);
@@ -258,7 +261,8 @@ lra::stat_values() const {
   return {
     std::to_string(times_without_path_),
     std::to_string(recalculations_),
-    std::to_string(path_invalid_)
+    std::to_string(path_invalid_),
+    std::to_string(nodes_)
   };
 }
 
@@ -266,8 +270,13 @@ path
 lra::recalculate(position from, world const& w) {
   log_ << "Recalculating for " << from << '\n';
   ++recalculations_;
-  path new_path = a_star(from, w);
+
+  unsigned new_nodes = 0;
+  path new_path = a_star(from, w, new_nodes);
+  nodes_ += new_nodes;
+
   if (new_path.empty())
     log_ << "A* found no path for " << from << '\n';
+
   return new_path;
 }
