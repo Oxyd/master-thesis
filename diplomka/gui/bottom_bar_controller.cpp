@@ -39,7 +39,7 @@ bottom_bar_controller::set_world(boost::optional<world const&> world) {
                          .arg(world_->map()->width())
                          .arg(world_->map()->height()));
 
-    change_zoom(0);
+    slider_->setValue(0);
   }
 }
 
