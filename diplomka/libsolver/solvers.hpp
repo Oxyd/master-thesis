@@ -4,6 +4,8 @@
 #include "action.hpp"
 #include "world.hpp"
 
+#include <array>
+#include <functional>
 #include <random>
 #include <stack>
 #include <string>
@@ -26,6 +28,15 @@ public:
   virtual std::vector<std::string> stat_names() const { return {}; }
   virtual std::vector<std::string> stat_values() const { return {}; };
 };
+
+using solver_description = std::tuple<
+  std::string,
+  std::function<std::unique_ptr<solver>(log_sink&)>
+>;
+
+extern
+std::array<solver_description, 2>
+solvers;
 
 class greedy : public solver {
 public:

@@ -41,8 +41,11 @@ main_window::main_window(QWidget *parent)
   run_timer_.setInterval(100);
   connect(&run_timer_, &QTimer::timeout, this, &main_window::step);
 
-  ui_.algorithm_combo->addItem("LRA*");
-  ui_.algorithm_combo->addItem("Greedy");
+  for (uint i = 0; i < solvers.size(); ++i)
+    ui_.algorithm_combo->addItem(
+      QString::fromStdString(std::get<0>(solvers[i])),
+      i
+    );
 
   ui_.stats_view->setModel(&stats_);
 }
@@ -68,14 +71,8 @@ main_window::step() {
 
   if (!solver_ ||
       solver_->name() != ui_.algorithm_combo->currentText().toStdString()) {
-    std::string const& s = ui_.algorithm_combo->currentText().toStdString();
-    if (s == "Greedy")
-      solver_ = std::make_unique<greedy>();
-    else if (s == "LRA*")
-      solver_ = std::make_unique<lra>(log_sink_);
-    else
-      throw std::runtime_error{"Unknown solver " + s};
-
+    uint const solver_index = ui_.algorithm_combo->currentData().toUInt();
+    solver_ = std::get<1>(solvers[solver_index])(log_sink_);
     update_stats_headers();
   }
 

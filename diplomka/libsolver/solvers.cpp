@@ -149,6 +149,16 @@ solved(world const& w) {
   return true;
 }
 
+std::array<solver_description, 2>
+solvers{{
+  solver_description{
+    "LRA*", [] (log_sink& log) { return std::make_unique<lra>(log); }
+  },
+  solver_description{
+    "Greedy", [] (log_sink&) { return std::make_unique<greedy>(); }
+  }
+}};
+
 joint_action
 greedy::get_action(world temp_world, std::default_random_engine& rng) {
   std::vector<std::tuple<position, agent>> agents(temp_world.agents().begin(),
