@@ -83,7 +83,7 @@ main_window::step() {
   joint_action action = solver_->get_action(*world_, rng_);
   *world_ = apply(action, *world_);
 
-  update_world_view();
+  world_scene_.update();
   update_stats();
 }
 

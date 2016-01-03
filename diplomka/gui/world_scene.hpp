@@ -14,6 +14,7 @@ class world_scene : public QGraphicsScene {
 
 public:
   void attach(world const*);
+  void update();
   void re_render();
   void update_agent(position);
   void highlight_agent(position, bool set_highlight);
@@ -29,9 +30,11 @@ protected:
 private:
   world const* world_ = nullptr;
   std::unordered_map<position, std::vector<QGraphicsItem*>> agent_items_;
+  std::vector<QGraphicsItem*> obstacle_items_;
   std::unordered_set<position> highlighted_;
 
   void render_agent(position, agent const&);
+  void render_obstacle(position);
 };
 
 #endif
