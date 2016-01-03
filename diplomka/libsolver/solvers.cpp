@@ -33,9 +33,7 @@ using path = std::stack<direction>;
 
 static double
 distance(position a, position b) {
-  position::coord_type dx = a.x - b.x;
-  position::coord_type dy = a.y - b.y;
-  return std::sqrt(dx * dx + dy * dy);
+  return std::abs(a.x - b.x) + std::abs(a.y - b.y);
 }
 
 static constexpr double
