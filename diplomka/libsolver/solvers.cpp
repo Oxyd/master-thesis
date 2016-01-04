@@ -44,9 +44,14 @@ static constexpr double obstacle_penalty = 150;
 
 namespace {
 
+struct always_passable {
+  constexpr bool operator () (position, world const&) const { return true; }
+};
+
+template <typename Passable = always_passable>
 class a_star {
 public:
-  a_star(position from, position to);
+  a_star(position from, position to, Passable passable = Passable{});
   path find_path(world const& w);
 
   unsigned nodes_expanded() const { return expanded_; }
@@ -69,7 +74,7 @@ private:
   using heap_type = boost::heap::fibonacci_heap<
     node, boost::heap::compare<node_comparator>
   >;
-  using handle_type = heap_type::handle_type;
+  using handle_type = typename heap_type::handle_type;
 
   position from_;
   position to_;
@@ -78,20 +83,24 @@ private:
   std::unordered_map<position, handle_type> open_;
   std::unordered_set<position> closed_;
   std::unordered_map<position, position> come_from_;
+  Passable passable_;
 };
 
 }
 
-a_star::a_star(position from, position to)
+template <typename Passable>
+a_star<Passable>::a_star(position from, position to, Passable passable)
   : from_(from)
   , to_(to)
+  , passable_(std::move(passable))
 {
   handle_type h = heap_.push({from, 0, distance(from, to)});
   open_.insert({from, h});
 }
 
+template <typename Passable>
 path
-a_star::find_path(world const& w) {
+a_star<Passable>::find_path(world const& w) {
   while (!heap_.empty()) {
     node current = heap_.top();
     heap_.pop();
@@ -122,12 +131,12 @@ a_star::find_path(world const& w) {
       if (closed_.count(neighbour))
         continue;
 
+      if (!passable_(neighbour, w))
+        continue;
+
       double step_cost = 1;
-      if (w.get(neighbour) == tile::agent) {
-        if (neighbours(neighbour, from_))
-          continue;
+      if (w.get(neighbour) == tile::agent)
         step_cost += agent_penalty / (current.g + 1);
-      }
       if (w.get(neighbour) == tile::obstacle)
         step_cost += obstacle_penalty / (current.g + 1);
 
@@ -300,7 +309,18 @@ lra::recalculate(position from, world const& w) {
   ++recalculations_;
 
   assert(w.get_agent(from));
-  a_star as(from, w.get_agent(from)->target);
+
+  struct impassable_immediate_neighbour {
+    position from;
+    bool operator () (position p, world const& w) {
+      return w.get(p) != tile::agent || neighbours(p, from);
+    }
+  };
+
+  a_star<impassable_immediate_neighbour> as(
+    from, w.get_agent(from)->target,
+    impassable_immediate_neighbour{from}
+  );
   path new_path = as.find_path(w);
   nodes_ += as.nodes_expanded();
 
