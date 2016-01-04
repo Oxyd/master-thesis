@@ -229,9 +229,6 @@ greedy::get_action(world temp_world, std::default_random_engine& rng) {
   return result;
 }
 
-lra::lra()
-  : log_(null_log_sink) { }
-
 lra::lra(log_sink& log)
   : log_(log) { }
 

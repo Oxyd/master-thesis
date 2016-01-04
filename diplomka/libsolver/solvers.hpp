@@ -48,8 +48,6 @@ class lra : public solver {
   using path = std::stack<direction>;
 
 public:
-  lra();
-
   explicit
   lra(log_sink& log);
 
