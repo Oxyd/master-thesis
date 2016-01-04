@@ -44,37 +44,50 @@ public:
   std::string name() const override { return "Greedy"; }
 };
 
-class lra : public solver {
-  using path = std::stack<direction>;
-
+class separate_paths_solver : public solver {
 public:
   explicit
-  lra(log_sink& log);
+  separate_paths_solver(log_sink& log);
 
   joint_action
-  get_action(world w, std::default_random_engine& rng) override;
-
-  std::string
-  name() const override { return "LRA*"; }
+  get_action(world, std::default_random_engine&) override;
 
   std::vector<std::string>
   stat_names() const override {
-    return {"Path not found", "Recalculations", "Path invalid", "Nodes expanded"};
+    return {"Path not found", "Recalculations", "Path invalid",
+            "Nodes expanded"};
   }
 
   std::vector<std::string>
   stat_values() const override;
 
-private:
-  std::unordered_map<position, path> paths_;
+protected:
+  using path = std::stack<direction>;
+
   log_sink& log_;
   unsigned times_without_path_ = 0;
   unsigned recalculations_ = 0;
   unsigned path_invalid_ = 0;
   unsigned nodes_ = 0;
 
+private:
+  std::unordered_map<position, path> paths_;
+
+  virtual path
+  find_path(position, world const&) = 0;
+};
+
+class lra : public separate_paths_solver {
+public:
+  explicit
+  lra(log_sink& log) : separate_paths_solver(log) { }
+
+  std::string
+  name() const override { return "LRA*"; }
+
+private:
   path
-  recalculate(position, world const&);
+  find_path(position, world const&) override;
 };
 
 #endif // SOLVERS_HPP

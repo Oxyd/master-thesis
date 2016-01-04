@@ -229,11 +229,13 @@ greedy::get_action(world temp_world, std::default_random_engine& rng) {
   return result;
 }
 
-lra::lra(log_sink& log)
+separate_paths_solver::separate_paths_solver(log_sink& log)
   : log_(log) { }
 
 joint_action
-lra::get_action(world w, std::default_random_engine&) {
+separate_paths_solver::get_action(
+  world w, std::default_random_engine&
+) {
   joint_action result;
 
   std::vector<std::tuple<position, agent>> agents(w.agents().begin(),
@@ -256,11 +258,11 @@ lra::get_action(world w, std::default_random_engine&) {
       }
 
       if (!valid(action{pos, path_it->second.top()}, w))
-        p = recalculate(pos, w);
+        p = find_path(pos, w);
       else
         p = std::move(path_it->second);
     } else
-      p = recalculate(pos, w);
+      p = find_path(pos, w);
 
     if (p.empty()) {
       log_ << "No path for " << pos << '\n';
@@ -291,7 +293,7 @@ lra::get_action(world w, std::default_random_engine&) {
 }
 
 std::vector<std::string>
-lra::stat_values() const {
+separate_paths_solver::stat_values() const {
   return {
     std::to_string(times_without_path_),
     std::to_string(recalculations_),
@@ -301,7 +303,7 @@ lra::stat_values() const {
 }
 
 path
-lra::recalculate(position from, world const& w) {
+lra::find_path(position from, world const& w) {
   log_ << "Recalculating for " << from << '\n';
   ++recalculations_;
 
