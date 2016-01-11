@@ -1,7 +1,7 @@
 #include "solvers.hpp"
-#include "log_sinks.hpp"
 
-#include <boost/heap/fibonacci_heap.hpp>
+#include "a_star.hpp"
+#include "log_sinks.hpp"
 
 #include <algorithm>
 #include <array>
@@ -29,135 +29,6 @@ make_random_action(position from, world& w, joint_action& actions,
   }
 }
 
-using path = std::vector<direction>;
-
-static unsigned
-distance(position a, position b) {
-  return std::abs(a.x - b.x) + std::abs(a.y - b.y);
-}
-
-static constexpr double
-infinity = std::numeric_limits<double>::max();
-
-static constexpr double agent_penalty = 100;
-static constexpr double obstacle_penalty = 150;
-
-namespace {
-
-struct always_passable {
-  constexpr bool operator () (position, world const&, unsigned) const {
-    return true;
-  }
-};
-
-template <typename Passable = always_passable>
-class a_star {
-public:
-  a_star(position from, position to, Passable passable = Passable{});
-  path find_path(world const& w);
-
-  unsigned nodes_expanded() const { return expanded_; }
-
-private:
-  struct node {
-    position pos;
-    unsigned g = infinity;
-    unsigned h = 0;
-    double f() const { return g + h; }
-  };
-
-  struct node_comparator {
-    bool
-    operator () (node x, node y) const {
-      return x.f() > y.f();
-    }
-  };
-
-  using heap_type = boost::heap::fibonacci_heap<
-    node, boost::heap::compare<node_comparator>
-  >;
-  using handle_type = typename heap_type::handle_type;
-
-  position from_;
-  position to_;
-  heap_type heap_;
-  unsigned expanded_ = 0;
-  std::unordered_map<position, handle_type> open_;
-  std::unordered_set<position> closed_;
-  std::unordered_map<position, position> come_from_;
-  Passable passable_;
-};
-
-}
-
-template <typename Passable>
-a_star<Passable>::a_star(position from, position to, Passable passable)
-  : from_(from)
-  , to_(to)
-  , passable_(std::move(passable))
-{
-  handle_type h = heap_.push({from, 0, distance(from, to)});
-  open_.insert({from, h});
-}
-
-template <typename Passable>
-path
-a_star<Passable>::find_path(world const& w) {
-  while (!heap_.empty()) {
-    node current = heap_.top();
-    heap_.pop();
-    open_.erase(current.pos);
-    closed_.insert(current.pos);
-
-    if (current.pos == to_) {
-      path result;
-      position current = to_;
-
-      while (current != from_) {
-        position previous = come_from_[current];
-        result.push_back(direction_to(previous, current));
-        current = previous;
-      }
-
-      return result;
-    }
-
-    ++expanded_;
-
-    for (direction d : all_directions) {
-      position const neighbour = translate(current.pos, d);
-      if (!in_bounds(neighbour, *w.map()) ||
-          w.get(neighbour) == tile::wall)
-        continue;
-
-      if (closed_.count(neighbour))
-        continue;
-
-      if (!passable_(neighbour, w, current.g + 1))
-        continue;
-
-      auto n = open_.find(neighbour);
-      if (n != open_.end()) {
-        handle_type neighbour_handle = n->second;
-        if ((*neighbour_handle).g > current.g + 1) {
-          (*neighbour_handle).g = current.g + 1;
-          come_from_[neighbour] = current.pos;
-          heap_.decrease(neighbour_handle);
-        }
-
-      } else {
-        handle_type h = heap_.push(
-          {neighbour, current.g + 1, distance(neighbour, to_)}
-        );
-        come_from_[neighbour] = current.pos;
-        open_.insert({neighbour, h});
-      }
-    }
-  }
-
-  return path{};
-}
-
 bool
 solved(world const& w) {
   for (auto const& pos_agent : w.agents()) {
@@ -174,7 +45,9 @@ solved(world const& w) {
 std::array<solver_description, 3>
 solvers{{
   solver_description{
-    "CA*", [] (log_sink& log) { return std::make_unique<cooperative_a_star>(log); }
+    "HCA*", [] (log_sink& log) {
+      return std::make_unique<cooperative_a_star>(log);
+    }
   },
   solver_description{
     "LRA*", [] (log_sink& log) { return std::make_unique<lra>(log); }
@@ -325,7 +198,7 @@ lra::find_path(position from, world const& w) {
   };
 
   a_star<impassable_immediate_neighbour> as(
-    from, w.get_agent(from)->target,
+    from, w.get_agent(from)->target, w,
     impassable_immediate_neighbour{from}
   );
   path new_path = as.find_path(w);
@@ -357,16 +230,37 @@ cooperative_a_star::find_path(position from, world const& w) {
     position from_;
   };
 
+  struct distance_heuristic {
+    explicit
+    distance_heuristic(heuristic_search_type& h_search)
+      : h_search_(h_search) { }
+
+    unsigned operator () (position from, world const& w) {
+      return h_search_.find_distance(from, w);
+    }
+
+  private:
+    heuristic_search_type& h_search_;
+  };
+
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
   unreserve(a);
 
-  a_star<impassable_reserved> as(
-    from, a.target, impassable_reserved(reservations_, a, from)
+  heuristic_search_type& h_search = heuristic_map_.insert(
+    {a.id(), heuristic_search_type(a.target, from, w)}
+  ).first->second;
+  unsigned const old_h_search_nodes = h_search.nodes_expanded();
+
+  a_star<impassable_reserved, distance_heuristic> as(
+    from, a.target, w,
+    distance_heuristic(h_search),
+    impassable_reserved(reservations_, a, from)
   );
   path new_path = as.find_path(w);
   nodes_ += as.nodes_expanded();
+  nodes_ += h_search.nodes_expanded() - old_h_search_nodes;
 
   position p = from;
   for (tick_t distance = 0; distance < new_path.size(); ++distance) {

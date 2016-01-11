@@ -1,6 +1,7 @@
 #ifndef SOLVERS_HPP
 #define SOLVERS_HPP
 
+#include "a_star.hpp"
 #include "action.hpp"
 #include "world.hpp"
 
@@ -64,8 +65,6 @@ public:
   stat_values() const override;
 
 protected:
-  using path = std::vector<direction>;
-
   log_sink& log_;
   unsigned times_without_path_ = 0;
   unsigned recalculations_ = 0;
@@ -134,13 +133,17 @@ struct hash<position_time> {
 class cooperative_a_star : public separate_paths_solver {
 public:
   explicit cooperative_a_star(log_sink& log) : separate_paths_solver(log) { }
-  std::string name() const override { return "CA*"; }
+  std::string name() const override { return "HCA*"; }
 
 private:
   using reservation_table_type =
     std::unordered_map<position_time, agent::id_type>;
+  using heuristic_search_type = a_star<>;
+  using heuristic_map_type = std::unordered_map<agent::id_type,
+                                                heuristic_search_type>;
 
   reservation_table_type reservations_;
+  heuristic_map_type heuristic_map_;
 
   path find_path(position, world const&) override;
   void unreserve(agent const&);

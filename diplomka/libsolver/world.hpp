@@ -89,6 +89,9 @@ direction_to(position from, position to);
 bool
 neighbours(position, position);
 
+unsigned
+distance(position, position);
+
 class map {
 public:
   using coord_type = position::coord_type;

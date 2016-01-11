@@ -102,6 +102,11 @@ neighbours(position a, position b) {
   return x != y;
 }
 
+unsigned
+distance(position a, position b) {
+  return std::abs(a.x - b.x) + std::abs(a.y - b.y);
+}
+
 std::ostream&
 operator << (std::ostream& out, position p) {
   return out << "[" << p.x << ", " << p.y << "]";
