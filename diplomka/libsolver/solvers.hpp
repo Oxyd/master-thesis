@@ -4,6 +4,8 @@
 #include "action.hpp"
 #include "world.hpp"
 
+#include <boost/functional/hash.hpp>
+
 #include <array>
 #include <functional>
 #include <random>
@@ -35,7 +37,7 @@ using solver_description = std::tuple<
 >;
 
 extern
-std::array<solver_description, 2>
+std::array<solver_description, 3>
 solvers;
 
 class greedy : public solver {
@@ -62,7 +64,7 @@ public:
   stat_values() const override;
 
 protected:
-  using path = std::stack<direction>;
+  using path = std::vector<direction>;
 
   log_sink& log_;
   unsigned times_without_path_ = 0;
@@ -73,21 +75,75 @@ protected:
 private:
   std::unordered_map<position, path> paths_;
 
+  path
+  recalculate(position, world const&);
+
   virtual path
   find_path(position, world const&) = 0;
 };
 
 class lra : public separate_paths_solver {
 public:
-  explicit
-  lra(log_sink& log) : separate_paths_solver(log) { }
-
-  std::string
-  name() const override { return "LRA*"; }
+  explicit lra(log_sink& log) : separate_paths_solver(log) { }
+  std::string name() const override { return "LRA*"; }
 
 private:
-  path
-  find_path(position, world const&) override;
+  path find_path(position, world const&) override;
+};
+
+struct position_time {
+  position::coord_type x, y;
+  tick_t time;
+
+  position_time(position::coord_type x, position::coord_type y,
+                tick_t time)
+    : x(x), y(y), time(time) { }
+
+  position_time(position p, tick_t time)
+    : x(p.x), y(p.y), time(time) { }
+};
+
+inline bool
+operator == (position_time lhs, position_time rhs) {
+  return lhs.x == rhs.x && lhs.y == rhs.y && lhs.time == rhs.time;
+}
+
+inline bool
+operator != (position_time lhs, position_time rhs) {
+  return !operator == (lhs, rhs);
+}
+
+namespace std {
+template <>
+struct hash<position_time> {
+  using argument_type = position_time;
+  using result_type = std::size_t;
+
+  result_type
+  operator () (argument_type pt) const {
+    std::size_t seed{};
+    boost::hash_combine(seed, pt.x);
+    boost::hash_combine(seed, pt.y);
+    boost::hash_combine(seed, pt.time);
+
+    return seed;
+  }
+};
+}  // namespace std
+
+class cooperative_a_star : public separate_paths_solver {
+public:
+  explicit cooperative_a_star(log_sink& log) : separate_paths_solver(log) { }
+  std::string name() const override { return "CA*"; }
+
+private:
+  using reservation_table_type =
+    std::unordered_map<position_time, agent::id_type>;
+
+  reservation_table_type reservations_;
+
+  path find_path(position, world const&) override;
+  void unreserve(agent const&);
 };
 
 #endif // SOLVERS_HPP

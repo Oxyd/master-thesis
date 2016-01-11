@@ -229,6 +229,11 @@ world::get_agent(position p) {
     return {};
 }
 
+agent
+world::create_agent(position goal) {
+  return agent{goal, next_agent_id_++};
+}
+
 boost::optional<agent const&>
 world::get_agent(position p) const {
   auto const a = agents_.find(p);
@@ -353,7 +358,7 @@ load_world_partial(std::string const& filename) try {
     if (!goal)
       goal = pos;
 
-    world.put_agent(pos, agent{*goal});
+    world.put_agent(pos, world.create_agent(*goal));
   }
 
   return std::make_tuple(std::move(world), std::move(tree));

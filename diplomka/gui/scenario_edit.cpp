@@ -76,7 +76,7 @@ scenario_edit::clicked(int x, int y) {
 
   if (ui_.add_agent_button->isChecked() &&
       world_->get({x, y}) == tile::free) {
-    world_->put_agent({x, y}, agent{{x, y}});
+    world_->put_agent({x, y}, world_->create_agent({x, y}));
     scene_.update_agent({x, y});
     dirty_ = true;
   }

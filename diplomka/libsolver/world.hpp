@@ -182,8 +182,21 @@ constexpr std::size_t team_count = 2;
 
 using tick_t = unsigned;
 
-struct agent {
+class agent {
+public:
+  using id_type = unsigned;
+
   position target;
+  id_type id() const { return id_; }
+
+private:
+  friend class world;
+
+  id_type id_;
+
+  agent(position target, id_type id)
+    : target(target)
+    , id_(id) { }
 };
 
 struct obstacle {
@@ -226,6 +239,9 @@ public:
   boost::optional<agent const&>
   get_agent(position p) const;
 
+  agent
+  create_agent(position goal);
+
   void
   put_agent(position p, agent a);  // Throws std::logic_error if p not empty.
 
@@ -263,6 +279,7 @@ private:
   obstacle_list obstacles_;
   tick_t tick_{};
   ::obstacle_settings obstacle_settings_;
+  agent::id_type next_agent_id_ = 0;
 };
 
 struct bad_world_format : std::runtime_error {
