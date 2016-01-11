@@ -136,14 +136,6 @@ a_star<Passable>::find_path(world const& w) {
       if (!passable_(neighbour, w, current.g + 1))
         continue;
 
-      double step_cost = 0;
-#if 0
-      if (w.get(neighbour) == tile::agent)
-        step_cost += agent_penalty / (current.g + 1);
-      if (w.get(neighbour) == tile::obstacle)
-        step_cost += obstacle_penalty / (current.g + 1);
-#endif
-
       auto n = open_.find(neighbour);
       if (n != open_.end()) {
         handle_type neighbour_handle = n->second;
@@ -155,8 +147,7 @@ a_star<Passable>::find_path(world const& w) {
 
       } else {
         handle_type h = heap_.push(
-          {neighbour, current.g + 1,
-           (unsigned) (distance(neighbour, to_) + step_cost)}
+          {neighbour, current.g + 1, distance(neighbour, to_)}
         );
         come_from_[neighbour] = current.pos;
         open_.insert({neighbour, h});
