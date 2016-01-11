@@ -72,7 +72,7 @@ main_window::step() {
   if (!solver_ ||
       solver_->name() != ui_.algorithm_combo->currentText().toStdString()) {
     uint const solver_index = ui_.algorithm_combo->currentData().toUInt();
-    solver_ = std::get<1>(solvers[solver_index])(log_sink_);
+    solver_ = std::get<1>(solvers[solver_index])(log_sink_, *world_);
     update_stats_headers();
   }
 

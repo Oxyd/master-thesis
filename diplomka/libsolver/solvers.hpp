@@ -34,7 +34,7 @@ public:
 
 using solver_description = std::tuple<
   std::string,
-  std::function<std::unique_ptr<solver>(log_sink&)>
+  std::function<std::unique_ptr<solver>(log_sink&, world const&)>
 >;
 
 extern
@@ -132,17 +132,25 @@ struct hash<position_time> {
 
 class cooperative_a_star : public separate_paths_solver {
 public:
-  explicit cooperative_a_star(log_sink& log) : separate_paths_solver(log) { }
+  cooperative_a_star(log_sink& log, world const& w);
   std::string name() const override { return "HCA*"; }
 
 private:
+  struct permanent_reservation {
+    agent::id_type agent_id;
+    tick_t start;
+  };
+
   using reservation_table_type =
     std::unordered_map<position_time, agent::id_type>;
+  using permanent_reservation_table_type =
+    std::unordered_map<position, permanent_reservation>;
   using heuristic_search_type = a_star<>;
   using heuristic_map_type = std::unordered_map<agent::id_type,
                                                 heuristic_search_type>;
 
   reservation_table_type reservations_;
+  permanent_reservation_table_type permanent_reservations_;
   heuristic_map_type heuristic_map_;
 
   path find_path(position, world const&) override;

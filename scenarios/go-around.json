@@ -1,0 +1,78 @@
+{
+    "map": "maps\/arena.map",
+    "obstacles": {
+        "mode": "random",
+        "tile_probability": "0",
+        "obstacle_movement": {
+            "move_probability": {
+                "distribution": "normal",
+                "parameters": [
+                    "5",
+                    "1"
+                ]
+            }
+        }
+    },
+    "agents": [
+        {
+            "position": [
+                "26",
+                "25"
+            ],
+            "goal": [
+                "26",
+                "25"
+            ]
+        },
+        {
+            "position": [
+                "24",
+                "24"
+            ],
+            "goal": [
+                "24",
+                "26"
+            ]
+        },
+        {
+            "position": [
+                "23",
+                "25"
+            ],
+            "goal": [
+                "23",
+                "25"
+            ]
+        },
+        {
+            "position": [
+                "25",
+                "25"
+            ],
+            "goal": [
+                "25",
+                "25"
+            ]
+        },
+        {
+            "position": [
+                "24",
+                "25"
+            ],
+            "goal": [
+                "24",
+                "25"
+            ]
+        },
+        {
+            "position": [
+                "22",
+                "25"
+            ],
+            "goal": [
+                "22",
+                "25"
+            ]
+        }
+    ]
+}
