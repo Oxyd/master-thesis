@@ -320,9 +320,10 @@ cooperative_a_star::find_path(position from, world const& w,
     assert(!reservations_.count(pt));
     reservations_[pt] = a.id();
   }
-  permanent_reservations_.insert({
-    p, {a.id(), w.tick() + (tick_t) new_path.size()}
-  });
+  if (p == a.target)
+    permanent_reservations_.insert({
+      p, {a.id(), w.tick() + (tick_t) new_path.size()}
+    });
 
   return new_path;
 }
