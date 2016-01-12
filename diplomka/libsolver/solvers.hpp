@@ -75,10 +75,10 @@ private:
   std::unordered_map<position, path> paths_;
 
   path
-  recalculate(position, world const&);
+  recalculate(position, world const&, std::default_random_engine&);
 
   virtual path
-  find_path(position, world const&) = 0;
+  find_path(position, world const&, std::default_random_engine&) = 0;
 };
 
 class lra : public separate_paths_solver {
@@ -87,7 +87,14 @@ public:
   std::string name() const override { return "LRA*"; }
 
 private:
-  path find_path(position, world const&) override;
+  struct agent_data {
+    tick_t last_recalculation = 0;
+    double agitation = 0;
+  };
+
+  std::unordered_map<agent::id_type, agent_data> data_;
+
+  path find_path(position, world const&, std::default_random_engine&) override;
 };
 
 struct position_time {
@@ -153,7 +160,7 @@ private:
   permanent_reservation_table_type permanent_reservations_;
   heuristic_map_type heuristic_map_;
 
-  path find_path(position, world const&) override;
+  path find_path(position, world const&, std::default_random_engine&) override;
   void unreserve(agent const&);
 };
 

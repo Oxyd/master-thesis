@@ -112,7 +112,7 @@ separate_paths_solver::separate_paths_solver(log_sink& log)
 
 joint_action
 separate_paths_solver::get_action(
-  world w, std::default_random_engine&
+  world w, std::default_random_engine& rng
 ) {
   joint_action result;
 
@@ -136,11 +136,11 @@ separate_paths_solver::get_action(
       }
 
       if (!valid(action{pos, path_it->second.back()}, w))
-        p = recalculate(pos, w);
+        p = recalculate(pos, w, rng);
       else
         p = std::move(path_it->second);
     } else
-      p = recalculate(pos, w);
+      p = recalculate(pos, w, rng);
 
     if (p.empty()) {
       log_ << "No path for " << pos << '\n';
@@ -181,11 +181,12 @@ separate_paths_solver::stat_values() const {
 }
 
 path
-separate_paths_solver::recalculate(position from, world const& w) {
+separate_paths_solver::recalculate(position from, world const& w,
+                                   std::default_random_engine& rng) {
   log_ << "Recalculating for " << from << '\n';
   ++recalculations_;
 
-  path new_path = find_path(from, w);
+  path new_path = find_path(from, w, rng);
 
   if (new_path.empty())
     log_ << "A* found no path for " << from << '\n';
@@ -194,7 +195,7 @@ separate_paths_solver::recalculate(position from, world const& w) {
 }
 
 path
-lra::find_path(position from, world const& w) {
+lra::find_path(position from, world const& w, std::default_random_engine& rng) {
   assert(w.get_agent(from));
 
   struct impassable_immediate_neighbour {
@@ -204,12 +205,35 @@ lra::find_path(position from, world const& w) {
     }
   };
 
-  a_star<impassable_immediate_neighbour> as(
-    from, w.get_agent(from)->target, w,
+  struct agitated_distance {
+    position destination;
+    double agitation;
+    std::default_random_engine& rng;
+
+    unsigned operator () (position from, world const&) const {
+      std::uniform_real_distribution<> agit(0.0, agitation);
+      return distance(from, destination) + agit(rng);
+    }
+  };
+
+  agent const& a = *w.get_agent(from);
+
+  tick_t const recalc_interval = w.tick() - data_[a.id()].last_recalculation;
+  assert(recalc_interval > 0);
+  if (recalc_interval < 5)
+    data_[a.id()].agitation += 5 / recalc_interval;
+  else
+    data_[a.id()].agitation = 0.0;
+
+  a_star<impassable_immediate_neighbour, agitated_distance> as(
+    from, a.target, w,
+    agitated_distance{a.target, data_[a.id()].agitation, rng},
     impassable_immediate_neighbour{from}
   );
   path new_path = as.find_path(w);
   nodes_ += as.nodes_expanded();
+
+  data_[a.id()].last_recalculation = w.tick();
 
   return new_path;
 }
@@ -223,7 +247,8 @@ cooperative_a_star::cooperative_a_star(log_sink& log, world const& w)
 }
 
 path
-cooperative_a_star::find_path(position from, world const& w) {
+cooperative_a_star::find_path(position from, world const& w,
+                              std::default_random_engine&) {
   struct impassable_reserved {
     impassable_reserved(
       reservation_table_type const& reservations,
