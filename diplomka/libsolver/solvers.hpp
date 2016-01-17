@@ -9,6 +9,7 @@
 
 #include <array>
 #include <functional>
+#include <map>
 #include <random>
 #include <stack>
 #include <string>
@@ -153,8 +154,7 @@ private:
   using permanent_reservation_table_type =
     std::unordered_map<position, permanent_reservation>;
   using heuristic_search_type = a_star<>;
-  using heuristic_map_type = std::unordered_map<agent::id_type,
-                                                heuristic_search_type>;
+  using heuristic_map_type = std::map<agent::id_type, heuristic_search_type>;
 
   reservation_table_type reservations_;
   permanent_reservation_table_type permanent_reservations_;

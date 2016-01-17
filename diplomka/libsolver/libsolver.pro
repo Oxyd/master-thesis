@@ -21,7 +21,8 @@ SOURCES += \
 HEADERS += \
     world.hpp \
     action.hpp \
-    solvers.hpp
+    solvers.hpp \
+    a_star.hpp
 unix {
     target.path = /usr/lib
     INSTALLS += target

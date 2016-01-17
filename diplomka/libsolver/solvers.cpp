@@ -298,8 +298,10 @@ cooperative_a_star::find_path(position from, world const& w,
 
   unreserve(a);
 
-  heuristic_search_type& h_search = heuristic_map_.insert(
-    {a.id(), heuristic_search_type(a.target, from, w)}
+  heuristic_search_type& h_search = heuristic_map_.emplace(
+    std::piecewise_construct,
+    std::forward_as_tuple(a.id()),
+    std::forward_as_tuple(a.target, from, w)
   ).first->second;
   unsigned const old_h_search_nodes = h_search.nodes_expanded();
 
