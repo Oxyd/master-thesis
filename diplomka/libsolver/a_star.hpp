@@ -57,6 +57,8 @@ private:
     unsigned g;
     unsigned h;
 
+    node* come_from = nullptr;
+
     node(position pos, unsigned g, unsigned h)
       : pos(pos), g(g), h(h) { }
 
@@ -85,7 +87,6 @@ private:
   pool_type node_pool_;
   std::unordered_map<position, handle_type> open_;
   std::unordered_map<position, node*> closed_;
-  std::unordered_map<position, position> come_from_;
   Passable passable_;
   Distance distance_;
 
@@ -118,15 +119,16 @@ path
 a_star<Passable, Distance>::find_path(world const& w) {
   expand_until(to_, w);
 
-  if (!closed_.count(to_))
+  auto final_node = closed_.find(to_);
+  if (final_node == closed_.end())
     return path{};
 
   path result;
-  position current = to_;
+  node* current = final_node->second;
 
-  while (current != from_) {
-    position previous = come_from_[current];
-    result.push_back(direction_to(previous, current));
+  while (current->come_from) {
+    node* previous = current->come_from;
+    result.push_back(direction_to(previous->pos, current->pos));
     current = previous;
   }
 
@@ -184,7 +186,7 @@ a_star<Passable, Distance>::expand_until(position p, world const& w) {
         handle_type neighbour_handle = n->second;
         if ((**neighbour_handle).g > current->g + 1) {
           (**neighbour_handle).g = current->g + 1;
-          come_from_[neighbour] = current->pos;
+          (**neighbour_handle).come_from = current;
           heap_.decrease(neighbour_handle);
         }
 
@@ -192,7 +194,7 @@ a_star<Passable, Distance>::expand_until(position p, world const& w) {
         node* neighbour_node = node_pool_.construct(neighbour, current->g + 1,
                                                     distance_(neighbour, w));
         handle_type h = heap_.push(neighbour_node);
-        come_from_[neighbour] = current->pos;
+        neighbour_node->come_from = current;
         open_.insert({neighbour, h});
       }
     }
