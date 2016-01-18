@@ -73,10 +73,13 @@ protected:
   unsigned nodes_ = 0;
 
 private:
-  std::unordered_map<position, path> paths_;
+  std::unordered_map<agent::id_type, path> paths_;
 
   path
   recalculate(position, world const&, std::default_random_engine&);
+
+  boost::optional<position>
+  next_step(position, world const&, std::default_random_engine&);
 
   virtual path
   find_path(position, world const&, std::default_random_engine&) = 0;

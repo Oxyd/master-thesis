@@ -25,7 +25,7 @@ struct distance_heuristic {
   }
 };
 
-using path = std::vector<direction>;
+using path = std::vector<position>;
 
 constexpr unsigned
 infinity = std::numeric_limits<unsigned>::max();
@@ -126,11 +126,10 @@ a_star<Passable, Distance>::find_path(world const& w) {
   path result;
   node* current = final_node->second;
 
-  while (current->come_from) {
-    node* previous = current->come_from;
-    result.push_back(direction_to(previous->pos, current->pos));
-    current = previous;
-  }
+  do {
+    result.push_back(current->pos);
+    current = current->come_from;
+  } while (current);
 
   return result;
 }

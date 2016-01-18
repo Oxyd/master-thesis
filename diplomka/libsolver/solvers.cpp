@@ -116,55 +116,37 @@ separate_paths_solver::get_action(
 ) {
   joint_action result;
 
-  std::vector<std::tuple<position, agent>> agents(w.agents().begin(),
-                                                  w.agents().end());
-  for (auto pos_agent : agents) {
+  auto agents = w.agents();
+  for (auto const& pos_agent : agents) {
     position const pos = std::get<0>(pos_agent);
     agent const& agent = std::get<1>(pos_agent);
 
     if (pos == agent.target)
       continue;
 
-    auto path_it = paths_.find(pos);
-    path p;
-
-    if (path_it != paths_.end()) {
-      if (path_it->second.empty()) {
-        assert(pos == agent.target);
-        paths_.erase(path_it);
-        continue;
-      }
-
-      if (!valid(action{pos, path_it->second.back()}, w))
-        p = recalculate(pos, w, rng);
-      else
-        p = std::move(path_it->second);
-    } else
-      p = recalculate(pos, w, rng);
-
-    if (p.empty()) {
+    boost::optional<position> maybe_next = next_step(pos, w, rng);
+    if (!maybe_next) {
       log_ << "No path for " << pos << '\n';
       ++times_without_path_;
       continue;
     }
 
-    direction d = p.back();
-    position new_pos = translate(pos, d);
-
-    action a{pos, d};
-    if (!valid(a, w)) {
+    direction dir = direction_to(pos, *maybe_next);
+    if (!valid(action{pos, dir}, w)) {
       log_ << "Path invalid for " << pos << '\n';
       ++path_invalid_;
-      continue;
+
+      paths_.erase(agent.id());
+      maybe_next = next_step(pos, w, rng);
     }
 
+    if (!maybe_next)
+      continue;
+
+    dir = direction_to(pos, *maybe_next);
+    action a{pos, dir};
     result.add(a);
     w = apply(a, w);
-    p.pop_back();
-
-    if (path_it != paths_.end())
-      paths_.erase(path_it);
-    paths_.emplace(new_pos, std::move(p));
   }
 
   return result;
@@ -189,9 +171,26 @@ separate_paths_solver::recalculate(position from, world const& w,
   path new_path = find_path(from, w, rng);
 
   if (new_path.empty())
-    log_ << "A* found no path for " << from << '\n';
+    log_ << "Found no path for " << from << '\n';
 
   return new_path;
+}
+
+boost::optional<position>
+separate_paths_solver::next_step(position from, world const& w,
+                                 std::default_random_engine& rng) {
+  assert(w.get_agent(from));
+  agent const& a = *w.get_agent(from);
+
+  if (paths_[a.id()].size() < 2)
+    paths_[a.id()]= recalculate(from, w, rng);
+
+  if (paths_[a.id()].size() < 2)
+    return {};
+
+  assert(paths_[a.id()].back() == from);
+  paths_[a.id()].pop_back();
+  return paths_[a.id()].back();
 }
 
 path
@@ -314,17 +313,17 @@ cooperative_a_star::find_path(position from, world const& w,
   nodes_ += as.nodes_expanded();
   nodes_ += h_search.nodes_expanded() - old_h_search_nodes;
 
-  position p = from;
-  for (tick_t distance = 0; distance < new_path.size(); ++distance) {
-    p = translate(p, new_path[new_path.size() - distance - 1]);
-    position_time const pt{p, w.tick() + distance + 1};
+  for (tick_t distance = 1; distance <= new_path.size(); ++distance) {
+    position const p = new_path[new_path.size() - distance];
+    position_time const pt{p, w.tick() + distance - 1};
 
     assert(!reservations_.count(pt));
     reservations_[pt] = a.id();
   }
-  if (p == a.target)
+  if ((!new_path.empty() && new_path.front() == a.target) ||
+      (new_path.empty() && from == a.target))
     permanent_reservations_.insert({
-      p, {a.id(), w.tick() + (tick_t) new_path.size()}
+      new_path.front(), {a.id(), w.tick() + (tick_t) new_path.size()}
     });
 
   return new_path;
