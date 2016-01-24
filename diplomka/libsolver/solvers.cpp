@@ -45,7 +45,7 @@ solved(world const& w) {
 std::array<solver_description, 3>
 solvers{{
   solver_description{
-    "HCA*",
+    "WHCA*",
     [] (log_sink& log, world const& w) {
       return std::make_unique<cooperative_a_star>(log, w);
     }
@@ -183,7 +183,7 @@ separate_paths_solver::next_step(position from, world const& w,
   agent const& a = *w.get_agent(from);
 
   if (paths_[a.id()].size() < 2)
-    paths_[a.id()]= recalculate(from, w, rng);
+    paths_[a.id()] = recalculate(from, w, rng);
 
   if (paths_[a.id()].size() < 2)
     return {};

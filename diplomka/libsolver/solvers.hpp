@@ -144,7 +144,7 @@ struct hash<position_time> {
 class cooperative_a_star : public separate_paths_solver {
 public:
   cooperative_a_star(log_sink& log, world const& w);
-  std::string name() const override { return "HCA*"; }
+  std::string name() const override { return "WHCA*"; }
 
 private:
   struct permanent_reservation {

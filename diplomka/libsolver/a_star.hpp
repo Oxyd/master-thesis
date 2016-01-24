@@ -4,6 +4,7 @@
 #include "world.hpp"
 
 #include <boost/heap/fibonacci_heap.hpp>
+#include <boost/optional.hpp>
 #include <boost/pool/object_pool.hpp>
 #include <boost/pool/pool.hpp>
 
@@ -58,15 +59,12 @@ public:
   a_star& operator = (a_star&&) = default;
 
   path
-  find_path(world const& w) {
-    expand_until(to_, w);
-
-    auto final_node = closed_.find(to_);
-    if (final_node == closed_.end())
-      return path{};
-
+  find_path(world const& w, boost::optional<unsigned> window = {}) {
     path result;
-    node* current = final_node->second;
+
+    node* current = expand_until(to_, w, window);
+    if (!current)
+      return {};
 
     do {
       result.push_back(current->pos);
@@ -132,8 +130,9 @@ private:
   Passable passable_;
   Distance distance_;
 
-  void
-  expand_until(position p, world const& w) {
+  node*
+  expand_until(position p, world const& w,
+               boost::optional<unsigned> window = {}) {
     while (!heap_.empty()) {
       node* current = heap_.top();
 
@@ -144,8 +143,8 @@ private:
       open_.erase(current->pos);
       closed_.insert({current->pos, current});
 
-      if (current->pos == p)
-        return;
+      if (current->pos == p || (window && current->g == w.tick() + *window))
+        return current;
 
       ++expanded_;
 
@@ -179,6 +178,8 @@ private:
         }
       }
     }
+
+    return nullptr;
   }
 };
 
