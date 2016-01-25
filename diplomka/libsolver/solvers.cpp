@@ -114,12 +114,23 @@ joint_action
 separate_paths_solver::get_action(
   world w, std::default_random_engine& rng
 ) {
+  std::unordered_map<agent::id_type, position> agents;
+  for (auto const& pos_agent : w.agents())
+    agents.insert({std::get<1>(pos_agent).id(), std::get<0>(pos_agent)});
+
+  if (agent_order_.empty())
+    std::transform(w.agents().begin(), w.agents().end(),
+                   std::back_inserter(agent_order_),
+                   [] (std::pair<position, agent> const& pa) {
+                     return std::get<1>(pa).id();
+                   });
+  assert(agent_order_.size() == w.agents().size());
+
   joint_action result;
 
-  auto agents = w.agents();
-  for (auto const& pos_agent : agents) {
-    position const pos = std::get<0>(pos_agent);
-    agent const& agent = std::get<1>(pos_agent);
+  for (agent::id_type id : agent_order_) {
+    position const pos = agents[id];
+    agent const& agent = *w.get_agent(pos);
 
     if (pos == agent.target)
       continue;
@@ -151,6 +162,8 @@ separate_paths_solver::get_action(
     result.add(a);
     w = apply(a, w);
   }
+
+  std::next_permutation(agent_order_.begin(), agent_order_.end());
 
   return result;
 }
@@ -313,7 +326,7 @@ cooperative_a_star::find_path(position from, world const& w,
     distance_heuristic(h_search),
     impassable_reserved(reservations_, permanent_reservations_, a, from)
   );
-  path new_path = as.find_path(w, 5);
+  path new_path = as.find_path(w, 10);
   nodes_ += as.nodes_expanded();
   nodes_ += h_search.nodes_expanded() - old_h_search_nodes;
 

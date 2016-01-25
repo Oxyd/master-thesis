@@ -74,6 +74,7 @@ protected:
 
 private:
   std::unordered_map<agent::id_type, path> paths_;
+  std::vector<agent::id_type> agent_order_;
 
   path
   recalculate(position, world const&, std::default_random_engine&);
