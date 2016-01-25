@@ -142,10 +142,6 @@ private:
       heap_.pop();
       open_.erase(current->pos);
       closed_.insert({current->pos, current});
-
-      if (current->pos == p || (window && current->g == w.tick() + *window))
-        return current;
-
       ++expanded_;
 
       for (direction d : all_directions) {
@@ -177,6 +173,9 @@ private:
           open_.insert({neighbour, h});
         }
       }
+
+      if (current->pos == p || (window && current->g == *window))
+        return current;
     }
 
     return nullptr;

@@ -165,7 +165,8 @@ separate_paths_solver::stat_values() const {
 path
 separate_paths_solver::recalculate(position from, world const& w,
                                    std::default_random_engine& rng) {
-  log_ << "Recalculating for " << from << '\n';
+  log_ << "Recalculating for " << w.get_agent(from)->id()
+       << '@' << from << '\n';
   ++recalculations_;
 
   path new_path = find_path(from, w, rng);
@@ -309,7 +310,7 @@ cooperative_a_star::find_path(position from, world const& w,
     distance_heuristic(h_search),
     impassable_reserved(reservations_, permanent_reservations_, a, from)
   );
-  path new_path = as.find_path(w);
+  path new_path = as.find_path(w, 5);
   nodes_ += as.nodes_expanded();
   nodes_ += h_search.nodes_expanded() - old_h_search_nodes;
 
