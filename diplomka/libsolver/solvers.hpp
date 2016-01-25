@@ -101,46 +101,6 @@ private:
   path find_path(position, world const&, std::default_random_engine&) override;
 };
 
-struct position_time {
-  position::coord_type x, y;
-  tick_t time;
-
-  position_time(position::coord_type x, position::coord_type y,
-                tick_t time)
-    : x(x), y(y), time(time) { }
-
-  position_time(position p, tick_t time)
-    : x(p.x), y(p.y), time(time) { }
-};
-
-inline bool
-operator == (position_time lhs, position_time rhs) {
-  return lhs.x == rhs.x && lhs.y == rhs.y && lhs.time == rhs.time;
-}
-
-inline bool
-operator != (position_time lhs, position_time rhs) {
-  return !operator == (lhs, rhs);
-}
-
-namespace std {
-template <>
-struct hash<position_time> {
-  using argument_type = position_time;
-  using result_type = std::size_t;
-
-  result_type
-  operator () (argument_type pt) const {
-    std::size_t seed{};
-    boost::hash_combine(seed, pt.x);
-    boost::hash_combine(seed, pt.y);
-    boost::hash_combine(seed, pt.time);
-
-    return seed;
-  }
-};
-}  // namespace std
-
 class cooperative_a_star : public separate_paths_solver {
 public:
   cooperative_a_star(log_sink& log, world const& w);

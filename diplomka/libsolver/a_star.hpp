@@ -26,13 +26,28 @@ struct distance_heuristic {
   }
 };
 
+struct space_coordinate {
+  using type = position;
+
+  static type
+  make(position p, unsigned) { return p; }
+};
+
+struct space_time_coordinate {
+  using type = position_time;
+
+  static type
+  make(position p, unsigned g) { return position_time{p, g}; }
+};
+
 using path = std::vector<position>;
 
 constexpr unsigned
 infinity = std::numeric_limits<unsigned>::max();
 
 template <typename Passable = always_passable,
-          typename Distance = distance_heuristic>
+          typename Distance = distance_heuristic,
+          typename Coordinate = space_coordinate>
 class a_star {
 public:
   a_star(position from, position to, world const& w,
@@ -49,7 +64,7 @@ public:
   {
     node* start = node_pool_.construct(from, 0, distance_(from, w));
     handle_type h = heap_.push(start);
-    open_.insert({from, h});
+    open_.insert({Coordinate::make(from, 0), h});
   }
 
   a_star(a_star const&) = delete;
@@ -76,14 +91,14 @@ public:
 
   unsigned
   find_distance(position p, world const& w) {
-    auto it = closed_.find(p);
-    if (it != closed_.end())
+    auto it = shortest_paths_.find(p);
+    if (it != shortest_paths_.end())
       return it->second->g;
 
     expand_until(p, w);
 
-    it = closed_.find(p);
-    if (it != closed_.end())
+    it = shortest_paths_.find(p);
+    if (it != shortest_paths_.end())
       return it->second->g;
     else
       return infinity;
@@ -120,13 +135,16 @@ private:
   using pool_type =
     boost::object_pool<node, boost::default_user_allocator_new_delete>;
 
+  using coordinate_type = typename Coordinate::type;
+
   position from_;
   position to_;
   heap_type heap_;
   unsigned expanded_ = 0;
   pool_type node_pool_;
-  std::unordered_map<position, handle_type> open_;
-  std::unordered_map<position, node*> closed_;
+  std::unordered_map<coordinate_type, handle_type> open_;
+  std::unordered_set<coordinate_type> closed_;
+  std::unordered_map<position, node*> shortest_paths_;
   Passable passable_;
   Distance distance_;
 
@@ -134,29 +152,46 @@ private:
   expand_until(position p, world const& w,
                boost::optional<unsigned> window = {}) {
     while (!heap_.empty()) {
-      node* current = heap_.top();
+      node* const current = heap_.top();
+      coordinate_type const current_coord =
+        Coordinate::make(current->pos, current->g);
 
-      assert(open_.count(current->pos));
-      assert(!closed_.count(current->pos));
+      assert(open_.count(current_coord));
+      assert(!closed_.count(current_coord));
 
       heap_.pop();
-      open_.erase(current->pos);
-      closed_.insert({current->pos, current});
+      open_.erase(current_coord);
+      closed_.insert({current_coord});
+
+      shortest_paths_.insert({current->pos, current});
+
       ++expanded_;
 
+      std::vector<position> neighbours;
       for (direction d : all_directions) {
-        position const neighbour = translate(current->pos, d);
+        position const n = translate(current->pos, d);
+        if (in_bounds(n, *w.map()) && w.get(n) != tile::wall)
+          neighbours.push_back(n);
+      }
+
+      if (Coordinate::make(current->pos, current->g + 1) != current_coord)
+        neighbours.push_back(current->pos);
+
+      for (position neighbour : neighbours) {
+        coordinate_type const neighbour_coord =
+          Coordinate::make(neighbour, current->g + 1);
+
         if (!in_bounds(neighbour, *w.map()) ||
             w.get(neighbour) == tile::wall)
           continue;
 
-        if (closed_.count(neighbour))
+        if (closed_.count(neighbour_coord))
           continue;
 
         if (!passable_(neighbour, w, current->g + 1))
           continue;
 
-        auto n = open_.find(neighbour);
+        auto n = open_.find(neighbour_coord);
         if (n != open_.end()) {
           handle_type neighbour_handle = n->second;
           if ((**neighbour_handle).g > current->g + 1) {
@@ -170,7 +205,7 @@ private:
                                                       distance_(neighbour, w));
           handle_type h = heap_.push(neighbour_node);
           neighbour_node->come_from = current;
-          open_.insert({neighbour, h});
+          open_.insert({neighbour_coord, h});
         }
       }
 

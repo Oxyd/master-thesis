@@ -131,6 +131,9 @@ separate_paths_solver::get_action(
       continue;
     }
 
+    if (pos == *maybe_next)
+      continue;
+
     direction dir = direction_to(pos, *maybe_next);
     if (!valid(action{pos, dir}, w)) {
       log_ << "Path invalid for " << pos << '\n';
@@ -140,7 +143,7 @@ separate_paths_solver::get_action(
       maybe_next = next_step(pos, w, rng);
     }
 
-    if (!maybe_next)
+    if (!maybe_next || pos == *maybe_next)
       continue;
 
     dir = direction_to(pos, *maybe_next);
@@ -305,7 +308,7 @@ cooperative_a_star::find_path(position from, world const& w,
   ).first->second;
   unsigned const old_h_search_nodes = h_search.nodes_expanded();
 
-  a_star<impassable_reserved, distance_heuristic> as(
+  a_star<impassable_reserved, distance_heuristic, space_time_coordinate> as(
     from, a.target, w,
     distance_heuristic(h_search),
     impassable_reserved(reservations_, permanent_reservations_, a, from)

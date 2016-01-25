@@ -67,6 +67,11 @@ traversable(tile t) {
   return t == tile::free;
 }
 
+std::ostream&
+operator << (std::ostream& out, position p) {
+  return out << "[" << p.x << ", " << p.y << "]";
+}
+
 position
 translate(position p, direction d) {
   switch (d) {
@@ -108,8 +113,8 @@ distance(position a, position b) {
 }
 
 std::ostream&
-operator << (std::ostream& out, position p) {
-  return out << "[" << p.x << ", " << p.y << "]";
+operator << (std::ostream& out, position_time pt) {
+  return out << "[" << pt.x << ", " << pt.y << "]@" << pt.time;
 }
 
 std::shared_ptr<map>
