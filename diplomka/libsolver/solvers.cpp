@@ -115,20 +115,18 @@ separate_paths_solver::get_action(
   world w, std::default_random_engine& rng
 ) {
   std::unordered_map<agent::id_type, position> agents;
-  for (auto const& pos_agent : w.agents())
-    agents.insert({std::get<1>(pos_agent).id(), std::get<0>(pos_agent)});
+  std::vector<agent::id_type> agent_order;
 
-  if (agent_order_.empty())
-    std::transform(w.agents().begin(), w.agents().end(),
-                   std::back_inserter(agent_order_),
-                   [] (std::pair<position, agent> const& pa) {
-                     return std::get<1>(pa).id();
-                   });
-  assert(agent_order_.size() == w.agents().size());
+  for (auto const& pos_agent : w.agents()) {
+    agents.insert({std::get<1>(pos_agent).id(), std::get<0>(pos_agent)});
+    agent_order.push_back(std::get<1>(pos_agent).id());
+  }
+
+  std::shuffle(agent_order.begin(), agent_order.end(), rng);
 
   joint_action result;
 
-  for (agent::id_type id : agent_order_) {
+  for (agent::id_type id : agent_order) {
     position const pos = agents[id];
     agent const& agent = *w.get_agent(pos);
 
@@ -162,8 +160,6 @@ separate_paths_solver::get_action(
     result.add(a);
     w = apply(a, w);
   }
-
-  std::next_permutation(agent_order_.begin(), agent_order_.end());
 
   return result;
 }
