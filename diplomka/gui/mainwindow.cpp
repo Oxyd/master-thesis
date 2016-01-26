@@ -235,7 +235,7 @@ main_window::make_solver() {
 
   QString algo = ui_.algorithm_combo->currentText();
   if (algo == "WHCA*")
-    return std::make_unique<cooperative_a_star>(log_sink_, *world_,
+    return std::make_unique<cooperative_a_star>(log_sink_,
                                                 ui_.window_spin->value());
   else if (algo == "LRA*")
     return std::make_unique<lra>(log_sink_);

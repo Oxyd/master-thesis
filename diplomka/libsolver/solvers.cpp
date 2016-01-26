@@ -108,13 +108,13 @@ separate_paths_solver::get_action(
     position const pos = agents[id];
     agent const& agent = *w.get_agent(pos);
 
-    if (pos == agent.target)
-      continue;
-
     boost::optional<position> maybe_next = next_step(pos, w, rng);
     if (!maybe_next) {
-      log_ << "No path for " << pos << '\n';
-      ++times_without_path_;
+      if (pos != agent.target) {
+        log_ << "No path for " << pos << '\n';
+        ++times_without_path_;
+      }
+
       continue;
     }
 
@@ -208,6 +208,9 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng) {
 
   agent const& a = *w.get_agent(from);
 
+  if (from == a.target)
+    return {};
+
   tick_t const recalc_interval = w.tick() - data_[a.id()].last_recalculation;
   assert(recalc_interval > 0);
   if (recalc_interval < 5)
@@ -228,15 +231,10 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng) {
   return new_path;
 }
 
-cooperative_a_star::cooperative_a_star(log_sink& log, world const& w,
-                                       unsigned window)
+cooperative_a_star::cooperative_a_star(log_sink& log, unsigned window)
   : separate_paths_solver(log)
   , window_(window)
-{
-  for (auto const& pos_agent : w.agents())
-    permanent_reservations_.insert({pos_agent.first,
-                                    {pos_agent.second.id(), w.tick()}});
-}
+{ }
 
 path
 cooperative_a_star::find_path(position from, world const& w,
@@ -244,12 +242,10 @@ cooperative_a_star::find_path(position from, world const& w,
   struct impassable_reserved {
     impassable_reserved(
       reservation_table_type const& reservations,
-      permanent_reservation_table_type const& permanent_reservations,
       agent const& agent,
       position from
     )
       : reservations_(reservations)
-      , permanent_reservations_(permanent_reservations)
       , agent_(agent)
       , from_(from) { }
 
@@ -257,17 +253,11 @@ cooperative_a_star::find_path(position from, world const& w,
       if (reservations_.count(position_time{p, w.tick() + distance}))
         return false;
 
-      auto permanent = permanent_reservations_.find(p);
-      if (permanent != permanent_reservations_.end() &&
-          permanent->second.start <= w.tick() + distance)
-        return false;
-
       return w.get(p) == tile::free || !neighbours(p, from_);
     }
 
   private:
     reservation_table_type const& reservations_;
-    permanent_reservation_table_type const& permanent_reservations_;
     agent const& agent_;
     position from_;
   };
@@ -300,7 +290,7 @@ cooperative_a_star::find_path(position from, world const& w,
   a_star<impassable_reserved, distance_heuristic, space_time_coordinate> as(
     from, a.target, w,
     distance_heuristic(h_search),
-    impassable_reserved(reservations_, permanent_reservations_, a, from)
+    impassable_reserved(reservations_, a, from)
   );
   path new_path = as.find_path(w, window_);
   nodes_ += as.nodes_expanded();
@@ -313,11 +303,6 @@ cooperative_a_star::find_path(position from, world const& w,
     assert(!reservations_.count(pt));
     reservations_[pt] = a.id();
   }
-  if ((!new_path.empty() && new_path.front() == a.target) ||
-      (new_path.empty() && from == a.target))
-    permanent_reservations_.insert({
-      new_path.front(), {a.id(), w.tick() + (tick_t) new_path.size()}
-    });
 
   return new_path;
 }
@@ -330,11 +315,4 @@ cooperative_a_star::unreserve(agent const& a) {
       it = reservations_.erase(it);
     else
       ++it;
-
-  auto perm = permanent_reservations_.begin();
-  while (perm != permanent_reservations_.end())
-    if (perm->second.agent_id == a.id())
-      perm = permanent_reservations_.erase(perm);
-    else
-      ++perm;
 }

@@ -94,25 +94,17 @@ private:
 
 class cooperative_a_star : public separate_paths_solver {
 public:
-  cooperative_a_star(log_sink& log, world const& w, unsigned window);
+  cooperative_a_star(log_sink& log, unsigned window);
   std::string name() const override { return "WHCA*"; }
   void window(unsigned new_window) { window_ = new_window; }
 
 private:
-  struct permanent_reservation {
-    agent::id_type agent_id;
-    tick_t start;
-  };
-
   using reservation_table_type =
     std::unordered_map<position_time, agent::id_type>;
-  using permanent_reservation_table_type =
-    std::unordered_map<position, permanent_reservation>;
   using heuristic_search_type = a_star<>;
   using heuristic_map_type = std::map<agent::id_type, heuristic_search_type>;
 
   reservation_table_type reservations_;
-  permanent_reservation_table_type permanent_reservations_;
   heuristic_map_type heuristic_map_;
   unsigned window_;
 

@@ -77,7 +77,12 @@ public:
   find_path(world const& w, boost::optional<unsigned> window = {}) {
     path result;
 
-    node* current = expand_until(to_, w, window);
+    node* current;
+    if (!window)
+      current = expand_until(to_, w);
+    else
+      current = expand_until({}, w, window);
+
     if (!current)
       return {};
 
@@ -149,7 +154,7 @@ private:
   Distance distance_;
 
   node*
-  expand_until(position p, world const& w,
+  expand_until(boost::optional<position> goal, world const& w,
                boost::optional<unsigned> window = {}) {
     while (!heap_.empty()) {
       node* const current = heap_.top();
@@ -209,7 +214,7 @@ private:
         }
       }
 
-      if (current->pos == p || (window && current->g == *window))
+      if ((goal && current->pos == *goal) || (window && current->g == *window))
         return current;
     }
 
