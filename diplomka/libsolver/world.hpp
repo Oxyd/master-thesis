@@ -264,6 +264,10 @@ struct obstacle_settings {
   normal_distribution move_probability = {5, 1};
 };
 
+struct agent_settings {
+  unsigned random_agent_number = 0;
+};
+
 class world {
   using agents_list = std::unordered_map<position, agent>;
   using obstacle_list = std::unordered_map<position, obstacle>;
@@ -271,7 +275,7 @@ class world {
 public:
   explicit
   world(std::shared_ptr<::map const> const& m, obstacle_settings = {},
-        obstacle_list = {}, tick_t = {});
+        agent_settings = {}, obstacle_list = {}, tick_t = {});
 
   void
   next_tick(std::default_random_engine&);
@@ -319,12 +323,19 @@ public:
   ::obstacle_settings const&
   obstacle_settings() const { return obstacle_settings_; }
 
+  ::agent_settings&
+  agent_settings() { return agent_settings_; }
+
+  ::agent_settings const&
+  agent_settings() const { return agent_settings_; }
+
 private:
   std::shared_ptr<::map const> map_;
   agents_list agents_;
   obstacle_list obstacles_;
   tick_t tick_{};
   ::obstacle_settings obstacle_settings_;
+  ::agent_settings agent_settings_;
   agent::id_type next_agent_id_ = 0;
 };
 

@@ -173,11 +173,13 @@ in_bounds(int x, int y, map const& m) {
 
 world::world(const std::shared_ptr<::map const>& m,
              ::obstacle_settings settings,
+             ::agent_settings agents,
              obstacle_list obstacles, tick_t tick)
   : map_(m)
   , obstacles_(std::move(obstacles))
   , tick_(tick)
   , obstacle_settings_(settings)
+  , agent_settings_(agents)
 { }
 
 static std::vector<position>
@@ -325,6 +327,13 @@ parse_obstacle_settings(boost::property_tree::ptree const& p) {
   return result;
 }
 
+static agent_settings
+parse_agent_settings(boost::property_tree::ptree const& p) {
+  agent_settings result;
+  result.random_agent_number = p.get<unsigned>("random_agents");
+  return result;
+}
+
 static void
 make_obstacles(world& w, obstacle_settings settings,
                std::default_random_engine& rng) {
@@ -342,6 +351,35 @@ make_obstacles(world& w, obstacle_settings settings,
 
       w.put_obstacle({tile.x, tile.y}, std::move(o));
     }
+}
+
+static void
+make_agents(world& w, agent_settings settings,
+            std::default_random_engine& rng) {
+  auto rand_pos = [&] {
+    using uniform_coord = std::uniform_int_distribution<position::coord_type>;
+    uniform_coord x(0, w.map()->width() - 1);
+    uniform_coord y(0, w.map()->height() - 1);
+
+    position result;
+    do
+      result = position{x(rng), y(rng)};
+    while (w.get(result) == tile::wall);
+
+    return result;
+  };
+
+  for (unsigned i = 0; i < settings.random_agent_number; ++i) {
+    position goal = rand_pos();
+    agent a = w.create_agent(goal);
+
+    position pos;
+    do
+      pos = rand_pos();
+    while (w.get(pos) == tile::agent || w.get(pos) == tile::obstacle);
+
+    w.put_agent(pos, a);
+  }
 }
 
 static std::tuple<world, boost::property_tree::ptree>
@@ -421,6 +459,9 @@ load_world(std::string const& filename, std::default_random_engine& rng) {
   if (auto const obstacles = tree.get_child_optional("obstacles"))
     make_obstacles(world, parse_obstacle_settings(*obstacles), rng);
 
+  if (auto const rand_agents = tree.get_child_optional("agent_settings"))
+    make_agents(world, parse_agent_settings(*rand_agents), rng);
+
   return world;
 }
 
@@ -476,6 +517,14 @@ save_world(world const& world, std::string const& filename) {
   obstacles.add_child("obstacle_movement", obstacle_movement);
 
   tree.add_child("obstacles", obstacles);
+
+  pt::ptree agent_settings;
+
+  pt::ptree rand_agent_num;
+  rand_agent_num.put("", world.agent_settings().random_agent_number);
+  agent_settings.add_child("random_agents", rand_agent_num);
+
+  tree.add_child("agent_settings", agent_settings);
 
   pt::ptree agents;
   for (auto pos_agent : world.agents()) {

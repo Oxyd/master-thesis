@@ -66,7 +66,8 @@ operator << (std::ostream& out, joint_action const& a) {
 
 world
 apply(joint_action const& a, world const& w) {
-  world result{w.map(), w.obstacle_settings(), w.obstacles(), w.tick()};
+  world result{w.map(), w.obstacle_settings(), w.agent_settings(),
+               w.obstacles(), w.tick()};
 
   for (auto const& pos_agent : w.agents()) {
     position const p = pos_agent.first;

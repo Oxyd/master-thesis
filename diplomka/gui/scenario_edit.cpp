@@ -64,6 +64,9 @@ scenario_edit::save_scenario() {
   obstacles.move_probability.mean = ui_.mean_ticks_spin->value();
   obstacles.move_probability.std_dev = ui_.std_dev_spin->value();
 
+  agent_settings& agents = world_->agent_settings();
+  agents.random_agent_number = ui_.random_agents_spin->value();
+
   save_world(*world_, filename.toStdString());
 
   dirty_ = false;
@@ -169,6 +172,9 @@ scenario_edit::attach(world w, QString const& filename) {
   ui_.tile_probability_spin->setValue(obstacles.tile_probability);
   ui_.mean_ticks_spin->setValue(obstacles.move_probability.mean);
   ui_.std_dev_spin->setValue(obstacles.move_probability.std_dev);
+
+  agent_settings const& agents = world_->agent_settings();
+  ui_.random_agents_spin->setValue(agents.random_agent_number);
 
   setWindowTitle(QString(QString("Edit Scenario: %1").arg(filename)));
 
