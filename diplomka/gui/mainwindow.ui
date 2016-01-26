@@ -186,6 +186,34 @@
          </layout>
         </item>
         <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_5">
+          <item>
+           <widget class="QLabel" name="window_label">
+            <property name="text">
+             <string>Window:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QSpinBox" name="window_spin">
+            <property name="maximum">
+             <number>99999</number>
+            </property>
+            <property name="value">
+             <number>10</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_6">
+          <property name="text">
+           <string>TextLabel</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="Line" name="line">
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
@@ -495,8 +523,8 @@
    <slot>step()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>787</x>
-     <y>87</y>
+     <x>880</x>
+     <y>74</y>
     </hint>
     <hint type="destinationlabel">
      <x>760</x>
@@ -511,8 +539,8 @@
    <slot>run()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>744</x>
-     <y>125</y>
+     <x>880</x>
+     <y>107</y>
     </hint>
     <hint type="destinationlabel">
      <x>680</x>
@@ -527,8 +555,8 @@
    <slot>change_run_interval(double)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>839</x>
-     <y>167</y>
+     <x>879</x>
+     <y>139</y>
     </hint>
     <hint type="destinationlabel">
      <x>827</x>
@@ -559,8 +587,8 @@
    <slot>make_random_seed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>868</x>
-     <y>239</y>
+     <x>879</x>
+     <y>207</y>
     </hint>
     <hint type="destinationlabel">
      <x>616</x>
@@ -584,6 +612,38 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>algorithm_combo</sender>
+   <signal>currentIndexChanged(int)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>algorithm_changed()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>785</x>
+     <y>161</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>353</x>
+     <y>-11</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>window_spin</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>window_changed(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>810</x>
+     <y>225</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>371</x>
+     <y>-7</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>open_map()</slot>
@@ -594,5 +654,7 @@
   <slot>reset_world()</slot>
   <slot>make_random_seed()</slot>
   <slot>edit()</slot>
+  <slot>algorithm_changed()</slot>
+  <slot>window_changed(int)</slot>
  </slots>
 </ui>

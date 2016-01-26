@@ -33,15 +33,6 @@ public:
   virtual std::vector<std::string> stat_values() const { return {}; };
 };
 
-using solver_description = std::tuple<
-  std::string,
-  std::function<std::unique_ptr<solver>(log_sink&, world const&)>
->;
-
-extern
-std::array<solver_description, 3>
-solvers;
-
 class greedy : public solver {
 public:
   joint_action get_action(world w, std::default_random_engine&) override;
@@ -103,8 +94,9 @@ private:
 
 class cooperative_a_star : public separate_paths_solver {
 public:
-  cooperative_a_star(log_sink& log, world const& w);
+  cooperative_a_star(log_sink& log, world const& w, unsigned window);
   std::string name() const override { return "WHCA*"; }
+  void window(unsigned new_window) { window_ = new_window; }
 
 private:
   struct permanent_reservation {
@@ -122,6 +114,7 @@ private:
   reservation_table_type reservations_;
   permanent_reservation_table_type permanent_reservations_;
   heuristic_map_type heuristic_map_;
+  unsigned window_;
 
   path find_path(position, world const&, std::default_random_engine&) override;
   void unreserve(agent const&);

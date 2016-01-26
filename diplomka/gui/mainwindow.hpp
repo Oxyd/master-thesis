@@ -37,6 +37,8 @@ private slots:
   void reset_world();
   void make_random_seed();
   void edit();
+  void algorithm_changed();
+  void window_changed(int);
 
 private:
   class gui_log_sink : public log_sink {
@@ -64,6 +66,7 @@ private:
   void load_world(std::string const&);
   void update_stats_headers();
   void update_stats();
+  std::unique_ptr<solver> make_solver();
 };
 
 #endif // MAINWINDOW_HPP

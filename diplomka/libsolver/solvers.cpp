@@ -42,28 +42,6 @@ solved(world const& w) {
   return true;
 }
 
-std::array<solver_description, 3>
-solvers{{
-  solver_description{
-    "WHCA*",
-    [] (log_sink& log, world const& w) {
-      return std::make_unique<cooperative_a_star>(log, w);
-    }
-  },
-  solver_description{
-    "LRA*",
-    [] (log_sink& log, world const&) {
-      return std::make_unique<lra>(log);
-    }
-  },
-  solver_description{
-    "Greedy",
-    [] (log_sink&, world const&) {
-      return std::make_unique<greedy>();
-    }
-  }
-}};
-
 joint_action
 greedy::get_action(world temp_world, std::default_random_engine& rng) {
   std::vector<std::tuple<position, agent>> agents(temp_world.agents().begin(),
@@ -250,8 +228,10 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng) {
   return new_path;
 }
 
-cooperative_a_star::cooperative_a_star(log_sink& log, world const& w)
+cooperative_a_star::cooperative_a_star(log_sink& log, world const& w,
+                                       unsigned window)
   : separate_paths_solver(log)
+  , window_(window)
 {
   for (auto const& pos_agent : w.agents())
     permanent_reservations_.insert({pos_agent.first,
@@ -322,7 +302,7 @@ cooperative_a_star::find_path(position from, world const& w,
     distance_heuristic(h_search),
     impassable_reserved(reservations_, permanent_reservations_, a, from)
   );
-  path new_path = as.find_path(w, 10);
+  path new_path = as.find_path(w, window_);
   nodes_ += as.nodes_expanded();
   nodes_ += h_search.nodes_expanded() - old_h_search_nodes;
 

@@ -41,11 +41,9 @@ main_window::main_window(QWidget *parent)
   run_timer_.setInterval(100);
   connect(&run_timer_, &QTimer::timeout, this, &main_window::step);
 
-  for (uint i = 0; i < solvers.size(); ++i)
-    ui_.algorithm_combo->addItem(
-      QString::fromStdString(std::get<0>(solvers[i])),
-      i
-    );
+  ui_.algorithm_combo->addItem("WHCA*");
+  ui_.algorithm_combo->addItem("LRA*");
+  ui_.algorithm_combo->addItem("Greedy");
 
   ui_.stats_view->setModel(&stats_);
 }
@@ -71,8 +69,7 @@ main_window::step() {
 
   if (!solver_ ||
       solver_->name() != ui_.algorithm_combo->currentText().toStdString()) {
-    uint const solver_index = ui_.algorithm_combo->currentData().toUInt();
-    solver_ = std::get<1>(solvers[solver_index])(log_sink_, *world_);
+    solver_ = make_solver();
     update_stats_headers();
   }
 
@@ -123,6 +120,19 @@ main_window::edit() {
   auto edit = new scenario_edit(this);
   edit->setAttribute(Qt::WA_DeleteOnClose);
   edit->show();
+}
+
+void
+main_window::algorithm_changed() {
+  bool enable_window = ui_.algorithm_combo->currentText() == "WHCA*";
+
+  if (enable_window) {
+    ui_.window_label->setEnabled(true);
+    ui_.window_spin->setEnabled(true);
+  } else {
+    ui_.window_label->setEnabled(false);
+    ui_.window_spin->setEnabled(false);
+  }
 }
 
 void
@@ -217,4 +227,30 @@ main_window::update_stats() {
 
   for (unsigned i = 0; i < stats.size(); ++i)
     stats_.setItem(i + 1, new QStandardItem{QString::fromStdString(stats[i])});
+}
+
+std::unique_ptr<solver>
+main_window::make_solver() {
+  assert(world_);
+
+  QString algo = ui_.algorithm_combo->currentText();
+  if (algo == "WHCA*")
+    return std::make_unique<cooperative_a_star>(log_sink_, *world_,
+                                                ui_.window_spin->value());
+  else if (algo == "LRA*")
+    return std::make_unique<lra>(log_sink_);
+  else if (algo == "Greedy")
+    return std::make_unique<greedy>();
+
+  assert(!"Won't get here");
+  return {};
+}
+
+void
+main_window::window_changed(int new_window) {
+  if (!solver_)
+    return;
+
+  assert(typeid(*solver_) == typeid(cooperative_a_star));
+  dynamic_cast<cooperative_a_star*>(solver_.get())->window(new_window);
 }
