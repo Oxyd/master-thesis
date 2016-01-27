@@ -1,5 +1,7 @@
 #include "action.hpp"
 
+#include "world.hpp"
+
 #include <cassert>
 
 std::ostream&
@@ -34,6 +36,16 @@ apply(action a, world w) {
 void
 joint_action::add(action a) {
   assert(actions_.find(a.from()) == actions_.end());
+
+#ifndef NDEBUG
+  position destination = translate(a.from(), a.where());
+  auto other = actions_.find(destination);
+  if (other != actions_.end()) {
+    position other_dest = translate(destination, other->second);
+    assert(other_dest != a.from());
+  }
+#endif
+
   actions_.insert({a.from(), a.where()});
 }
 
