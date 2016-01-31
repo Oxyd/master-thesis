@@ -13,7 +13,8 @@
 #include <unordered_set>
 
 struct always_passable {
-  constexpr bool operator () (position, world const&, unsigned) const {
+  constexpr bool operator () (position, position,
+                              world const&, unsigned) const {
     return true;
   }
 };
@@ -193,7 +194,7 @@ private:
         if (closed_.count(neighbour_coord))
           continue;
 
-        if (!passable_(neighbour, w, current->g + 1))
+        if (!passable_(neighbour, current->pos, w, current->g + 1))
           continue;
 
         auto n = open_.find(neighbour_coord);

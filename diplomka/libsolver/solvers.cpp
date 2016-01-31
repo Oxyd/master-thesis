@@ -190,7 +190,7 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng) {
 
   struct impassable_immediate_neighbour {
     position from;
-    bool operator () (position p, world const& w, unsigned) {
+    bool operator () (position p, position, world const& w, unsigned) {
       return w.get(p) == tile::free || !neighbours(p, from);
     }
   };
@@ -249,11 +249,20 @@ cooperative_a_star::find_path(position from, world const& w,
       , agent_(agent)
       , from_(from) { }
 
-    bool operator () (position p, world const& w, unsigned distance) {
-      if (reservations_.count(position_time{p, w.tick() + distance}))
+    bool operator () (position where, position from, world const& w,
+                      unsigned distance) {
+      if (reservations_.count(position_time{where, w.tick() + distance}))
         return false;
 
-      return w.get(p) == tile::free || !neighbours(p, from_);
+      auto vacated = reservations_.find(
+        position_time{from, w.tick() + distance}
+      );
+      if (vacated != reservations_.end() &&
+          vacated->second.from &&
+          *vacated->second.from == where)
+        return false;
+
+      return w.get(where) == tile::free || !neighbours(where, from_);
     }
 
   private:
@@ -296,12 +305,16 @@ cooperative_a_star::find_path(position from, world const& w,
   nodes_ += as.nodes_expanded();
   nodes_ += h_search.nodes_expanded() - old_h_search_nodes;
 
-  for (tick_t distance = 1; distance <= new_path.size(); ++distance) {
-    position const p = new_path[new_path.size() - distance];
-    position_time const pt{p, w.tick() + distance - 1};
+  for (tick_t distance = 0; distance < new_path.size(); ++distance) {
+    position const p = new_path[new_path.size() - distance - 1];
+    position_time const pt{p, w.tick() + distance};
 
     assert(!reservations_.count(pt));
-    reservations_[pt] = a.id();
+
+    if (distance > 0)
+      reservations_[pt] = {a.id(), new_path[new_path.size() - distance]};
+    else
+      reservations_[pt] = {a.id(), boost::none};
   }
 
   return new_path;
@@ -311,7 +324,7 @@ void
 cooperative_a_star::unreserve(agent const& a) {
   auto it = reservations_.begin();
   while (it != reservations_.end())
-    if (it->second == a.id())
+    if (it->second.agent == a.id())
       it = reservations_.erase(it);
     else
       ++it;

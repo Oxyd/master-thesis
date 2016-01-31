@@ -6,6 +6,7 @@
 #include "world.hpp"
 
 #include <boost/functional/hash.hpp>
+#include <boost/optional.hpp>
 
 #include <array>
 #include <functional>
@@ -99,8 +100,13 @@ public:
   void window(unsigned new_window) { window_ = new_window; }
 
 private:
+  struct reservation_table_record {
+    ::agent::id_type agent;
+    boost::optional<position> from;
+  };
+
   using reservation_table_type =
-    std::unordered_map<position_time, agent::id_type>;
+    std::unordered_map<position_time, reservation_table_record>;
   using heuristic_search_type = a_star<>;
   using heuristic_map_type = std::map<agent::id_type, heuristic_search_type>;
 
