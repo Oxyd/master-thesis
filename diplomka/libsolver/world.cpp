@@ -10,6 +10,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <unordered_set>
 
 static void
 expect_word(std::istream& in, std::string word) {
@@ -356,7 +357,7 @@ make_obstacles(world& w, obstacle_settings settings,
 static void
 make_agents(world& w, agent_settings settings,
             std::default_random_engine& rng) {
-  auto rand_pos = [&] {
+  auto rand_pos = [&] (auto bad_pos) {
     using uniform_coord = std::uniform_int_distribution<position::coord_type>;
     uniform_coord x(0, w.map()->width() - 1);
     uniform_coord y(0, w.map()->height() - 1);
@@ -364,21 +365,22 @@ make_agents(world& w, agent_settings settings,
     position result;
     do
       result = position{x(rng), y(rng)};
-    while (w.get(result) == tile::wall);
+    while (w.get(result) == tile::wall || bad_pos(result));
 
     return result;
   };
 
+  std::unordered_set<position> goals;
   for (unsigned i = 0; i < settings.random_agent_number; ++i) {
-    position goal = rand_pos();
+    position goal = rand_pos([&] (position p) { return goals.count(p); });
     agent a = w.create_agent(goal);
 
-    position pos;
-    do
-      pos = rand_pos();
-    while (w.get(pos) == tile::agent || w.get(pos) == tile::obstacle);
+    position pos = rand_pos([&] (position p) {
+      return w.get(p) == tile::agent || w.get(p) == tile::obstacle;
+    });
 
     w.put_agent(pos, a);
+    goals.insert(goal);
   }
 }
 
