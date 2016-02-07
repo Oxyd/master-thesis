@@ -88,6 +88,21 @@ private:
     double agitation = 0;
   };
 
+  struct impassable_immediate_neighbour {
+    position from;
+    bool operator () (position p, position, world const& w, unsigned) {
+      return w.get(p) == tile::free || !neighbours(p, from);
+    }
+  };
+
+  struct agitated_distance {
+    position destination;
+    double agitation;
+    std::default_random_engine& rng;
+
+    unsigned operator () (position from, world const&) const;
+  };
+
   std::unordered_map<agent::id_type, agent_data> data_;
 
   path find_path(position, world const&, std::default_random_engine&) override;
@@ -109,6 +124,32 @@ private:
     std::unordered_map<position_time, reservation_table_record>;
   using heuristic_search_type = a_star<>;
   using heuristic_map_type = std::map<agent::id_type, heuristic_search_type>;
+
+  struct impassable_reserved {
+    impassable_reserved(reservation_table_type const& reservations,
+                        agent const& agent,
+                        position from);
+    bool operator () (position where, position from, world const& w,
+                      unsigned distance);
+
+  private:
+    reservation_table_type const& reservations_;
+    agent const& agent_;
+    position from_;
+  };
+
+  struct distance_heuristic {
+    explicit
+    distance_heuristic(heuristic_search_type& h_search)
+      : h_search_(h_search) { }
+
+    unsigned operator () (position from, world const& w) {
+      return h_search_.find_distance(from, w);
+    }
+
+  private:
+    heuristic_search_type& h_search_;
+  };
 
   reservation_table_type reservations_;
   heuristic_map_type heuristic_map_;

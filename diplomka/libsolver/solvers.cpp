@@ -184,28 +184,15 @@ separate_paths_solver::next_step(position from, world const& w,
   return paths_[a.id()].back();
 }
 
+unsigned
+lra::agitated_distance::operator () (position from, world const&) const {
+  std::uniform_real_distribution<> agit(0.0, agitation);
+  return distance(from, destination) + agit(rng);
+}
+
 path
 lra::find_path(position from, world const& w, std::default_random_engine& rng) {
   assert(w.get_agent(from));
-
-  struct impassable_immediate_neighbour {
-    position from;
-    bool operator () (position p, position, world const& w, unsigned) {
-      return w.get(p) == tile::free || !neighbours(p, from);
-    }
-  };
-
-  struct agitated_distance {
-    position destination;
-    double agitation;
-    std::default_random_engine& rng;
-
-    unsigned operator () (position from, world const&) const {
-      std::uniform_real_distribution<> agit(0.0, agitation);
-      return distance(from, destination) + agit(rng);
-    }
-  };
-
   agent const& a = *w.get_agent(from);
 
   if (from == a.target)
@@ -236,54 +223,37 @@ cooperative_a_star::cooperative_a_star(log_sink& log, unsigned window)
   , window_(window)
 { }
 
+cooperative_a_star::impassable_reserved::impassable_reserved(
+  reservation_table_type const& reservations,
+  agent const& agent,
+  position from
+)
+  : reservations_(reservations)
+  , agent_(agent)
+  , from_(from)
+{ }
+
+bool
+cooperative_a_star::impassable_reserved::operator () (
+  position where, position from, world const& w, unsigned distance
+) {
+  if (reservations_.count(position_time{where, w.tick() + distance}))
+    return false;
+
+  auto vacated = reservations_.find(
+    position_time{from, w.tick() + distance}
+  );
+  if (vacated != reservations_.end() &&
+      vacated->second.from &&
+      *vacated->second.from == where)
+    return false;
+
+  return w.get(where) == tile::free || !neighbours(where, from_);
+}
+
 path
 cooperative_a_star::find_path(position from, world const& w,
                               std::default_random_engine&) {
-  struct impassable_reserved {
-    impassable_reserved(
-      reservation_table_type const& reservations,
-      agent const& agent,
-      position from
-    )
-      : reservations_(reservations)
-      , agent_(agent)
-      , from_(from) { }
-
-    bool operator () (position where, position from, world const& w,
-                      unsigned distance) {
-      if (reservations_.count(position_time{where, w.tick() + distance}))
-        return false;
-
-      auto vacated = reservations_.find(
-        position_time{from, w.tick() + distance}
-      );
-      if (vacated != reservations_.end() &&
-          vacated->second.from &&
-          *vacated->second.from == where)
-        return false;
-
-      return w.get(where) == tile::free || !neighbours(where, from_);
-    }
-
-  private:
-    reservation_table_type const& reservations_;
-    agent const& agent_;
-    position from_;
-  };
-
-  struct distance_heuristic {
-    explicit
-    distance_heuristic(heuristic_search_type& h_search)
-      : h_search_(h_search) { }
-
-    unsigned operator () (position from, world const& w) {
-      return h_search_.find_distance(from, w);
-    }
-
-  private:
-    heuristic_search_type& h_search_;
-  };
-
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
