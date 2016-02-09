@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <random>
+#include <unordered_map>
 #include <unordered_set>
 #include <tuple>
 #include <queue>
@@ -126,8 +127,9 @@ separate_paths_solver::get_action(
       log_ << "Path invalid for " << pos << '\n';
       ++path_invalid_;
 
+      path old_path = std::move(paths_[agent.id()]);
       paths_.erase(agent.id());
-      maybe_next = next_step(pos, w, rng);
+      maybe_next = next_step(pos, w, rng, old_path);
     }
 
     if (!maybe_next || pos == *maybe_next)
@@ -154,12 +156,13 @@ separate_paths_solver::stat_values() const {
 
 path
 separate_paths_solver::recalculate(position from, world const& w,
-                                   std::default_random_engine& rng) {
+                                   std::default_random_engine& rng,
+                                   boost::optional<path const&> old_path) {
   log_ << "Recalculating for " << w.get_agent(from)->id()
        << '@' << from << '\n';
   ++recalculations_;
 
-  path new_path = find_path(from, w, rng);
+  path new_path = find_path(from, w, rng, old_path);
 
   if (new_path.empty())
     log_ << "Found no path for " << from << '\n';
@@ -169,12 +172,13 @@ separate_paths_solver::recalculate(position from, world const& w,
 
 boost::optional<position>
 separate_paths_solver::next_step(position from, world const& w,
-                                 std::default_random_engine& rng) {
+                                 std::default_random_engine& rng,
+                                 boost::optional<path const&> old_path) {
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
   if (paths_[a.id()].size() < 2)
-    paths_[a.id()] = recalculate(from, w, rng);
+    paths_[a.id()] = recalculate(from, w, rng, old_path);
 
   if (paths_[a.id()].size() < 2)
     return {};
@@ -191,7 +195,8 @@ lra::agitated_distance::operator () (position from, world const&) const {
 }
 
 path
-lra::find_path(position from, world const& w, std::default_random_engine& rng) {
+lra::find_path(position from, world const& w, std::default_random_engine& rng,
+               boost::optional<path const&>) {
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
@@ -218,10 +223,36 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng) {
   return new_path;
 }
 
-cooperative_a_star::cooperative_a_star(log_sink& log, unsigned window)
+cooperative_a_star::cooperative_a_star(log_sink& log, unsigned window,
+                                       unsigned rejoin_limit)
   : separate_paths_solver(log)
   , window_(window)
+  , rejoin_limit_(rejoin_limit)
 { }
+
+std::vector<std::string>
+cooperative_a_star::stat_names() const {
+  std::vector<std::string> result = separate_paths_solver::stat_names();
+  result.insert(result.end(),
+                {"Rejoin attempts", "Rejoin successes", "Rejoin success rate"});
+  return result;
+}
+
+std::vector<std::string>
+cooperative_a_star::stat_values() const {
+  std::vector<std::string> result = separate_paths_solver::stat_values();
+  result.insert(
+    result.end(),
+    {
+      std::to_string(rejoin_attempts_),
+      std::to_string(rejoin_successes_),
+      rejoin_attempts_ > 0
+        ? std::to_string((double) rejoin_successes_ / (double) rejoin_attempts_)
+        : "0"
+    }
+  );
+  return result;
+}
 
 cooperative_a_star::impassable_reserved::impassable_reserved(
   reservation_table_type const& reservations,
@@ -253,27 +284,36 @@ cooperative_a_star::impassable_reserved::operator () (
 
 path
 cooperative_a_star::find_path(position from, world const& w,
-                              std::default_random_engine&) {
+                              std::default_random_engine&,
+                              boost::optional<path const&> old_path) {
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
   unreserve(a);
 
-  heuristic_search_type& h_search = heuristic_map_.emplace(
-    std::piecewise_construct,
-    std::forward_as_tuple(a.id()),
-    std::forward_as_tuple(a.target, from, w)
-  ).first->second;
-  unsigned const old_h_search_nodes = h_search.nodes_expanded();
+  path new_path;
+  if (rejoin_limit_ > 0 && old_path)
+    if (auto p = rejoin_path(from, w, *old_path))
+      return new_path = std::move(*p);
 
-  a_star<impassable_reserved, distance_heuristic, space_time_coordinate> as(
-    from, a.target, w,
-    distance_heuristic(h_search),
-    impassable_reserved(reservations_, a, from)
-  );
-  path new_path = as.find_path(w, window_);
-  nodes_ += as.nodes_expanded();
-  nodes_ += h_search.nodes_expanded() - old_h_search_nodes;
+  if (new_path.empty()) {
+    heuristic_search_type& h_search = heuristic_map_.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple(a.id()),
+      std::forward_as_tuple(a.target, from, w)
+    ).first->second;
+    unsigned const old_h_search_nodes = h_search.nodes_expanded();
+
+    a_star<impassable_reserved, hierarchical_distance, space_time_coordinate> as(
+      from, a.target, w,
+      hierarchical_distance(h_search),
+      impassable_reserved(reservations_, a, from)
+    );
+    new_path = as.find_path(w, window_);
+
+    nodes_ += as.nodes_expanded();
+    nodes_ += h_search.nodes_expanded() - old_h_search_nodes;
+  }
 
   for (tick_t distance = 0; distance < new_path.size(); ++distance) {
     position const p = new_path[new_path.size() - distance - 1];
@@ -298,4 +338,76 @@ cooperative_a_star::unreserve(agent const& a) {
       it = reservations_.erase(it);
     else
       ++it;
+}
+
+std::ostream&
+operator << (std::ostream& out, path const& p) {
+  for (auto point = p.rbegin(); point != p.rend(); ++point) {
+    if (point != p.rbegin())
+      out << " -> ";
+    out << *point;
+  }
+
+  return out;
+}
+
+boost::optional<path>
+cooperative_a_star::rejoin_path(position from, world const& w,
+                                path const& old_path) {
+  if (old_path.empty())
+    return {};
+
+  ++rejoin_attempts_;
+
+  boost::optional<position> to;
+  std::unordered_map<position, path::const_iterator> target_positions;
+  for (auto point = old_path.rbegin(); point != old_path.rend(); ++point)
+    if (w.get(*point) == tile::free) {
+      if (!to)
+        to = *point;
+      target_positions.insert({*point, point.base()});
+    }
+
+  if (!to)
+    return {};
+
+  assert(w.get_agent(from));
+  agent const& a = *w.get_agent(from);
+
+  using search_type = a_star<
+    impassable_reserved,
+    manhattan_distance_heuristic,
+    space_time_coordinate
+  >;
+  search_type as(from, *to, w, impassable_reserved(reservations_, a, from));
+
+  nodes_ += as.nodes_expanded();
+
+  path join_path = as.find_path(
+    w,
+    [&] (position p) { return target_positions.count(p); },
+    10
+  );
+
+  if (join_path.empty())
+    return {};
+
+  assert(target_positions.count(join_path.front()));
+  path::const_iterator rejoin_point = target_positions[join_path.front()];
+
+  path result;
+  if (rejoin_point != old_path.begin())
+    result.insert(result.end(), old_path.begin(), std::prev(rejoin_point));
+  result.insert(result.end(), join_path.begin(), join_path.end());
+
+#if 0
+  std::cerr << "---\n"
+            << "old_path = " << old_path << '\n'
+            << "rejoin_point " << *rejoin_point << '\n'
+            << "join_path = " << join_path << '\n'
+            << "result = " << result << '\n';
+#endif
+
+  ++rejoin_successes_;
+  return result;
 }

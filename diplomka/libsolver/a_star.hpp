@@ -19,7 +19,7 @@ struct always_passable {
   }
 };
 
-struct distance_heuristic {
+struct manhattan_distance_heuristic {
   position destination;
 
   unsigned operator () (position from, world const&) const {
@@ -47,7 +47,7 @@ constexpr unsigned
 infinity = std::numeric_limits<unsigned>::max();
 
 template <typename Passable = always_passable,
-          typename Distance = distance_heuristic,
+          typename Distance = manhattan_distance_heuristic,
           typename Coordinate = space_coordinate>
 class a_star {
 public:
@@ -75,24 +75,20 @@ public:
   a_star& operator = (a_star&&) = default;
 
   path
-  find_path(world const& w, boost::optional<unsigned> window = {}) {
-    path result;
+  find_path(world const& w) {
+    return do_find_path(w, [&] (node const* n) { return n->pos == to_; });
+  }
 
-    node* current;
-    if (!window)
-      current = expand_until(to_, w);
-    else
-      current = expand_until({}, w, window);
+  path
+  find_path(world const& w, unsigned window) {
+    return do_find_path(w, [&] (node const* n) { return n->g == window; });
+  }
 
-    if (!current)
-      return {};
-
-    do {
-      result.push_back(current->pos);
-      current = current->come_from;
-    } while (current);
-
-    return result;
+  template <typename PositionPred>
+  path
+  find_path(world const& w, PositionPred goal,
+            unsigned limit = std::numeric_limits<unsigned>::max()) {
+    return do_find_path(w, [&] (node const* n) { return goal(n->pos); }, limit);
   }
 
   unsigned
@@ -101,7 +97,7 @@ public:
     if (it != shortest_paths_.end())
       return it->second->g;
 
-    expand_until(p, w);
+    expand_until([&] (node const* n) { return n->pos == p; }, w);
 
     it = shortest_paths_.find(p);
     if (it != shortest_paths_.end())
@@ -154,9 +150,28 @@ private:
   Passable passable_;
   Distance distance_;
 
+  template <typename EndPred>
+  path
+  do_find_path(world const& w, EndPred goal,
+               unsigned limit = std::numeric_limits<unsigned>::max()) {
+    path result;
+
+    node* current = expand_until(goal, w, limit);
+    if (!current)
+      return {};
+
+    do {
+      result.push_back(current->pos);
+      current = current->come_from;
+    } while (current);
+
+    return result;
+  }
+
+  template <typename EndF>
   node*
-  expand_until(boost::optional<position> goal, world const& w,
-               boost::optional<unsigned> window = {}) {
+  expand_until(EndF end, world const& w,
+               unsigned limit = std::numeric_limits<unsigned>::max()) {
     while (!heap_.empty()) {
       node* const current = heap_.top();
       coordinate_type const current_coord =
@@ -172,6 +187,9 @@ private:
       shortest_paths_.insert({current->pos, current});
 
       ++expanded_;
+
+      if (current->g == limit)
+        return nullptr;
 
       std::vector<position> neighbours;
       for (direction d : all_directions) {
@@ -215,7 +233,7 @@ private:
         }
       }
 
-      if ((goal && current->pos == *goal) || (window && current->g == *window))
+      if (end(current))
         return current;
     }
 

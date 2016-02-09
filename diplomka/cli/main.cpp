@@ -22,7 +22,10 @@ make_solver(std::string const& name,
 
   if (iequals(name, "whca") || iequals(name, "whca*")) {
     unsigned window = vm.count("window") ? vm["window"].as<unsigned>() : 10;
-    return std::make_unique<cooperative_a_star>(null_log_sink, window);
+    unsigned rejoin_limit =
+      vm.count("rejoin") ? vm["rejoin"].as<unsigned>() : 0;
+    return std::make_unique<cooperative_a_star>(null_log_sink, window,
+                                                rejoin_limit);
   }
 
   if (iequals(name, "lra") || iequals(name, "lra*"))
@@ -43,6 +46,8 @@ main(int argc, char** argv) try {
     ("limit,l", po::value<unsigned>(), "Tick limit")
     ("output,o", po::value<std::string>(), "Output file")
     ("window,w", po::value<unsigned>(), "WHCA* window size")
+    ("rejoin,r", po::value<unsigned>()->implicit_value(10),
+     "Allow path rejoining, for at most N steps")
     ;
 
   po::variables_map vm;

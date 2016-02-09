@@ -68,13 +68,16 @@ private:
   std::unordered_map<agent::id_type, path> paths_;
 
   path
-  recalculate(position, world const&, std::default_random_engine&);
+  recalculate(position, world const&, std::default_random_engine&,
+              boost::optional<path const&> old_path = {});
 
   boost::optional<position>
-  next_step(position, world const&, std::default_random_engine&);
+  next_step(position, world const&, std::default_random_engine&,
+            boost::optional<path const&> old_path = {});
 
   virtual path
-  find_path(position, world const&, std::default_random_engine&) = 0;
+  find_path(position, world const&, std::default_random_engine&,
+            boost::optional<path const&> old_path) = 0;
 };
 
 class lra : public separate_paths_solver {
@@ -105,14 +108,21 @@ private:
 
   std::unordered_map<agent::id_type, agent_data> data_;
 
-  path find_path(position, world const&, std::default_random_engine&) override;
+  path find_path(position, world const&, std::default_random_engine&,
+                 boost::optional<path const&>) override;
 };
 
 class cooperative_a_star : public separate_paths_solver {
 public:
-  cooperative_a_star(log_sink& log, unsigned window);
+  cooperative_a_star(log_sink& log, unsigned window, unsigned rejoin_limit);
   std::string name() const override { return "WHCA*"; }
   void window(unsigned new_window) { window_ = new_window; }
+
+  std::vector<std::string>
+  stat_names() const override;
+
+  std::vector<std::string>
+  stat_values() const override;
 
 private:
   struct reservation_table_record {
@@ -138,9 +148,9 @@ private:
     position from_;
   };
 
-  struct distance_heuristic {
+  struct hierarchical_distance {
     explicit
-    distance_heuristic(heuristic_search_type& h_search)
+    hierarchical_distance(heuristic_search_type& h_search)
       : h_search_(h_search) { }
 
     unsigned operator () (position from, world const& w) {
@@ -154,9 +164,15 @@ private:
   reservation_table_type reservations_;
   heuristic_map_type heuristic_map_;
   unsigned window_;
+  unsigned rejoin_limit_ = 0;
+  unsigned rejoin_attempts_ = 0;
+  unsigned rejoin_successes_ = 0;
 
-  path find_path(position, world const&, std::default_random_engine&) override;
+  path find_path(position, world const&, std::default_random_engine&,
+                 boost::optional<path const&> old_path) override;
   void unreserve(agent const&);
+  boost::optional<path> rejoin_path(position from, world const& w,
+                                    path const& old_path);
 };
 
 #endif // SOLVERS_HPP

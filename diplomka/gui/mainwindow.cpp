@@ -125,6 +125,7 @@ main_window::edit() {
 void
 main_window::algorithm_changed() {
   bool enable_window = ui_.algorithm_combo->currentText() == "WHCA*";
+  bool enable_rejoin = ui_.algorithm_combo->currentText() == "WHCA*";
 
   if (enable_window) {
     ui_.window_label->setEnabled(true);
@@ -132,6 +133,14 @@ main_window::algorithm_changed() {
   } else {
     ui_.window_label->setEnabled(false);
     ui_.window_spin->setEnabled(false);
+  }
+
+  if (enable_rejoin) {
+    ui_.rejoin_checkbox->setEnabled(true);
+    ui_.rejoin_limit_spin->setEnabled(true);
+  } else {
+    ui_.rejoin_checkbox->setEnabled(false);
+    ui_.rejoin_limit_spin->setEnabled(false);
   }
 }
 
@@ -235,8 +244,11 @@ main_window::make_solver() {
 
   QString algo = ui_.algorithm_combo->currentText();
   if (algo == "WHCA*")
-    return std::make_unique<cooperative_a_star>(log_sink_,
-                                                ui_.window_spin->value());
+    return std::make_unique<cooperative_a_star>(
+      log_sink_,
+      ui_.window_spin->value(),
+      ui_.rejoin_checkbox->isChecked() ? ui_.rejoin_limit_spin->value() : 0
+    );
   else if (algo == "LRA*")
     return std::make_unique<lra>(log_sink_);
   else if (algo == "Greedy")
