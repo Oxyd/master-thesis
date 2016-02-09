@@ -395,8 +395,14 @@ load_world_partial(std::string const& filename) try {
 
   std::string const map_filename = tree.get<std::string>("map");
   path const map_path = path{filename}.parent_path() / map_filename;
-  world world{load_map(map_path.string()),
-              parse_obstacle_settings(tree.get_child("obstacles"))};
+
+  agent_settings as;
+  if (tree.count("agent_settings"))
+    as = parse_agent_settings(tree.get_child("agent_settings"));
+
+  world world(load_map(map_path.string()),
+              parse_obstacle_settings(tree.get_child("obstacles")),
+              as);
 
   for (auto const& a : tree.get_child("agents")) {
     position const pos = read_pos(a.second.get_child("position"));
