@@ -248,8 +248,8 @@ cooperative_a_star::stat_names() const {
   std::vector<std::string> result = separate_paths_solver::stat_names();
   result.insert(result.end(),
                 {"Primary nodes expanded", "Heuristic nodes expanded",
-                 "Rejoin nodes expanded", "Rejoin attempts", "Rejoin successes",
-                 "Rejoin success rate"});
+                 "Rejoin nodes expanded", "Total nodes expanded",
+                 "Rejoin attempts", "Rejoin successes", "Rejoin success rate"});
   return result;
 }
 
@@ -262,6 +262,7 @@ cooperative_a_star::stat_values() const {
       std::to_string(nodes_primary_),
       std::to_string(nodes_heuristic_),
       std::to_string(nodes_rejoin_),
+      std::to_string(nodes_primary_ + nodes_heuristic_ + nodes_rejoin_),
       std::to_string(rejoin_attempts_),
       std::to_string(rejoin_successes_),
       rejoin_attempts_ > 0
