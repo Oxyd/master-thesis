@@ -402,7 +402,7 @@ cooperative_a_star::rejoin_path(position from, world const& w,
   path join_path = as.find_path(
     w,
     [&] (position p) { return target_positions.count(p); },
-    10
+    rejoin_limit_
   );
 
   nodes_rejoin_ += as.nodes_expanded();
