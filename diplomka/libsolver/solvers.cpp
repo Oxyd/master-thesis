@@ -418,14 +418,6 @@ cooperative_a_star::rejoin_path(position from, world const& w,
     result.insert(result.end(), old_path.begin(), std::prev(rejoin_point));
   result.insert(result.end(), join_path.begin(), join_path.end());
 
-#if 0
-  std::cerr << "---\n"
-            << "old_path = " << old_path << '\n'
-            << "rejoin_point " << *rejoin_point << '\n'
-            << "join_path = " << join_path << '\n'
-            << "result = " << result << '\n';
-#endif
-
   ++rejoin_successes_;
   return result;
 }
