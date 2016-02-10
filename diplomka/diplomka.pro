@@ -6,3 +6,4 @@ SUBDIRS += \
     libsolver
 
 gui.depends += libsolver
+cli.depends += libsolver

@@ -1,9 +1,3 @@
-#-------------------------------------------------
-#
-# Project created by QtCreator 2015-04-29T20:00:23
-#
-#-------------------------------------------------
-
 QT       -= core gui
 
 TARGET = libsolver
@@ -11,6 +5,10 @@ TEMPLATE = lib
 CONFIG += staticlib
 
 QMAKE_CXXFLAGS += -std=c++14
+
+QMAKE_CXXFLAGS_RELEASE -= -O2
+QMAKE_CXXFLAGS_RELEASE += -O3
+QMAKE_CXXFLAGS_RELEASE += -DNDEBUG
 
 SOURCES += \
     world.cpp \

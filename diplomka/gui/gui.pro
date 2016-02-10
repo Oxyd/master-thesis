@@ -7,6 +7,10 @@ TEMPLATE = app
 
 QMAKE_CXXFLAGS += -std=c++14
 
+QMAKE_CXXFLAGS_RELEASE -= -O2
+QMAKE_CXXFLAGS_RELEASE += -O3
+QMAKE_CXXFLAGS_RELEASE += -DNDEBUG
+
 LIBS += -lboost_filesystem -lboost_system
 
 SOURCES  += bottom_bar_controller.cpp \
