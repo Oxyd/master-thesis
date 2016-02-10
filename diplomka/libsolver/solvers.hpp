@@ -50,8 +50,7 @@ public:
 
   std::vector<std::string>
   stat_names() const override {
-    return {"Path not found", "Recalculations", "Path invalid",
-            "Nodes expanded"};
+    return {"Path not found", "Recalculations", "Path invalid"};
   }
 
   std::vector<std::string>
@@ -62,7 +61,6 @@ protected:
   unsigned times_without_path_ = 0;
   unsigned recalculations_ = 0;
   unsigned path_invalid_ = 0;
-  unsigned nodes_ = 0;
 
 private:
   std::unordered_map<agent::id_type, path> paths_;
@@ -84,6 +82,12 @@ class lra : public separate_paths_solver {
 public:
   explicit lra(log_sink& log) : separate_paths_solver(log) { }
   std::string name() const override { return "LRA*"; }
+
+  std::vector<std::string>
+  stat_names() const override;
+
+  std::vector<std::string>
+  stat_values() const override;
 
 private:
   struct agent_data {
@@ -107,6 +111,7 @@ private:
   };
 
   std::unordered_map<agent::id_type, agent_data> data_;
+  unsigned nodes_ = 0;
 
   path find_path(position, world const&, std::default_random_engine&,
                  boost::optional<path const&>) override;
@@ -164,6 +169,9 @@ private:
   reservation_table_type reservations_;
   heuristic_map_type heuristic_map_;
   unsigned window_;
+  unsigned nodes_primary_ = 0;
+  unsigned nodes_heuristic_ = 0;
+  unsigned nodes_rejoin_ = 0;
   unsigned rejoin_limit_ = 0;
   unsigned rejoin_attempts_ = 0;
   unsigned rejoin_successes_ = 0;

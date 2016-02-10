@@ -149,8 +149,7 @@ separate_paths_solver::stat_values() const {
   return {
     std::to_string(times_without_path_),
     std::to_string(recalculations_),
-    std::to_string(path_invalid_),
-    std::to_string(nodes_)
+    std::to_string(path_invalid_)
   };
 }
 
@@ -186,6 +185,20 @@ separate_paths_solver::next_step(position from, world const& w,
   assert(paths_[a.id()].back() == from);
   paths_[a.id()].pop_back();
   return paths_[a.id()].back();
+}
+
+std::vector<std::string>
+lra::stat_names() const {
+  std::vector<std::string> result = separate_paths_solver::stat_names();
+  result.push_back("Nodes expanded");
+  return result;
+}
+
+std::vector<std::string>
+lra::stat_values() const {
+  std::vector<std::string> result = separate_paths_solver::stat_values();
+  result.push_back(std::to_string(nodes_));
+  return result;
 }
 
 unsigned
@@ -234,7 +247,9 @@ std::vector<std::string>
 cooperative_a_star::stat_names() const {
   std::vector<std::string> result = separate_paths_solver::stat_names();
   result.insert(result.end(),
-                {"Rejoin attempts", "Rejoin successes", "Rejoin success rate"});
+                {"Primary nodes expanded", "Heuristic nodes expanded",
+                 "Rejoin nodes expanded", "Rejoin attempts", "Rejoin successes",
+                 "Rejoin success rate"});
   return result;
 }
 
@@ -244,6 +259,9 @@ cooperative_a_star::stat_values() const {
   result.insert(
     result.end(),
     {
+      std::to_string(nodes_primary_),
+      std::to_string(nodes_heuristic_),
+      std::to_string(nodes_rejoin_),
       std::to_string(rejoin_attempts_),
       std::to_string(rejoin_successes_),
       rejoin_attempts_ > 0
@@ -311,8 +329,8 @@ cooperative_a_star::find_path(position from, world const& w,
     );
     new_path = as.find_path(w, window_);
 
-    nodes_ += as.nodes_expanded();
-    nodes_ += h_search.nodes_expanded() - old_h_search_nodes;
+    nodes_primary_ += as.nodes_expanded();
+    nodes_heuristic_ += h_search.nodes_expanded() - old_h_search_nodes;
   }
 
   for (tick_t distance = 0; distance < new_path.size(); ++distance) {
@@ -381,13 +399,13 @@ cooperative_a_star::rejoin_path(position from, world const& w,
   >;
   search_type as(from, *to, w, impassable_reserved(reservations_, a, from));
 
-  nodes_ += as.nodes_expanded();
-
   path join_path = as.find_path(
     w,
     [&] (position p) { return target_positions.count(p); },
     10
   );
+
+  nodes_rejoin_ += as.nodes_expanded();
 
   if (join_path.empty())
     return {};
