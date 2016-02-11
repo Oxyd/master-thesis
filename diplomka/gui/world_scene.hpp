@@ -18,6 +18,8 @@ public:
   void re_render();
   void update_agent(position);
   void highlight_agent(position, bool set_highlight);
+  void highlight_tile(position, bool set_highlight);
+  void remove_all_highlights();
 
 signals:
   void mouse_moved(int x, int y);
@@ -31,7 +33,8 @@ private:
   world const* world_ = nullptr;
   std::unordered_map<position, std::vector<QGraphicsItem*>> agent_items_;
   std::vector<QGraphicsItem*> obstacle_items_;
-  std::unordered_set<position> highlighted_;
+  std::unordered_set<position> highlighted_agents_;
+  std::unordered_map<position, QGraphicsItem*> highlighted_tiles_;
 
   void render_agent(position, agent const&);
   void render_obstacle(position);

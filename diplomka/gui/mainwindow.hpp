@@ -39,6 +39,7 @@ private slots:
   void edit();
   void algorithm_changed();
   void window_changed(int);
+  void tile_clicked(int, int);
 
 private:
   class gui_log_sink : public log_sink {

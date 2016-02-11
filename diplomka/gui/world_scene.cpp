@@ -37,9 +37,11 @@ world_scene::attach(world const* w) {
 }
 
 static QPen const black_pen{{0, 0, 0}};
+static QPen const white_pen{{255, 255, 255}};
 static QPen const highlight_pen{QBrush{QColor{0, 0, 0}}, 2};
-static QPen const target_pen{QBrush{QColor{127, 127, 127, 127}}, 1};
+static QPen const target_pen{QBrush{QColor{127, 127, 127, 64}}, 1};
 static QBrush const wall_brush{QColor{0, 0, 0}};
+static QBrush const highlight_tile_brush{QColor{255, 127, 255, 127}};
 static QBrush const obstacle_brush{QColor{255, 0, 0}};
 static QBrush const brush{{0, 255, 0}};
 
@@ -103,9 +105,38 @@ world_scene::update_agent(position pos) {
 void
 world_scene::highlight_agent(position p, bool set) {
   if (set)
-    highlighted_.insert(p);
+    highlighted_agents_.insert(p);
   else
-    highlighted_.erase(p);
+    highlighted_agents_.erase(p);
+}
+
+void
+world_scene::highlight_tile(position p, bool set) {
+  if (set && world_->get(p) != tile::wall) {
+    if (highlighted_tiles_.count(p))
+      return;
+
+    QGraphicsItem* rect = addRect(tile_rect(p.x, p.y), white_pen,
+                                  highlight_tile_brush);
+    rect->setZValue(1);
+    highlighted_tiles_.insert({p, rect});
+
+  } else {
+    auto it = highlighted_tiles_.find(p);
+    if (it != highlighted_tiles_.end()) {
+      removeItem(it->second);
+      highlighted_tiles_.erase(p);
+    }
+  }
+}
+
+void
+world_scene::remove_all_highlights() {
+  highlighted_agents_.clear();
+
+  for (auto p_item : highlighted_tiles_)
+    removeItem(p_item.second);
+  highlighted_tiles_.clear();
 }
 
 void
@@ -128,7 +159,7 @@ void
 world_scene::render_agent(position pos, agent const& agent) {
   std::vector<QGraphicsItem*> items;
 
-  QPen const& pen = highlighted_.count(pos) ? highlight_pen : black_pen;
+  QPen const& pen = highlighted_agents_.count(pos) ? highlight_pen : black_pen;
   items.push_back(addEllipse(tile_rect(pos), pen, brush));
 
   position const target = agent.target;

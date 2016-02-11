@@ -32,6 +32,7 @@ public:
   virtual std::string name() const = 0;
   virtual std::vector<std::string> stat_names() const { return {}; }
   virtual std::vector<std::string> stat_values() const { return {}; };
+  virtual std::vector<position> get_path(agent::id_type) const { return {}; }
 };
 
 class greedy : public solver {
@@ -55,6 +56,9 @@ public:
 
   std::vector<std::string>
   stat_values() const override;
+
+  std::vector<position>
+  get_path(agent::id_type) const override;
 
 protected:
   log_sink& log_;

@@ -153,6 +153,15 @@ separate_paths_solver::stat_values() const {
   };
 }
 
+std::vector<position>
+separate_paths_solver::get_path(agent::id_type a) const {
+  auto p_it = paths_.find(a);
+  if (p_it != paths_.end())
+    return p_it->second;
+  else
+    return {};
+}
+
 path
 separate_paths_solver::recalculate(position from, world const& w,
                                    std::default_random_engine& rng,
