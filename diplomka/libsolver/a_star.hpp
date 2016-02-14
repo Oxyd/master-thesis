@@ -41,8 +41,6 @@ struct space_time_coordinate {
   make(position p, unsigned g) { return position_time{p, g}; }
 };
 
-using path = std::vector<position>;
-
 constexpr unsigned
 infinity = std::numeric_limits<unsigned>::max();
 

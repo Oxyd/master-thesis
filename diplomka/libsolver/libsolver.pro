@@ -13,12 +13,14 @@ QMAKE_CXXFLAGS_RELEASE += -DNDEBUG
 SOURCES += \
     world.cpp \
     action.cpp \
+    predictor.cpp \
     solvers.cpp \
     log_sinks.cpp
 
 HEADERS += \
     world.hpp \
     action.hpp \
+    predictor.hpp \
     solvers.hpp \
     a_star.hpp
 unix {

@@ -3,6 +3,7 @@
 
 #include "a_star.hpp"
 #include "action.hpp"
+#include "predictor.hpp"
 #include "world.hpp"
 
 #include <boost/functional/hash.hpp>
@@ -134,28 +135,8 @@ public:
   stat_values() const override;
 
 private:
-  struct reservation_table_record {
-    ::agent::id_type agent;
-    boost::optional<position> from;
-  };
-
-  using reservation_table_type =
-    std::unordered_map<position_time, reservation_table_record>;
   using heuristic_search_type = a_star<>;
   using heuristic_map_type = std::map<agent::id_type, heuristic_search_type>;
-
-  struct impassable_reserved {
-    impassable_reserved(reservation_table_type const& reservations,
-                        agent const& agent,
-                        position from);
-    bool operator () (position where, position from, world const& w,
-                      unsigned distance);
-
-  private:
-    reservation_table_type const& reservations_;
-    agent const& agent_;
-    position from_;
-  };
 
   struct hierarchical_distance {
     explicit
@@ -170,7 +151,7 @@ private:
     heuristic_search_type& h_search_;
   };
 
-  reservation_table_type reservations_;
+  predictor predictor_;
   heuristic_map_type heuristic_map_;
   unsigned window_;
   unsigned nodes_primary_ = 0;
@@ -182,7 +163,6 @@ private:
 
   path find_path(position, world const&, std::default_random_engine&,
                  boost::optional<path const&> old_path) override;
-  void unreserve(agent const&);
   boost::optional<path> rejoin_path(position from, world const& w,
                                     path const& old_path);
 };

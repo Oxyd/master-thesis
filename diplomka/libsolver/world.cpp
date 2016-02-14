@@ -427,19 +427,19 @@ load_world_partial(std::string const& filename) try {
 
 static boost::filesystem::path
 make_relative(boost::filesystem::path p, boost::filesystem::path relative_to) {
-  using namespace boost::filesystem;
+  namespace fs = boost::filesystem;
 
-  assert(is_directory(relative_to));
+  assert(fs::is_directory(relative_to));
 
-  path::iterator p_it = p.begin();
-  path::iterator r_it = relative_to.begin();
+  fs::path::iterator p_it = p.begin();
+  fs::path::iterator r_it = relative_to.begin();
 
   while (p_it != p.end() && r_it != relative_to.end() && *p_it == *r_it) {
     ++p_it;
     ++r_it;
   }
 
-  path result;
+  fs::path result;
   while (r_it != relative_to.end()) {
     result /= "..";
     ++r_it;

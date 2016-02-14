@@ -80,6 +80,8 @@ struct hash<position> {
 };
 }
 
+using path = std::vector<position>;
+
 position
 translate(position, direction);
 

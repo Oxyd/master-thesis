@@ -282,34 +282,6 @@ cooperative_a_star::stat_values() const {
   return result;
 }
 
-cooperative_a_star::impassable_reserved::impassable_reserved(
-  reservation_table_type const& reservations,
-  agent const& agent,
-  position from
-)
-  : reservations_(reservations)
-  , agent_(agent)
-  , from_(from)
-{ }
-
-bool
-cooperative_a_star::impassable_reserved::operator () (
-  position where, position from, world const& w, unsigned distance
-) {
-  if (reservations_.count(position_time{where, w.tick() + distance}))
-    return false;
-
-  auto vacated = reservations_.find(
-    position_time{from, w.tick() + distance}
-  );
-  if (vacated != reservations_.end() &&
-      vacated->second.from &&
-      *vacated->second.from == where)
-    return false;
-
-  return w.get(where) == tile::free || !neighbours(where, from_);
-}
-
 path
 cooperative_a_star::find_path(position from, world const& w,
                               std::default_random_engine&,
@@ -317,7 +289,7 @@ cooperative_a_star::find_path(position from, world const& w,
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
-  unreserve(a);
+  predictor_.unreserve(a.id());
 
   path new_path;
   if (rejoin_limit_ > 0 && old_path)
@@ -332,10 +304,15 @@ cooperative_a_star::find_path(position from, world const& w,
     ).first->second;
     unsigned const old_h_search_nodes = h_search.nodes_expanded();
 
-    a_star<impassable_reserved, hierarchical_distance, space_time_coordinate> as(
+    using search_type = a_star<
+      predictor::impassable_reserved,
+      hierarchical_distance,
+      space_time_coordinate
+    >;
+    search_type as(
       from, a.target, w,
       hierarchical_distance(h_search),
-      impassable_reserved(reservations_, a, from)
+      predictor_.impassable_predicate(a, from)
     );
     new_path = as.find_path(w, window_);
 
@@ -343,29 +320,9 @@ cooperative_a_star::find_path(position from, world const& w,
     nodes_heuristic_ += h_search.nodes_expanded() - old_h_search_nodes;
   }
 
-  for (tick_t distance = 0; distance < new_path.size(); ++distance) {
-    position const p = new_path[new_path.size() - distance - 1];
-    position_time const pt{p, w.tick() + distance};
-
-    assert(!reservations_.count(pt));
-
-    if (distance > 0)
-      reservations_[pt] = {a.id(), new_path[new_path.size() - distance]};
-    else
-      reservations_[pt] = {a.id(), boost::none};
-  }
+  predictor_.reserve(a.id(), new_path, w.tick());
 
   return new_path;
-}
-
-void
-cooperative_a_star::unreserve(agent const& a) {
-  auto it = reservations_.begin();
-  while (it != reservations_.end())
-    if (it->second.agent == a.id())
-      it = reservations_.erase(it);
-    else
-      ++it;
 }
 
 std::ostream&
@@ -403,11 +360,11 @@ cooperative_a_star::rejoin_path(position from, world const& w,
   agent const& a = *w.get_agent(from);
 
   using search_type = a_star<
-    impassable_reserved,
+    predictor::impassable_reserved,
     manhattan_distance_heuristic,
     space_time_coordinate
   >;
-  search_type as(from, *to, w, impassable_reserved(reservations_, a, from));
+  search_type as(from, *to, w, predictor_.impassable_predicate(a, from));
 
   path join_path = as.find_path(
     w,
