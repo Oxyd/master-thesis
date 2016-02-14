@@ -35,8 +35,6 @@ main_window::main_window(QWidget *parent)
 
   log_sink_.text_field_ = ui_.log_edit;
 
-  connect(&world_scene_, &world_scene::mouse_clicked,
-          this, &main_window::tile_clicked);
   ui_.world_view->setScene(&world_scene_);
 
   run_timer_.setSingleShot(false);
@@ -82,6 +80,9 @@ main_window::step() {
   world_scene_.remove_all_highlights();
   world_scene_.update();
   update_stats();
+
+  if (ui_.visualise_paths_check->isChecked())
+    highlight_paths();
 }
 
 void
@@ -262,25 +263,20 @@ main_window::make_solver() {
 }
 
 void
+main_window::highlight_paths() {
+  if (!world_ || !solver_)
+    return;
+
+  for (auto pos_agent : world_->agents())
+    for (position p : solver_->get_path(std::get<1>(pos_agent).id()))
+      world_scene_.highlight_tile(p, true);
+}
+
+void
 main_window::window_changed(int new_window) {
   if (!solver_)
     return;
 
   assert(typeid(*solver_) == typeid(cooperative_a_star));
   dynamic_cast<cooperative_a_star*>(solver_.get())->window(new_window);
-}
-
-void
-main_window::tile_clicked(int x, int y) {
-  if (!solver_ || !world_ || !in_bounds(x, y, *world_->map()))
-    return;
-
-  world_scene_.remove_all_highlights();
-
-  if (world_->get({x, y}) != tile::agent)
-    return;
-
-  agent const& a = *world_->get_agent({x, y});
-  for (position p : solver_->get_path(a.id()))
-    world_scene_.highlight_tile(p, true);
 }

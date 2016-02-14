@@ -39,7 +39,6 @@ private slots:
   void edit();
   void algorithm_changed();
   void window_changed(int);
-  void tile_clicked(int, int);
 
 private:
   class gui_log_sink : public log_sink {
@@ -68,6 +67,7 @@ private:
   void update_stats_headers();
   void update_stats();
   std::unique_ptr<solver> make_solver();
+  void highlight_paths();
 };
 
 #endif // MAINWINDOW_HPP

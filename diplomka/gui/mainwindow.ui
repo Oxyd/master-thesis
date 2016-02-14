@@ -241,6 +241,13 @@
          </widget>
         </item>
         <item>
+         <widget class="QCheckBox" name="visualise_paths_check">
+          <property name="text">
+           <string>Visualise Paths</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QTableView" name="stats_view">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
