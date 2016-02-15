@@ -35,8 +35,14 @@ public:
   void unreserve(agent::id_type);
   impassable_reserved impassable_predicate(agent const&, position from) const;
 
+  void update_obstacles(world const&);
+  double predict_obstacle(position_time);
+
 private:
   reservation_table_type agent_reservations_;
+  std::unordered_map<position_time, double> obstacles_;
+  tick_t last_update_time_ = 0;
+  map const* map_ = nullptr;
 };
 
 #endif

@@ -112,7 +112,7 @@ private:
     double agitation;
     std::default_random_engine& rng;
 
-    unsigned operator () (position from, world const&) const;
+    unsigned operator () (position from, world const&, unsigned) const;
   };
 
   std::unordered_map<agent::id_type, agent_data> data_;
@@ -139,16 +139,16 @@ private:
   using heuristic_map_type = std::map<agent::id_type, heuristic_search_type>;
 
   struct hierarchical_distance {
-    explicit
-    hierarchical_distance(heuristic_search_type& h_search)
-      : h_search_(h_search) { }
+    hierarchical_distance(heuristic_search_type& h_search, predictor& p)
+      : h_search_(h_search)
+      , predictor_(p) {}
 
-    unsigned operator () (position from, world const& w) {
-      return h_search_.find_distance(from, w);
-    }
+    unsigned operator () (position from, world const& w,
+                          unsigned distance_so_far);
 
   private:
     heuristic_search_type& h_search_;
+    predictor& predictor_;
   };
 
   predictor predictor_;

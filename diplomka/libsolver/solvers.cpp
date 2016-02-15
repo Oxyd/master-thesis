@@ -211,7 +211,7 @@ lra::stat_values() const {
 }
 
 unsigned
-lra::agitated_distance::operator () (position from, world const&) const {
+lra::agitated_distance::operator () (position from, world const&, unsigned) const {
   std::uniform_real_distribution<> agit(0.0, agitation);
   return distance(from, destination) + agit(rng);
 }
@@ -282,6 +282,21 @@ cooperative_a_star::stat_values() const {
   return result;
 }
 
+unsigned
+cooperative_a_star::hierarchical_distance::operator () (
+  position from,
+  world const& w,
+  unsigned distance_so_far
+) {
+  constexpr double obstacle_penalty = 5;
+
+  unsigned h_distance = h_search_.find_distance(from, w);
+  double obstacle_prob =
+    predictor_.predict_obstacle({from, w.tick() + distance_so_far});
+
+  return h_distance + obstacle_prob * obstacle_penalty;
+}
+
 path
 cooperative_a_star::find_path(position from, world const& w,
                               std::default_random_engine&,
@@ -289,6 +304,7 @@ cooperative_a_star::find_path(position from, world const& w,
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
+  predictor_.update_obstacles(w);
   predictor_.unreserve(a.id());
 
   path new_path;
@@ -311,7 +327,7 @@ cooperative_a_star::find_path(position from, world const& w,
     >;
     search_type as(
       from, a.target, w,
-      hierarchical_distance(h_search),
+      hierarchical_distance(h_search, predictor_),
       predictor_.impassable_predicate(a, from)
     );
     new_path = as.find_path(w, window_);
