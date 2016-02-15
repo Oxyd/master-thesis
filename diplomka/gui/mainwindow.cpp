@@ -280,3 +280,11 @@ main_window::window_changed(int new_window) {
   assert(typeid(*solver_) == typeid(cooperative_a_star));
   dynamic_cast<cooperative_a_star*>(solver_.get())->window(new_window);
 }
+
+void
+main_window::visualisation_params_changed() {
+  world_scene_.remove_all_highlights();
+
+  if (ui_.visualise_paths_check->isChecked())
+    highlight_paths();
+}

@@ -671,6 +671,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>visualise_paths_check</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>visualisation_params_changed()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>667</x>
+     <y>295</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>566</x>
+     <y>768</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>open_map()</slot>
@@ -683,5 +699,6 @@
   <slot>edit()</slot>
   <slot>algorithm_changed()</slot>
   <slot>window_changed(int)</slot>
+  <slot>visualisation_params_changed()</slot>
  </slots>
 </ui>

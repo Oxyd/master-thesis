@@ -39,6 +39,7 @@ private slots:
   void edit();
   void algorithm_changed();
   void window_changed(int);
+  void visualisation_params_changed();
 
 private:
   class gui_log_sink : public log_sink {
