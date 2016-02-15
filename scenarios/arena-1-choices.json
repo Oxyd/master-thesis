@@ -1,0 +1,93 @@
+{
+    "map": "maps\/arena-choices.map",
+    "obstacles": {
+        "mode": "random",
+        "tile_probability": "0.5",
+        "obstacle_movement": {
+            "move_probability": {
+                "distribution": "normal",
+                "parameters": [
+                    "5",
+                    "1"
+                ]
+            }
+        },
+        "spawn_points": [
+            [
+                "25",
+                "26"
+            ],
+            [
+                "25",
+                "22"
+            ],
+            [
+                "25",
+                "23"
+            ],
+            [
+                "25",
+                "24"
+            ],
+            [
+                "25",
+                "25"
+            ]
+        ]
+    },
+    "agent_settings": {
+        "random_agents": "0"
+    },
+    "agents": [
+        {
+            "position": [
+                "27",
+                "32"
+            ],
+            "goal": [
+                "27",
+                "10"
+            ]
+        },
+        {
+            "position": [
+                "26",
+                "32"
+            ],
+            "goal": [
+                "26",
+                "10"
+            ]
+        },
+        {
+            "position": [
+                "23",
+                "32"
+            ],
+            "goal": [
+                "23",
+                "10"
+            ]
+        },
+        {
+            "position": [
+                "24",
+                "32"
+            ],
+            "goal": [
+                "24",
+                "10"
+            ]
+        },
+        {
+            "position": [
+                "25",
+                "32"
+            ],
+            "goal": [
+                "25",
+                "10"
+            ]
+        }
+    ]
+}
