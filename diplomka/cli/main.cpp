@@ -43,6 +43,7 @@ main(int argc, char** argv) try {
   desc.add_options()
     ("help,h", "This text")
     ("scenario,s", po::value<std::string>(), "Scenario to run")
+    ("seed", po::value<unsigned>(), "Random seed to ues")
     ("algorithm,a", po::value<std::string>(), "Algorithm to use")
     ("limit,l", po::value<unsigned>(), "Tick limit")
     ("output,o", po::value<std::string>(), "Output file")
@@ -72,6 +73,9 @@ main(int argc, char** argv) try {
   }
 
   std::default_random_engine rng;
+  if (vm.count("seed"))
+    rng.seed(vm["seed"].as<unsigned>());
+
   world w = load_world(vm["scenario"].as<std::string>(), rng);
   auto solver = make_solver(vm["algorithm"].as<std::string>(), vm);
 
