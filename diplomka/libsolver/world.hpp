@@ -1,5 +1,5 @@
-#ifndef MAP_HPP
-#define MAP_HPP
+#ifndef WORLD_HPP
+#define WORLD_HPP
 
 #include <boost/functional/hash.hpp>
 #include <boost/iterator/iterator_facade.hpp>
