@@ -106,6 +106,9 @@ public:
 
   unsigned nodes_expanded() const { return expanded_; }
 
+  position from() const { return from_; }
+  position to() const { return to_; }
+
 private:
   struct node {
     position pos;

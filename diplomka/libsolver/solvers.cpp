@@ -293,7 +293,10 @@ cooperative_a_star::hierarchical_distance::operator () (
   world const& w,
   unsigned distance_so_far
 ) {
-  constexpr double obstacle_penalty = 5;
+  if (from == h_search_.from())
+    return 0.0;
+
+  constexpr double obstacle_penalty = 50;
 
   unsigned h_distance = h_search_.find_distance(from, w);
   double obstacle_prob =
