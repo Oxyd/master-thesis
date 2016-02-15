@@ -24,8 +24,9 @@ make_solver(std::string const& name,
     unsigned window = vm.count("window") ? vm["window"].as<unsigned>() : 10;
     unsigned rejoin_limit =
       vm.count("rejoin") ? vm["rejoin"].as<unsigned>() : 0;
+    bool avoid_obstacles = vm.count("avoid");
     return std::make_unique<cooperative_a_star>(null_log_sink, window,
-                                                rejoin_limit);
+                                                rejoin_limit, avoid_obstacles);
   }
 
   if (iequals(name, "lra") || iequals(name, "lra*"))
@@ -48,6 +49,7 @@ main(int argc, char** argv) try {
     ("window,w", po::value<unsigned>(), "WHCA* window size")
     ("rejoin,r", po::value<unsigned>()->implicit_value(10),
      "Allow path rejoining, for at most N steps")
+    ("avoid,v", po::bool_switch(), "Avoid predicted obstacles")
     ;
 
   po::variables_map vm;

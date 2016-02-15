@@ -250,7 +250,8 @@ main_window::make_solver() {
     return std::make_unique<cooperative_a_star>(
       log_sink_,
       ui_.window_spin->value(),
-      ui_.rejoin_checkbox->isChecked() ? ui_.rejoin_limit_spin->value() : 0
+      ui_.rejoin_checkbox->isChecked() ? ui_.rejoin_limit_spin->value() : 0,
+      ui_.avoid_obstacles_check->isChecked()
     );
   else if (algo == "LRA*")
     return std::make_unique<lra>(log_sink_);

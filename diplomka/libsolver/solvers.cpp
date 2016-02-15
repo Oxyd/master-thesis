@@ -246,10 +246,12 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng,
 }
 
 cooperative_a_star::cooperative_a_star(log_sink& log, unsigned window,
-                                       unsigned rejoin_limit)
+                                       unsigned rejoin_limit,
+                                       bool avoid_obstacles)
   : separate_paths_solver(log)
   , window_(window)
   , rejoin_limit_(rejoin_limit)
+  , avoid_obstacles_(avoid_obstacles)
 { }
 
 std::vector<std::string>
@@ -300,7 +302,9 @@ cooperative_a_star::hierarchical_distance::operator () (
 
   unsigned h_distance = h_search_.find_distance(from, w);
   double obstacle_prob =
-    predictor_.predict_obstacle({from, w.tick() + distance_so_far});
+    penalise_obstacles_
+    ? predictor_.predict_obstacle({from, w.tick() + distance_so_far})
+    : 0.0;
 
   return h_distance + obstacle_prob * obstacle_penalty;
 }
@@ -335,7 +339,7 @@ cooperative_a_star::find_path(position from, world const& w,
     >;
     search_type as(
       from, a.target, w,
-      hierarchical_distance(h_search, predictor_),
+      hierarchical_distance(h_search, predictor_, avoid_obstacles_),
       predictor_.impassable_predicate(a, from)
     );
     new_path = as.find_path(w, window_);
