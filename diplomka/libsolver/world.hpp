@@ -264,6 +264,7 @@ struct normal_distribution {
 struct obstacle_settings {
   double tile_probability = 0.05;
   normal_distribution move_probability = {5, 1};
+  std::vector<position> spawn_points;
 };
 
 struct agent_settings {

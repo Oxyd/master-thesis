@@ -6,8 +6,10 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 
+#include <algorithm>
 #include <cassert>
 #include <fstream>
+#include <iterator>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -325,6 +327,11 @@ parse_obstacle_settings(boost::property_tree::ptree const& p) {
   result.tile_probability = p.get<double>("tile_probability");
   result.move_probability =
     parse_normal(p.get_child("obstacle_movement.move_probability"));
+
+  if (p.count("spawn_points"))
+    for (auto point : p.get_child("spawn_points"))
+      result.spawn_points.push_back(read_pos(point.second));
+
   return result;
 }
 
@@ -342,15 +349,22 @@ make_obstacles(world& w, obstacle_settings settings,
   std::normal_distribution<> time_to_move =
     make_normal(settings.move_probability);
 
-  for (map::value_type const& tile: *w.map())
-    if (w.get({tile.x, tile.y}) == ::tile::free &&
-        rand() < settings.tile_probability)
+  std::vector<position> spawn_candidates = settings.spawn_points;
+  if (spawn_candidates.empty())
+    std::transform(
+      w.map()->begin(), w.map()->end(),
+      std::back_inserter(spawn_candidates),
+      [] (map::value_type const& t) { return position{t.x, t.y}; }
+    );
+
+  for (position p : spawn_candidates)
+    if (w.get(p) == ::tile::free && rand() < settings.tile_probability)
     {
       obstacle o{time_to_move};
       o.next_move = w.tick() + std::max(tick_t{1},
                                         (tick_t) o.move_distrib(rng));
 
-      w.put_obstacle({tile.x, tile.y}, std::move(o));
+      w.put_obstacle(p, std::move(o));
     }
 }
 
@@ -523,6 +537,12 @@ save_world(world const& world, std::string const& filename) {
   obstacle_movement.add_child("move_probability", move_probability);
 
   obstacles.add_child("obstacle_movement", obstacle_movement);
+
+  pt::ptree obstacle_spawn_points;
+  for (position p : world.obstacle_settings().spawn_points)
+    obstacle_spawn_points.push_back({"", position_to_ptree(p)});
+
+  obstacles.add_child("spawn_points", obstacle_spawn_points);
 
   tree.add_child("obstacles", obstacles);
 

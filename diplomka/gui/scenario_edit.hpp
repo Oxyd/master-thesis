@@ -5,11 +5,13 @@
 #include <QString>
 #include "ui_edit.h"
 
+#include <boost/optional.hpp>
+
+#include <unordered_set>
+
 #include "bottom_bar_controller.hpp"
 #include "world.hpp"
 #include "world_scene.hpp"
-
-#include <boost/optional.hpp>
 
 namespace Ui { class ScenarioEdit; }
 
@@ -39,6 +41,7 @@ private:
   position last_mouse_pos_{-1, -1};
   bottom_bar_controller bottom_bar_controller_;
   bool dirty_ = false;
+  std::unordered_set<position> obstacle_spawn_points_;
 
   void attach(world, QString const& name);
 };

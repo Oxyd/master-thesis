@@ -125,6 +125,16 @@ world_scene::highlight_tile(position p, QColor color) {
 }
 
 void
+world_scene::dehighlight_tile(position p) {
+  auto tile = highlighted_tiles_.find(p);
+  if (tile == highlighted_tiles_.end())
+    return;
+
+  removeItem(tile->second);
+  highlighted_tiles_.erase(tile);
+}
+
+void
 world_scene::remove_all_highlights() {
   highlighted_agents_.clear();
 
@@ -139,14 +149,25 @@ world_scene::mouseMoveEvent(QGraphicsSceneMouseEvent* event) {
   int y = event->scenePos().y() / tile_size;
 
   emit mouse_moved(x, y);
+
+  if (event->buttons() & Qt::LeftButton &&
+      last_mouse_clicked_ && *last_mouse_clicked_ != std::make_tuple(x, y))
+    emit mouse_clicked(x, y);
 }
 
 void
-world_scene::mouseReleaseEvent(QGraphicsSceneMouseEvent* event) {
+world_scene::mousePressEvent(QGraphicsSceneMouseEvent* event) {
   int x = event->scenePos().x() / tile_size;
   int y = event->scenePos().y() / tile_size;
 
   emit mouse_clicked(x, y);
+
+  last_mouse_clicked_ = std::make_tuple(x, y);
+}
+
+void
+world_scene::mouseReleaseEvent(QGraphicsSceneMouseEvent*) {
+  last_mouse_clicked_ = boost::none;
 }
 
 void

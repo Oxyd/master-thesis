@@ -1,8 +1,14 @@
 #include "scenario_edit.hpp"
 
 #include <QCloseEvent>
+#include <QColor>
 #include <QFileDialog>
 #include <QMessageBox>
+
+#include <algorithm>
+#include <iterator>
+
+static const QColor obstacle_spawn_color{255, 128, 128};
 
 scenario_edit::scenario_edit(QWidget* parent)
   : QMainWindow(parent)
@@ -64,6 +70,10 @@ scenario_edit::save_scenario() {
   obstacles.move_probability.mean = ui_.mean_ticks_spin->value();
   obstacles.move_probability.std_dev = ui_.std_dev_spin->value();
 
+  obstacles.spawn_points.clear();
+  std::copy(obstacle_spawn_points_.begin(), obstacle_spawn_points_.end(),
+            std::back_inserter(obstacles.spawn_points));
+
   agent_settings& agents = world_->agent_settings();
   agents.random_agent_number = ui_.random_agents_spin->value();
 
@@ -110,6 +120,16 @@ scenario_edit::clicked(int x, int y) {
 
       dirty_ = true;
     }
+  }
+
+  else if (ui_.add_obstacle_spawn_button->isChecked()) {
+    obstacle_spawn_points_.insert({x, y});
+    scene_.highlight_tile({x, y}, obstacle_spawn_color);
+  }
+
+  else if (ui_.remove_obstacle_spawn_button->isChecked()) {
+    obstacle_spawn_points_.erase({x, y});
+    scene_.dehighlight_tile({x, y});
   }
 }
 
@@ -172,6 +192,12 @@ scenario_edit::attach(world w, QString const& filename) {
   ui_.tile_probability_spin->setValue(obstacles.tile_probability);
   ui_.mean_ticks_spin->setValue(obstacles.move_probability.mean);
   ui_.std_dev_spin->setValue(obstacles.move_probability.std_dev);
+
+  obstacle_spawn_points_.clear();
+  for (position p : obstacles.spawn_points) {
+    obstacle_spawn_points_.insert(p);
+    scene_.highlight_tile(p, obstacle_spawn_color);
+  }
 
   agent_settings const& agents = world_->agent_settings();
   ui_.random_agents_spin->setValue(agents.random_agent_number);
