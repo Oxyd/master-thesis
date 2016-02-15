@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 enum class tile : char {
@@ -261,10 +262,17 @@ struct normal_distribution {
   double std_dev;
 };
 
+enum class obstacle_mode {
+  random = 0,
+  spawn_to_goal
+};
+
 struct obstacle_settings {
+  obstacle_mode mode;
   double tile_probability = 0.05;
   normal_distribution move_probability = {5, 1};
-  std::vector<position> spawn_points;
+  std::unordered_set<position> spawn_points;
+  std::unordered_set<position> goal_points;
 };
 
 struct agent_settings {

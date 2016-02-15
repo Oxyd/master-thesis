@@ -42,6 +42,7 @@ private:
   bottom_bar_controller bottom_bar_controller_;
   bool dirty_ = false;
   std::unordered_set<position> obstacle_spawn_points_;
+  std::unordered_set<position> obstacle_goal_points_;
 
   void attach(world, QString const& name);
 };

@@ -10,6 +10,7 @@
 #include <cassert>
 #include <fstream>
 #include <iterator>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -198,7 +199,7 @@ valid_directions(position p, world const& w) {
 }
 
 static void
-move(obstacle o, position pos, world& w, std::default_random_engine& rng) {
+move_random(obstacle o, position pos, world& w, std::default_random_engine& rng) {
   std::vector<position> choices = valid_directions(pos, w);
   if (choices.empty())
     return;
@@ -211,17 +212,94 @@ move(obstacle o, position pos, world& w, std::default_random_engine& rng) {
   w.put_obstacle(p, o);
 }
 
+static void
+move_to_goal(obstacle o, position pos, world& w,
+             std::unordered_set<position> const& goal_points,
+             std::default_random_engine& rng) {
+  if (goal_points.empty())
+    throw std::runtime_error{
+      "Move-to-goal mode selected, but no goal points defined"
+    };
+
+  if (goal_points.count(pos)) {
+    w.remove_obstacle(pos);
+    return;
+  }
+
+  position nearest_goal;
+  unsigned nearest_distance = std::numeric_limits<unsigned>::max();
+  for (position g : goal_points)
+    if (distance(pos, g) < nearest_distance) {
+      nearest_goal = g;
+      nearest_distance = distance(pos, g);
+    }
+
+  int dx = nearest_goal.x - pos.x;
+  int dy = nearest_goal.y - pos.y;
+
+  auto sgn = [] (int x) { return x > 0 ? 1 : x < 0 ? -1 : 0; };
+
+  position next = pos;
+  if (std::abs(dx) > std::abs(dy))
+    next.x += sgn(dx);
+  else
+    next.y += sgn(dy);
+
+  if (w.get(next) != tile::free)
+    next = pos;
+
+  w.remove_obstacle(pos);
+  o.next_move = w.tick() + std::max(tick_t{1}, (tick_t) o.move_distrib(rng));
+  w.put_obstacle(next, o);
+}
+
+static std::normal_distribution<>
+make_normal(normal_distribution d) {
+  return std::normal_distribution<>(d.mean, d.std_dev);
+}
+
+static void
+make_obstacles(world& w, obstacle_settings settings,
+               std::default_random_engine& rng) {
+  auto rand = [&] { return std::generate_canonical<double, 32>(rng); };
+  std::normal_distribution<> time_to_move =
+    make_normal(settings.move_probability);
+
+  std::unordered_set<position> spawn_candidates = settings.spawn_points;
+  if (spawn_candidates.empty())
+    for (map::value_type const& t : *w.map())
+      if (w.get({t.x, t.y}) == tile::free)
+        spawn_candidates.insert(position{t.x, t.y});
+
+  for (position p : spawn_candidates)
+    if (w.get(p) == ::tile::free && rand() < settings.tile_probability)
+    {
+      obstacle o{time_to_move};
+      o.next_move = w.tick() + std::max(tick_t{1},
+                                        (tick_t) o.move_distrib(rng));
+
+      w.put_obstacle(p, std::move(o));
+    }
+}
+
 void
 world::next_tick(std::default_random_engine& rng) {
   ++tick_;
+
+  if (obstacle_settings_.mode == obstacle_mode::spawn_to_goal)
+    make_obstacles(*this, obstacle_settings_, rng);
 
   auto obstacles = obstacles_;
   for (auto& pos_obst : obstacles) {
     position const& pos = pos_obst.first;
     obstacle& obstacle = pos_obst.second;
 
-    if (obstacle.next_move == tick_)
-      move(obstacle, pos, *this, rng);
+    if (obstacle.next_move == tick_) {
+      if (obstacle_settings_.mode == obstacle_mode::random)
+        move_random(obstacle, pos, *this, rng);
+      else
+        move_to_goal(obstacle, pos, *this, obstacle_settings_.goal_points, rng);
+    }
   }
 }
 
@@ -316,21 +394,42 @@ parse_normal(boost::property_tree::ptree const& p) {
   return normal_distribution{distrib_params[0], distrib_params[1]};
 }
 
-static std::normal_distribution<>
-make_normal(normal_distribution d) {
-  return std::normal_distribution<>(d.mean, d.std_dev);
+static obstacle_mode
+parse_obstacle_mode(std::string const& mode) {
+  if (mode == "random")
+    return obstacle_mode::random;
+  else if (mode == "spawn_to_goal")
+    return obstacle_mode::spawn_to_goal;
+  else
+    throw bad_world_format{"Invalid obstacle mode: " + mode};
+}
+
+static std::string
+obstacle_mode_to_str(obstacle_mode mode) {
+  switch (mode) {
+  case obstacle_mode::random: return "random";
+  case obstacle_mode::spawn_to_goal: return "spawn_to_goal";
+  default:
+    assert(!"Won't get here");
+    return "";
+  }
 }
 
 static obstacle_settings
 parse_obstacle_settings(boost::property_tree::ptree const& p) {
   obstacle_settings result;
+  result.mode = parse_obstacle_mode(p.get<std::string>("mode"));
   result.tile_probability = p.get<double>("tile_probability");
   result.move_probability =
     parse_normal(p.get_child("obstacle_movement.move_probability"));
 
   if (p.count("spawn_points"))
     for (auto point : p.get_child("spawn_points"))
-      result.spawn_points.push_back(read_pos(point.second));
+      result.spawn_points.insert(read_pos(point.second));
+
+  if (p.count("goal_points"))
+    for (auto point : p.get_child("goal_points"))
+      result.goal_points.insert(read_pos(point.second));
 
   return result;
 }
@@ -340,32 +439,6 @@ parse_agent_settings(boost::property_tree::ptree const& p) {
   agent_settings result;
   result.random_agent_number = p.get<unsigned>("random_agents");
   return result;
-}
-
-static void
-make_obstacles(world& w, obstacle_settings settings,
-               std::default_random_engine& rng) {
-  auto rand = [&] { return std::generate_canonical<double, 32>(rng); };
-  std::normal_distribution<> time_to_move =
-    make_normal(settings.move_probability);
-
-  std::vector<position> spawn_candidates = settings.spawn_points;
-  if (spawn_candidates.empty())
-    std::transform(
-      w.map()->begin(), w.map()->end(),
-      std::back_inserter(spawn_candidates),
-      [] (map::value_type const& t) { return position{t.x, t.y}; }
-    );
-
-  for (position p : spawn_candidates)
-    if (w.get(p) == ::tile::free && rand() < settings.tile_probability)
-    {
-      obstacle o{time_to_move};
-      o.next_move = w.tick() + std::max(tick_t{1},
-                                        (tick_t) o.move_distrib(rng));
-
-      w.put_obstacle(p, std::move(o));
-    }
 }
 
 static void
@@ -516,7 +589,7 @@ save_world(world const& world, std::string const& filename) {
   tree.put("map", relative_map_path.string());
 
   pt::ptree obstacles;
-  obstacles.add("mode", "random");
+  obstacles.add("mode", obstacle_mode_to_str(world.obstacle_settings().mode));
   obstacles.add("tile_probability", world.obstacle_settings().tile_probability);
 
   pt::ptree move_probability;
@@ -543,6 +616,12 @@ save_world(world const& world, std::string const& filename) {
     obstacle_spawn_points.push_back({"", position_to_ptree(p)});
 
   obstacles.add_child("spawn_points", obstacle_spawn_points);
+
+  pt::ptree obstacle_goal_points;
+  for (position p : world.obstacle_settings().goal_points)
+    obstacle_goal_points.push_back({"", position_to_ptree(p)});
+
+  obstacles.add_child("goal_points", obstacle_goal_points);
 
   tree.add_child("obstacles", obstacles);
 

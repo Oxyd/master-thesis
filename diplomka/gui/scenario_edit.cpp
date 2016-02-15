@@ -9,6 +9,7 @@
 #include <iterator>
 
 static const QColor obstacle_spawn_color{255, 128, 128};
+static const QColor obstacle_goal_color{255, 204, 0};
 
 scenario_edit::scenario_edit(QWidget* parent)
   : QMainWindow(parent)
@@ -26,6 +27,9 @@ scenario_edit::scenario_edit(QWidget* parent)
           this, &scenario_edit::clicked);
   connect(&scene_, &world_scene::mouse_moved,
           this, &scenario_edit::mouse_moved);
+
+  ui_.mode_combo->addItem("Random");
+  ui_.mode_combo->addItem("Spawn-to-Goal");
 }
 
 void
@@ -66,13 +70,17 @@ scenario_edit::save_scenario() {
   reset_goal();
 
   obstacle_settings& obstacles = world_->obstacle_settings();
+
+  if (ui_.mode_combo->currentText() == "Random")
+    obstacles.mode = obstacle_mode::random;
+  else if (ui_.mode_combo->currentText() == "Spawn-to-Goal")
+    obstacles.mode = obstacle_mode::spawn_to_goal;
+
   obstacles.tile_probability = ui_.tile_probability_spin->value();
   obstacles.move_probability.mean = ui_.mean_ticks_spin->value();
   obstacles.move_probability.std_dev = ui_.std_dev_spin->value();
-
-  obstacles.spawn_points.clear();
-  std::copy(obstacle_spawn_points_.begin(), obstacle_spawn_points_.end(),
-            std::back_inserter(obstacles.spawn_points));
+  obstacles.spawn_points = obstacle_spawn_points_;
+  obstacles.goal_points = obstacle_goal_points_;
 
   agent_settings& agents = world_->agent_settings();
   agents.random_agent_number = ui_.random_agents_spin->value();
@@ -129,6 +137,16 @@ scenario_edit::clicked(int x, int y) {
 
   else if (ui_.remove_obstacle_spawn_button->isChecked()) {
     obstacle_spawn_points_.erase({x, y});
+    scene_.dehighlight_tile({x, y});
+  }
+
+  else if (ui_.add_obstacle_goal_button->isChecked()) {
+    obstacle_goal_points_.insert({x, y});
+    scene_.highlight_tile({x, y}, obstacle_goal_color);
+  }
+
+  else if (ui_.remove_obstacle_goal_button->isChecked()) {
+    obstacle_goal_points_.erase({x, y});
     scene_.dehighlight_tile({x, y});
   }
 }
@@ -189,6 +207,7 @@ scenario_edit::attach(world w, QString const& filename) {
   scene_.setSceneRect(scene_.itemsBoundingRect());
 
   obstacle_settings const& obstacles = world_->obstacle_settings();
+  ui_.mode_combo->setCurrentIndex(static_cast<int>(obstacles.mode));
   ui_.tile_probability_spin->setValue(obstacles.tile_probability);
   ui_.mean_ticks_spin->setValue(obstacles.move_probability.mean);
   ui_.std_dev_spin->setValue(obstacles.move_probability.std_dev);
@@ -197,6 +216,12 @@ scenario_edit::attach(world w, QString const& filename) {
   for (position p : obstacles.spawn_points) {
     obstacle_spawn_points_.insert(p);
     scene_.highlight_tile(p, obstacle_spawn_color);
+  }
+
+  obstacle_goal_points_.clear();
+  for (position p : obstacles.goal_points) {
+    obstacle_goal_points_.insert(p);
+    scene_.highlight_tile(p, obstacle_goal_color);
   }
 
   agent_settings const& agents = world_->agent_settings();
