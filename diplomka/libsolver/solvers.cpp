@@ -210,7 +210,7 @@ lra::stat_values() const {
   return result;
 }
 
-unsigned
+double
 lra::agitated_distance::operator () (position from, world const&, unsigned) const {
   std::uniform_real_distribution<> agit(0.0, agitation);
   return distance(from, destination) + agit(rng);
@@ -287,7 +287,7 @@ cooperative_a_star::get_obstacle_field() const {
   return predictor_.field();
 }
 
-unsigned
+double
 cooperative_a_star::hierarchical_distance::operator () (
   position from,
   world const& w,

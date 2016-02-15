@@ -22,7 +22,7 @@ struct always_passable {
 struct manhattan_distance_heuristic {
   position destination;
 
-  unsigned operator () (position from, world const&, unsigned) const {
+  double operator () (position from, world const&, unsigned) const {
     return distance(from, destination);
   }
 };
@@ -89,7 +89,7 @@ public:
     return do_find_path(w, [&] (node const* n) { return goal(n->pos); }, limit);
   }
 
-  unsigned
+  double
   find_distance(position p, world const& w) {
     auto it = shortest_paths_.find(p);
     if (it != shortest_paths_.end())
@@ -110,11 +110,11 @@ private:
   struct node {
     position pos;
     unsigned g;
-    unsigned h;
+    double h;
 
     node* come_from = nullptr;
 
-    node(position pos, unsigned g, unsigned h)
+    node(position pos, unsigned g, double h)
       : pos(pos), g(g), h(h) { }
 
     double f() const { return g + h; }

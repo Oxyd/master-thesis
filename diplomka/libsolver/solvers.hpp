@@ -115,7 +115,7 @@ private:
     double agitation;
     std::default_random_engine& rng;
 
-    unsigned operator () (position from, world const&, unsigned) const;
+    double operator () (position from, world const&, unsigned) const;
   };
 
   std::unordered_map<agent::id_type, agent_data> data_;
@@ -149,8 +149,8 @@ private:
       : h_search_(h_search)
       , predictor_(p) {}
 
-    unsigned operator () (position from, world const& w,
-                          unsigned distance_so_far);
+    double operator () (position from, world const& w,
+                        unsigned distance_so_far);
 
   private:
     heuristic_search_type& h_search_;
