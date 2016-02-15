@@ -282,6 +282,11 @@ cooperative_a_star::stat_values() const {
   return result;
 }
 
+std::unordered_map<position_time, double>
+cooperative_a_star::get_obstacle_field() const {
+  return predictor_.field();
+}
+
 unsigned
 cooperative_a_star::hierarchical_distance::operator () (
   position from,

@@ -38,6 +38,8 @@ public:
   void update_obstacles(world const&);
   double predict_obstacle(position_time);
 
+  std::unordered_map<position_time, double> field() const { return obstacles_; }
+
 private:
   reservation_table_type agent_reservations_;
   std::unordered_map<position_time, double> obstacles_;

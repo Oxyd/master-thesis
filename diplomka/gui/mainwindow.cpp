@@ -22,6 +22,8 @@
 
 #include <iostream>
 
+static QColor agent_path_color{0x33, 0x66, 0xff, 0x80};
+
 main_window::main_window(QWidget *parent)
   : QMainWindow(parent)
 {
@@ -77,12 +79,9 @@ main_window::step() {
   joint_action action = solver_->get_action(*world_, rng_);
   *world_ = apply(action, *world_);
 
-  world_scene_.remove_all_highlights();
   world_scene_.update();
   update_stats();
-
-  if (ui_.visualise_paths_check->isChecked())
-    highlight_paths();
+  visualisation_params_changed();
 }
 
 void
@@ -269,7 +268,25 @@ main_window::highlight_paths() {
 
   for (auto pos_agent : world_->agents())
     for (position p : solver_->get_path(std::get<1>(pos_agent).id()))
-      world_scene_.highlight_tile(p, true);
+      world_scene_.highlight_tile(p, agent_path_color);
+}
+
+void
+main_window::highlight_obstacle_field() {
+  if (!world_ || !solver_)
+    return;
+
+  for (auto pos_time_value : solver_->get_obstacle_field()) {
+    position_time pt = std::get<0>(pos_time_value);
+
+    if ((int) pt.time - (int) world_->tick() != ui_.obstacle_field_spin->value())
+      continue;
+
+    double value = std::get<1>(pos_time_value);
+    int saturation = 255 * (1 - value);
+    QColor color{255, saturation, saturation};
+    world_scene_.highlight_tile({pt.x, pt.y}, color);
+  }
 }
 
 void
@@ -287,4 +304,7 @@ main_window::visualisation_params_changed() {
 
   if (ui_.visualise_paths_check->isChecked())
     highlight_paths();
+
+  if (ui_.obstacle_field_check->isChecked())
+    highlight_obstacle_field();
 }

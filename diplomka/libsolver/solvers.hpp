@@ -34,6 +34,9 @@ public:
   virtual std::vector<std::string> stat_names() const { return {}; }
   virtual std::vector<std::string> stat_values() const { return {}; };
   virtual std::vector<position> get_path(agent::id_type) const { return {}; }
+  virtual std::unordered_map<position_time, double> get_obstacle_field() const {
+    return {};
+  }
 };
 
 class greedy : public solver {
@@ -133,6 +136,9 @@ public:
 
   std::vector<std::string>
   stat_values() const override;
+
+  std::unordered_map<position_time, double>
+  get_obstacle_field() const override;
 
 private:
   using heuristic_search_type = a_star<>;

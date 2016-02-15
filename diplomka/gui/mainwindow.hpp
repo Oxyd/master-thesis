@@ -69,6 +69,7 @@ private:
   void update_stats();
   std::unique_ptr<solver> make_solver();
   void highlight_paths();
+  void highlight_obstacle_field();
 };
 
 #endif // MAINWINDOW_HPP

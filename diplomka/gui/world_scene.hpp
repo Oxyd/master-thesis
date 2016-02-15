@@ -18,7 +18,7 @@ public:
   void re_render();
   void update_agent(position);
   void highlight_agent(position, bool set_highlight);
-  void highlight_tile(position, bool set_highlight);
+  void highlight_tile(position, QColor);
   void remove_all_highlights();
 
 signals:
