@@ -49,7 +49,7 @@ main(int argc, char** argv) try {
     ("window,w", po::value<unsigned>(), "WHCA* window size")
     ("rejoin,r", po::value<unsigned>()->implicit_value(10),
      "Allow path rejoining, for at most N steps")
-    ("avoid,v", po::bool_switch(), "Avoid predicted obstacles")
+    ("avoid,v", "Avoid predicted obstacles")
     ;
 
   po::variables_map vm;

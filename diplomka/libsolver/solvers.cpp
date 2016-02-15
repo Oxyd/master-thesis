@@ -316,7 +316,8 @@ cooperative_a_star::find_path(position from, world const& w,
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
-  predictor_.update_obstacles(w);
+  if (avoid_obstacles_)
+    predictor_.update_obstacles(w);
   predictor_.unreserve(a.id());
 
   path new_path;
