@@ -277,8 +277,9 @@ class world {
 
 public:
   explicit
-  world(std::shared_ptr<::map const> const& m, obstacle_settings = {},
-        agent_settings = {}, obstacle_list = {}, tick_t = {});
+  world(std::shared_ptr<::map const> const& m,
+        obstacle_settings = ::obstacle_settings{}, agent_settings = {},
+        obstacle_list = {}, tick_t = {});
 
   void
   next_tick(std::default_random_engine&);
