@@ -17,11 +17,11 @@ class predictor {
     std::unordered_map<position_time, reservation_table_record>;
 
 public:
-  class impassable_reserved {
+  class passable_not_reserved {
   public:
-    impassable_reserved(reservation_table_type const& reservations,
-                        agent const& agent,
-                        position from);
+    passable_not_reserved(reservation_table_type const& reservations,
+                          agent const& agent,
+                          position from);
     bool operator () (position where, position from, world const& w,
                       unsigned distance);
 
@@ -33,7 +33,7 @@ public:
 
   void reserve(agent::id_type for_agent, path const&, tick_t from);
   void unreserve(agent::id_type);
-  impassable_reserved impassable_predicate(agent const&, position from) const;
+  passable_not_reserved passable_predicate(agent const&, position from) const;
 
   void update_obstacles(world const&);
   double predict_obstacle(position_time);

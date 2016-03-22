@@ -232,10 +232,10 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng,
   else
     data_[a.id()].agitation = 0.0;
 
-  a_star<impassable_immediate_neighbour, agitated_distance> as(
+  a_star<passable_not_immediate_neighbour, agitated_distance> as(
     from, a.target, w,
     agitated_distance{a.target, data_[a.id()].agitation, rng},
-    impassable_immediate_neighbour{from}
+    passable_not_immediate_neighbour{from}
   );
   path new_path = as.find_path(w);
   nodes_ += as.nodes_expanded();
@@ -334,7 +334,7 @@ cooperative_a_star::find_path(position from, world const& w,
     unsigned const old_h_search_nodes = h_search.nodes_expanded();
 
     using search_type = a_star<
-      predictor::impassable_reserved,
+      predictor::passable_not_reserved,
       hierarchical_distance,
       space_time_coordinate
     >;
@@ -342,7 +342,7 @@ cooperative_a_star::find_path(position from, world const& w,
       from, a.target, w,
       hierarchical_distance(h_search, predictor_,
                             avoid_obstacles_, obstacle_penalty_),
-      predictor_.impassable_predicate(a, from)
+      predictor_.passable_predicate(a, from)
     );
     new_path = as.find_path(w, window_);
 
@@ -390,11 +390,11 @@ cooperative_a_star::rejoin_path(position from, world const& w,
   agent const& a = *w.get_agent(from);
 
   using search_type = a_star<
-    predictor::impassable_reserved,
+    predictor::passable_not_reserved,
     manhattan_distance_heuristic,
     space_time_coordinate
   >;
-  search_type as(from, *to, w, predictor_.impassable_predicate(a, from));
+  search_type as(from, *to, w, predictor_.passable_predicate(a, from));
 
   path join_path = as.find_path(
     w,

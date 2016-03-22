@@ -4,7 +4,7 @@
 
 constexpr double stay_probability = 4.0 / 5.0;
 
-predictor::impassable_reserved::impassable_reserved(
+predictor::passable_not_reserved::passable_not_reserved(
   reservation_table_type const& reservations,
   agent const& agent,
   position from
@@ -15,7 +15,7 @@ predictor::impassable_reserved::impassable_reserved(
 { }
 
 bool
-predictor::impassable_reserved::operator () (
+predictor::passable_not_reserved::operator () (
   position where, position from, world const& w, unsigned distance
 ) {
   if (reservations_.count(position_time{where, w.tick() + distance}))
@@ -58,10 +58,10 @@ predictor::unreserve(agent::id_type a_id) {
 }
 
 auto
-predictor::impassable_predicate(agent const& a, position from) const
-  -> impassable_reserved
+predictor::passable_predicate(agent const& a, position from) const
+  -> passable_not_reserved
 {
-  return impassable_reserved{agent_reservations_, a, from};
+  return passable_not_reserved{agent_reservations_, a, from};
 }
 
 void

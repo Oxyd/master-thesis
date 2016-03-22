@@ -103,7 +103,7 @@ private:
     double agitation = 0;
   };
 
-  struct impassable_immediate_neighbour {
+  struct passable_not_immediate_neighbour {
     position from;
     bool operator () (position p, position, world const& w, unsigned) {
       return w.get(p) == tile::free || !neighbours(p, from);
