@@ -128,7 +128,7 @@ private:
 class cooperative_a_star : public separate_paths_solver {
 public:
   cooperative_a_star(log_sink& log, unsigned window, unsigned rejoin_limit,
-                     bool avoid_obstacles);
+                     bool avoid_obstacles, unsigned obstacle_penalty);
   std::string name() const override { return "WHCA*"; }
   void window(unsigned new_window) { window_ = new_window; }
 
@@ -147,10 +147,12 @@ private:
 
   struct hierarchical_distance {
     hierarchical_distance(heuristic_search_type& h_search, predictor& p,
-                          bool penalise_obstacles)
+                          bool penalise_obstacles, unsigned obstacle_penalty)
       : h_search_(h_search)
       , predictor_(p)
-      , penalise_obstacles_(penalise_obstacles) { }
+      , penalise_obstacles_(penalise_obstacles)
+      , obstacle_penalty_(obstacle_penalty)
+    { }
 
     double operator () (position from, world const& w,
                         unsigned distance_so_far);
@@ -159,6 +161,7 @@ private:
     heuristic_search_type& h_search_;
     predictor& predictor_;
     bool penalise_obstacles_ = false;
+    unsigned obstacle_penalty_ = 100;
   };
 
   predictor predictor_;
@@ -171,6 +174,7 @@ private:
   unsigned rejoin_attempts_ = 0;
   unsigned rejoin_successes_ = 0;
   bool avoid_obstacles_ = false;
+  unsigned obstacle_penalty_ = 100;
 
   path find_path(position, world const&, std::default_random_engine&,
                  boost::optional<path const&> old_path) override;

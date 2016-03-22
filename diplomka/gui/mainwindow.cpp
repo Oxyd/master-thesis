@@ -251,7 +251,8 @@ main_window::make_solver() {
       log_sink_,
       ui_.window_spin->value(),
       ui_.rejoin_checkbox->isChecked() ? ui_.rejoin_limit_spin->value() : 0,
-      ui_.avoid_obstacles_check->isChecked()
+      ui_.avoid_obstacles_check->isChecked(),
+      ui_.obstacle_penalty_spin->value()
     );
   else if (algo == "LRA*")
     return std::make_unique<lra>(log_sink_);
