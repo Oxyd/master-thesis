@@ -48,6 +48,8 @@ main_window::main_window(QWidget *parent)
   ui_.algorithm_combo->addItem("Greedy");
 
   ui_.stats_view->setModel(&stats_);
+
+  showMaximized();
 }
 
 void
