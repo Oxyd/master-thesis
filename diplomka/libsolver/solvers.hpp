@@ -128,7 +128,8 @@ private:
 class cooperative_a_star : public separate_paths_solver {
 public:
   cooperative_a_star(log_sink& log, unsigned window, unsigned rejoin_limit,
-                     bool avoid_obstacles, unsigned obstacle_penalty);
+                     bool avoid_obstacles, unsigned obstacle_penalty,
+                     double obstacle_threshold);
   std::string name() const override { return "WHCA*"; }
   void window(unsigned new_window) { window_ = new_window; }
 
@@ -164,6 +165,24 @@ private:
     unsigned obstacle_penalty_ = 100;
   };
 
+  struct passable_if_not_predicted_obstacle {
+    passable_if_not_predicted_obstacle(predictor& p,
+                                       predictor::passable_not_reserved pnr,
+                                       double threshold)
+      : not_reserved_(pnr)
+      , predictor_(p)
+      , threshold_(threshold)
+    { }
+
+    bool operator () (position where, position from, world const& w,
+                      unsigned distance);
+
+  private:
+    predictor::passable_not_reserved not_reserved_;
+    predictor& predictor_;
+    double threshold_;
+  };
+
   predictor predictor_;
   heuristic_map_type heuristic_map_;
   unsigned window_;
@@ -175,6 +194,7 @@ private:
   unsigned rejoin_successes_ = 0;
   bool avoid_obstacles_ = false;
   unsigned obstacle_penalty_ = 100;
+  double obstacle_threshold_ = 0.1;
 
   path find_path(position, world const&, std::default_random_engine&,
                  boost::optional<path const&> old_path) override;

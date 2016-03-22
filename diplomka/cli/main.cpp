@@ -28,7 +28,8 @@ make_solver(std::string const& name,
     return std::make_unique<cooperative_a_star>(
       null_log_sink, window,
       rejoin_limit, avoid_obstacles,
-      avoid_obstacles ? vm["avoid"].as<unsigned>() : 0
+      avoid_obstacles ? vm["obstacle-penalty"].as<unsigned>() : 0,
+      vm["obstacle-threshold"].as<double>()
     );
   }
 
@@ -53,8 +54,12 @@ main(int argc, char** argv) try {
     ("window,w", po::value<unsigned>(), "WHCA* window size")
     ("rejoin,r", po::value<unsigned>()->implicit_value(10),
      "Allow path rejoining, for at most N steps")
-    ("avoid,v", po::value<unsigned>()->value_name("PENALTY"),
-     "Avoid predicted obstacles")
+    ("avoid,v", "Avoid predicted obstacles")
+    ("obstacle-penalty", po::value<unsigned>()->default_value(100),
+     "Penalty for a predicted obstacle")
+    ("obstacle-threshold", po::value<double>()->default_value(0.1),
+     "Predicted obstacles with probabilities higher than this will be "
+     "considered impassable")
     ;
 
   po::variables_map vm;

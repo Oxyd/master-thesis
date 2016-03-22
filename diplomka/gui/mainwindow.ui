@@ -70,8 +70,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>274</width>
-          <height>717</height>
+          <width>261</width>
+          <height>719</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -268,6 +268,33 @@
           </layout>
          </item>
          <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_9">
+           <item>
+            <widget class="QLabel" name="label_6">
+             <property name="text">
+              <string>Threshold:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="obstacle_threshold_spin">
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="maximum">
+              <double>1.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.010000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.100000000000000</double>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
           <widget class="Line" name="line">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
@@ -412,6 +439,7 @@
         <zorder>log_edit</zorder>
         <zorder>pushButton_2</zorder>
         <zorder>horizontalLayoutWidget</zorder>
+        <zorder>horizontalLayoutWidget_2</zorder>
        </widget>
       </widget>
      </widget>
@@ -650,7 +678,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>766</x>
-     <y>474</y>
+     <y>512</y>
     </hint>
     <hint type="destinationlabel">
      <x>610</x>
@@ -681,7 +709,7 @@
    <slot>run()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>880</x>
+     <x>867</x>
      <y>116</y>
     </hint>
     <hint type="destinationlabel">
@@ -713,8 +741,8 @@
    <slot>visualisation_params_changed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>870</x>
-     <y>477</y>
+     <x>857</x>
+     <y>515</y>
     </hint>
     <hint type="destinationlabel">
      <x>712</x>
@@ -730,11 +758,11 @@
    <hints>
     <hint type="sourcelabel">
      <x>766</x>
-     <y>474</y>
+     <y>512</y>
     </hint>
     <hint type="destinationlabel">
-     <x>870</x>
-     <y>477</y>
+     <x>857</x>
+     <y>515</y>
     </hint>
    </hints>
   </connection>
@@ -745,7 +773,7 @@
    <slot>change_run_interval(double)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>879</x>
+     <x>866</x>
      <y>153</y>
     </hint>
     <hint type="destinationlabel">
@@ -761,7 +789,7 @@
    <slot>window_changed(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>879</x>
+     <x>866</x>
      <y>267</y>
     </hint>
     <hint type="destinationlabel">
@@ -777,7 +805,7 @@
    <slot>make_random_seed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>879</x>
+     <x>866</x>
      <y>228</y>
     </hint>
     <hint type="destinationlabel">
@@ -793,7 +821,7 @@
    <slot>algorithm_changed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>879</x>
+     <x>866</x>
      <y>189</y>
     </hint>
     <hint type="destinationlabel">
@@ -809,8 +837,8 @@
    <slot>visualisation_params_changed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>871</x>
-     <y>440</y>
+     <x>858</x>
+     <y>478</y>
     </hint>
     <hint type="destinationlabel">
      <x>566</x>
@@ -863,6 +891,38 @@
     <hint type="destinationlabel">
      <x>804</x>
      <y>290</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>avoid_obstacles_check</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>label_6</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>720</x>
+     <y>327</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>701</x>
+     <y>397</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>avoid_obstacles_check</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>obstacle_threshold_spin</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>739</x>
+     <y>319</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>794</x>
+     <y>402</y>
     </hint>
    </hints>
   </connection>

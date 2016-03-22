@@ -248,12 +248,14 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng,
 cooperative_a_star::cooperative_a_star(log_sink& log, unsigned window,
                                        unsigned rejoin_limit,
                                        bool avoid_obstacles,
-                                       unsigned obstacle_penalty)
+                                       unsigned obstacle_penalty,
+                                       double obstacle_threshold)
   : separate_paths_solver(log)
   , window_(window)
   , rejoin_limit_(rejoin_limit)
   , avoid_obstacles_(avoid_obstacles)
   , obstacle_penalty_(obstacle_penalty)
+  , obstacle_threshold_(obstacle_threshold)
 { }
 
 std::vector<std::string>
@@ -309,6 +311,15 @@ cooperative_a_star::hierarchical_distance::operator () (
   return h_distance + obstacle_prob * obstacle_penalty_;
 }
 
+bool
+cooperative_a_star::passable_if_not_predicted_obstacle::operator () (
+  position where, position from, world const& w, unsigned distance
+) {
+  return
+    not_reserved_(where, from, w, distance) &&
+    predictor_.predict_obstacle({where, w.tick() + distance}) <= threshold_;
+}
+
 path
 cooperative_a_star::find_path(position from, world const& w,
                               std::default_random_engine&,
@@ -334,7 +345,7 @@ cooperative_a_star::find_path(position from, world const& w,
     unsigned const old_h_search_nodes = h_search.nodes_expanded();
 
     using search_type = a_star<
-      predictor::passable_not_reserved,
+      passable_if_not_predicted_obstacle,
       hierarchical_distance,
       space_time_coordinate
     >;
@@ -342,7 +353,11 @@ cooperative_a_star::find_path(position from, world const& w,
       from, a.target, w,
       hierarchical_distance(h_search, predictor_,
                             avoid_obstacles_, obstacle_penalty_),
-      predictor_.passable_predicate(a, from)
+      passable_if_not_predicted_obstacle(
+        predictor_,
+        predictor_.passable_predicate(a, from),
+        avoid_obstacles_ ? obstacle_threshold_ : 1.0
+      )
     );
     new_path = as.find_path(w, window_);
 

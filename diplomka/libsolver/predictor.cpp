@@ -161,5 +161,8 @@ predictor::predict_obstacle(position_time where) {
   }
 
   assert(obstacles_.count(where));
+  assert(obstacles_[where] >= 0.0);
+  assert(obstacles_[where] <= 1.0);
+
   return obstacles_[where];
 }
