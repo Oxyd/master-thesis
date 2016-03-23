@@ -25,8 +25,8 @@ make_predictor(std::string const& name,
   unsigned cutoff = vm["predictor-cutoff"].as<unsigned>();
   if (iequals(name, "recursive"))
     return make_recursive_predictor(map, cutoff);
-  else if (iequals(name, "markov"))
-    return make_markov_predictor(map, cutoff);
+  else if (iequals(name, "matrix"))
+    return make_matrix_predictor(map, cutoff);
   else
     throw std::runtime_error{std::string{"Unknown obstacle predictor: "} + name};
 }

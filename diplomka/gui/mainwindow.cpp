@@ -50,7 +50,7 @@ main_window::main_window(QWidget *parent)
   ui_.stats_view->setModel(&stats_);
 
   ui_.predictor_method_combo->addItem("Recursive");
-  ui_.predictor_method_combo->addItem("Markov");
+  ui_.predictor_method_combo->addItem("Matrix");
 
   showMaximized();
 }
@@ -280,8 +280,8 @@ main_window::make_predictor() {
   QString method = ui_.predictor_method_combo->currentText();
   if (method == "Recursive")
     return make_recursive_predictor(*world_->map(), cutoff);
-  else if (method == "Markov")
-    return make_markov_predictor(*world_->map(), cutoff);
+  else if (method == "Matrix")
+    return make_matrix_predictor(*world_->map(), cutoff);
 
   assert(!"Won't get here");
   return {};

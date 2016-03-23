@@ -150,9 +150,9 @@ namespace {
 using transition_matrix_type = Eigen::SparseMatrix<double>;
 using obstacle_state_vector_type = Eigen::VectorXd;
 
-class markov_predictor : public predictor {
+class matrix_predictor : public predictor {
 public:
-  markov_predictor(map const&, unsigned cutoff);
+  matrix_predictor(map const&, unsigned cutoff);
 
   void update_obstacles(world const&) override;
   double predict_obstacle(position_time) override;
@@ -222,18 +222,18 @@ make_transition_matrix(map const& m) {
 }
 
 std::unique_ptr<predictor>
-make_markov_predictor(map const& m, unsigned cutoff) {
-  return std::make_unique<markov_predictor>(m, cutoff);
+make_matrix_predictor(map const& m, unsigned cutoff) {
+  return std::make_unique<matrix_predictor>(m, cutoff);
 }
 
-markov_predictor::markov_predictor(map const& m, unsigned cutoff)
+matrix_predictor::matrix_predictor(map const& m, unsigned cutoff)
   : transition_(make_transition_matrix(m))
   , width_(m.width())
   , cutoff_(cutoff)
 {}
 
 void
-markov_predictor::update_obstacles(world const& w) {
+matrix_predictor::update_obstacles(world const& w) {
   if (last_update_time_ == w.tick())
     return;
 
@@ -251,7 +251,7 @@ markov_predictor::update_obstacles(world const& w) {
 }
 
 double
-markov_predictor::predict_obstacle(position_time pt) {
+matrix_predictor::predict_obstacle(position_time pt) {
   if (cutoff_ && pt.time - last_update_time_ > cutoff_)
     pt.time = last_update_time_ + cutoff_;
 
@@ -262,7 +262,7 @@ markov_predictor::predict_obstacle(position_time pt) {
 }
 
 std::unordered_map<position_time, double>
-markov_predictor::field() const {
+matrix_predictor::field() const {
   std::unordered_map<position_time, double> result;
 
   for (std::size_t t = 0; t < states_.size(); ++t)
