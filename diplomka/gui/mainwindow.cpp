@@ -249,7 +249,7 @@ main_window::make_solver() {
 
   QString algo = ui_.algorithm_combo->currentText();
   if (algo == "WHCA*")
-    return std::make_unique<cooperative_a_star>(
+    return make_whca(
       log_sink_,
       ui_.window_spin->value(),
       ui_.rejoin_checkbox->isChecked() ? ui_.rejoin_limit_spin->value() : 0,
@@ -258,9 +258,9 @@ main_window::make_solver() {
       ui_.obstacle_threshold_spin->value()
     );
   else if (algo == "LRA*")
-    return std::make_unique<lra>(log_sink_);
+    return make_lra(log_sink_);
   else if (algo == "Greedy")
-    return std::make_unique<greedy>();
+    return make_greedy();
 
   assert(!"Won't get here");
   return {};
@@ -299,8 +299,7 @@ main_window::window_changed(int new_window) {
   if (!solver_)
     return;
 
-  assert(typeid(*solver_) == typeid(cooperative_a_star));
-  dynamic_cast<cooperative_a_star*>(solver_.get())->window(new_window);
+  solver_->window(new_window);
 }
 
 void

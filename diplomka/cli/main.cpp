@@ -25,7 +25,7 @@ make_solver(std::string const& name,
     unsigned rejoin_limit =
       vm.count("rejoin") ? vm["rejoin"].as<unsigned>() : 0;
     bool avoid_obstacles = vm.count("avoid");
-    return std::make_unique<cooperative_a_star>(
+    return make_whca(
       null_log_sink, window,
       rejoin_limit, avoid_obstacles,
       avoid_obstacles ? vm["obstacle-penalty"].as<unsigned>() : 0,
@@ -34,7 +34,7 @@ make_solver(std::string const& name,
   }
 
   if (iequals(name, "lra") || iequals(name, "lra*"))
-    return std::make_unique<lra>(null_log_sink);
+    return make_lra(null_log_sink);
 
   throw std::runtime_error{std::string{"Unknown solver type: "} + name};
 }
