@@ -276,11 +276,12 @@ main_window::make_predictor() {
   if (!ui_.avoid_obstacles_groupbox->isChecked())
     return {};
 
+  int cutoff = ui_.predictor_cutoff_spin->value();
   QString method = ui_.predictor_method_combo->currentText();
   if (method == "Recursive")
-    return make_recursive_predictor(*world_->map());
+    return make_recursive_predictor(*world_->map(), cutoff);
   else if (method == "Markov")
-    return make_markov_predictor(*world_->map());
+    return make_markov_predictor(*world_->map(), cutoff);
 
   assert(!"Won't get here");
   return {};

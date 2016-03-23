@@ -17,13 +17,16 @@
 #include <string>
 
 static std::unique_ptr<predictor>
-make_predictor(std::string const& name, map const& map) {
+make_predictor(std::string const& name,
+               boost::program_options::variables_map const& vm,
+               map const& map) {
   using boost::algorithm::iequals;
 
+  unsigned cutoff = vm["predictor-cutoff"].as<unsigned>();
   if (iequals(name, "recursive"))
-    return make_recursive_predictor(map);
+    return make_recursive_predictor(map, cutoff);
   else if (iequals(name, "markov"))
-    return make_markov_predictor(map);
+    return make_markov_predictor(map, cutoff);
   else
     throw std::runtime_error{std::string{"Unknown obstacle predictor: "} + name};
 }
@@ -43,7 +46,7 @@ make_solver(std::string const& name,
       null_log_sink, window,
       rejoin_limit,
       avoid_obstacles
-        ? make_predictor(vm["avoid"].as<std::string>(), map)
+      ? make_predictor(vm["avoid"].as<std::string>(), vm, map)
         : std::unique_ptr<predictor>{},
       avoid_obstacles ? vm["obstacle-penalty"].as<unsigned>() : 0,
       vm["obstacle-threshold"].as<double>()
@@ -78,6 +81,8 @@ main(int argc, char** argv) try {
     ("obstacle-threshold", po::value<double>()->default_value(0.1),
      "Predicted obstacles with probabilities higher than this will be "
      "considered impassable")
+    ("predictor-cutoff", po::value<unsigned>()->default_value(5),
+     "Maximum number of steps the predictor will predict")
     ;
 
   po::variables_map vm;

@@ -14,9 +14,9 @@ public:
 };
 
 std::unique_ptr<predictor>
-make_recursive_predictor(map const&);
+make_recursive_predictor(map const&, unsigned cutoff);
 
 std::unique_ptr<predictor>
-make_markov_predictor(map const&);
+make_markov_predictor(map const&, unsigned cutoff);
 
 #endif

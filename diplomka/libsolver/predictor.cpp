@@ -15,8 +15,9 @@ namespace {
 
 class recursive_predictor : public predictor {
 public:
-  explicit recursive_predictor(map const* m)
+  recursive_predictor(map const* m, unsigned cutoff)
     : map_(m)
+    , cutoff_(cutoff)
   {}
 
   void update_obstacles(world const&) override;
@@ -30,13 +31,14 @@ private:
   std::unordered_map<position_time, double> obstacles_;
   tick_t last_update_time_ = 0;
   map const* map_ = nullptr;
+  unsigned cutoff_ = 0;
 };
 
 }
 
 std::unique_ptr<predictor>
-make_recursive_predictor(map const& m) {
-  return std::make_unique<recursive_predictor>(&m);
+make_recursive_predictor(map const& m, unsigned cutoff) {
+  return std::make_unique<recursive_predictor>(&m, cutoff);
 }
 
 void
@@ -57,6 +59,9 @@ recursive_predictor::update_obstacles(world const& w) {
 double
 recursive_predictor::predict_obstacle(position_time where) {
   assert(where.time >= last_update_time_);
+
+  if (cutoff_ && where.time - last_update_time_ > cutoff_)
+    where.time = last_update_time_ + cutoff_;
 
   std::stack<position_time> stack;
   stack.push(where);
@@ -147,8 +152,7 @@ using obstacle_state_vector_type = Eigen::VectorXd;
 
 class markov_predictor : public predictor {
 public:
-  explicit
-  markov_predictor(map const&);
+  markov_predictor(map const&, unsigned cutoff);
 
   void update_obstacles(world const&) override;
   double predict_obstacle(position_time) override;
@@ -159,6 +163,7 @@ private:
   std::vector<obstacle_state_vector_type> states_;
   tick_t last_update_time_ = 0;
   map::coord_type width_ = 0;
+  unsigned cutoff_ = 0;
 
   position::coord_type
   linear(position p) const { return p.y * width_ + p.x; }
@@ -217,13 +222,14 @@ make_transition_matrix(map const& m) {
 }
 
 std::unique_ptr<predictor>
-make_markov_predictor(map const& m) {
-  return std::make_unique<markov_predictor>(m);
+make_markov_predictor(map const& m, unsigned cutoff) {
+  return std::make_unique<markov_predictor>(m, cutoff);
 }
 
-markov_predictor::markov_predictor(map const& m)
+markov_predictor::markov_predictor(map const& m, unsigned cutoff)
   : transition_(make_transition_matrix(m))
   , width_(m.width())
+  , cutoff_(cutoff)
 {}
 
 void
@@ -246,6 +252,9 @@ markov_predictor::update_obstacles(world const& w) {
 
 double
 markov_predictor::predict_obstacle(position_time pt) {
+  if (cutoff_ && pt.time - last_update_time_ > cutoff_)
+    pt.time = last_update_time_ + cutoff_;
+
   while (pt.time - last_update_time_ >= states_.size())
     states_.push_back(transition_ * states_.back());
 
