@@ -376,6 +376,31 @@ private:
   using heuristic_search_type = a_star<>;
   using heuristic_map_type = std::map<agent::id_type, heuristic_search_type>;
 
+  struct reservation_table_record {
+    ::agent::id_type agent;
+    boost::optional<position> from;
+  };
+
+  using reservation_table_type =
+    std::unordered_map<position_time, reservation_table_record>;
+
+  class passable_if_not_reserved {
+  public:
+    passable_if_not_reserved(reservation_table_type const& reservations,
+                             agent const& agent,
+                             position from);
+    bool operator () (position where, position from, world const& w,
+                      unsigned distance);
+
+  private:
+    reservation_table_type const& reservations_;
+    agent const& agent_;
+    position from_;
+  };
+
+  void reserve(agent::id_type for_agent, path const&, tick_t from);
+  void unreserve(agent::id_type);
+
   struct hierarchical_distance {
     hierarchical_distance(heuristic_search_type& h_search, predictor& p,
                           bool penalise_obstacles, unsigned obstacle_penalty)
@@ -397,7 +422,7 @@ private:
 
   struct passable_if_not_predicted_obstacle {
     passable_if_not_predicted_obstacle(predictor& p,
-                                       predictor::passable_not_reserved pnr,
+                                       passable_if_not_reserved pnr,
                                        double threshold)
       : not_reserved_(pnr)
       , predictor_(p)
@@ -408,12 +433,13 @@ private:
                       unsigned distance);
 
   private:
-    predictor::passable_not_reserved not_reserved_;
+    passable_if_not_reserved not_reserved_;
     predictor& predictor_;
     double threshold_;
   };
 
   predictor predictor_;
+  reservation_table_type agent_reservations_;
   heuristic_map_type heuristic_map_;
   unsigned window_;
   unsigned nodes_primary_ = 0;
@@ -492,6 +518,60 @@ cooperative_a_star::get_obstacle_field() const {
   return predictor_.field();
 }
 
+cooperative_a_star::passable_if_not_reserved::passable_if_not_reserved(
+  reservation_table_type const& reservations,
+  agent const& agent,
+  position from
+)
+  : reservations_(reservations)
+  , agent_(agent)
+  , from_(from)
+{ }
+
+bool
+cooperative_a_star::passable_if_not_reserved::operator () (
+  position where, position from, world const& w, unsigned distance
+) {
+  if (reservations_.count(position_time{where, w.tick() + distance}))
+    return false;
+
+  auto vacated = reservations_.find(
+    position_time{from, w.tick() + distance}
+  );
+  if (vacated != reservations_.end() &&
+      vacated->second.from &&
+      *vacated->second.from == where)
+    return false;
+
+  return w.get(where) == tile::free || !neighbours(where, from_);
+}
+
+void
+cooperative_a_star::reserve(agent::id_type a_id, path const& path,
+                            tick_t from) {
+  for (tick_t distance = 0; distance < path.size(); ++distance) {
+    position const p = path[path.size() - distance - 1];
+    position_time const pt{p, from + distance};
+
+    assert(!agent_reservations_.count(pt));
+
+    if (distance > 0)
+      agent_reservations_[pt] = {a_id, path[path.size() - distance]};
+    else
+      agent_reservations_[pt] = {a_id, boost::none};
+  }
+}
+
+void
+cooperative_a_star::unreserve(agent::id_type a_id) {
+  auto it = agent_reservations_.begin();
+  while (it != agent_reservations_.end())
+    if (it->second.agent == a_id)
+      it = agent_reservations_.erase(it);
+    else
+      ++it;
+}
+
 double
 cooperative_a_star::hierarchical_distance::operator () (
   position from,
@@ -528,7 +608,7 @@ cooperative_a_star::find_path(position from, world const& w,
 
   if (avoid_obstacles_)
     predictor_.update_obstacles(w);
-  predictor_.unreserve(a.id());
+  unreserve(a.id());
 
   path new_path;
   if (rejoin_limit_ > 0 && old_path)
@@ -554,7 +634,7 @@ cooperative_a_star::find_path(position from, world const& w,
                             avoid_obstacles_, obstacle_penalty_),
       passable_if_not_predicted_obstacle(
         predictor_,
-        predictor_.passable_predicate(a, from),
+        passable_if_not_reserved(agent_reservations_, a, from),
         avoid_obstacles_ ? obstacle_threshold_ : 1.0
       )
     );
@@ -564,7 +644,7 @@ cooperative_a_star::find_path(position from, world const& w,
     nodes_heuristic_ += h_search.nodes_expanded() - old_h_search_nodes;
   }
 
-  predictor_.reserve(a.id(), new_path, w.tick());
+  reserve(a.id(), new_path, w.tick());
 
   return new_path;
 }
@@ -604,11 +684,12 @@ cooperative_a_star::rejoin_path(position from, world const& w,
   agent const& a = *w.get_agent(from);
 
   using search_type = a_star<
-    predictor::passable_not_reserved,
+    passable_if_not_reserved,
     manhattan_distance_heuristic,
     space_time_coordinate
   >;
-  search_type as(from, *to, w, predictor_.passable_predicate(a, from));
+  search_type as(from, *to, w,
+                 passable_if_not_reserved(agent_reservations_, a, from));
 
   path join_path = as.find_path(
     w,

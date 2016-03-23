@@ -4,66 +4,6 @@
 
 constexpr double stay_probability = 4.0 / 5.0;
 
-predictor::passable_not_reserved::passable_not_reserved(
-  reservation_table_type const& reservations,
-  agent const& agent,
-  position from
-)
-  : reservations_(reservations)
-  , agent_(agent)
-  , from_(from)
-{ }
-
-bool
-predictor::passable_not_reserved::operator () (
-  position where, position from, world const& w, unsigned distance
-) {
-  if (reservations_.count(position_time{where, w.tick() + distance}))
-    return false;
-
-  auto vacated = reservations_.find(
-    position_time{from, w.tick() + distance}
-  );
-  if (vacated != reservations_.end() &&
-      vacated->second.from &&
-      *vacated->second.from == where)
-    return false;
-
-  return w.get(where) == tile::free || !neighbours(where, from_);
-}
-
-void
-predictor::reserve(agent::id_type a_id, path const& path, tick_t from) {
-  for (tick_t distance = 0; distance < path.size(); ++distance) {
-    position const p = path[path.size() - distance - 1];
-    position_time const pt{p, from + distance};
-
-    assert(!agent_reservations_.count(pt));
-
-    if (distance > 0)
-      agent_reservations_[pt] = {a_id, path[path.size() - distance]};
-    else
-      agent_reservations_[pt] = {a_id, boost::none};
-  }
-}
-
-void
-predictor::unreserve(agent::id_type a_id) {
-  auto it = agent_reservations_.begin();
-  while (it != agent_reservations_.end())
-    if (it->second.agent == a_id)
-      it = agent_reservations_.erase(it);
-    else
-      ++it;
-}
-
-auto
-predictor::passable_predicate(agent const& a, position from) const
-  -> passable_not_reserved
-{
-  return passable_not_reserved{agent_reservations_, a, from};
-}
-
 void
 predictor::update_obstacles(world const& w) {
   if (w.tick() == last_update_time_)
@@ -94,8 +34,7 @@ predictor::predict_obstacle(position_time where) {
     }
 
     if (pt.time == last_update_time_ ||
-        map_->get(pt.x, pt.y) == tile::wall ||
-        agent_reservations_.count(pt)) {
+        map_->get(pt.x, pt.y) == tile::wall) {
       obstacles_[pt] = 0.0;
       stack.pop();
 
@@ -117,8 +56,7 @@ predictor::predict_obstacle(position_time where) {
         position p = translate({pt.x, pt.y}, d);
         position_time neighbour_pt{p, pt.time - 1};
 
-        if (map_->get(p) == tile::wall ||
-            agent_reservations_.count(neighbour_pt))
+        if (map_->get(p) == tile::wall)
           continue;
 
         auto neighbour = obstacles_.find(neighbour_pt);
@@ -134,8 +72,7 @@ predictor::predict_obstacle(position_time where) {
         for (direction e : all_directions) {
           position q = translate(p, e);
           position_time q_pt{q, pt.time - 1};
-          if (map_->get(q) != tile::wall &&
-              !agent_reservations_.count(q_pt))
+          if (map_->get(q) != tile::wall)
             ++neighbour_options;
         }
 
