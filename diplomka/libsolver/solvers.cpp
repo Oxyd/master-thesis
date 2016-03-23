@@ -596,7 +596,8 @@ cooperative_a_star::passable_if_not_predicted_obstacle::operator () (
 ) {
   return
     not_reserved_(where, from, w, distance) &&
-    predictor_.predict_obstacle({where, w.tick() + distance}) <= threshold_;
+    (threshold_ >= 1.0 ||
+     predictor_.predict_obstacle({where, w.tick() + distance}) <= threshold_);
 }
 
 path

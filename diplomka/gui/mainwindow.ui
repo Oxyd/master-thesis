@@ -78,6 +78,9 @@
               <property name="text">
                <string>Paths</string>
               </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
              </widget>
             </item>
             <item>
@@ -87,12 +90,15 @@
                 <property name="text">
                  <string>Obstacle Field</string>
                 </property>
+                <property name="checked">
+                 <bool>true</bool>
+                </property>
                </widget>
               </item>
               <item>
                <widget class="QSpinBox" name="obstacle_field_spin">
                 <property name="enabled">
-                 <bool>false</bool>
+                 <bool>true</bool>
                 </property>
                 <property name="minimum">
                  <number>0</number>
@@ -390,62 +396,64 @@
           </layout>
          </item>
          <item>
-          <widget class="QCheckBox" name="avoid_obstacles_check">
-           <property name="text">
-            <string>Avoid Obstacles</string>
+          <widget class="QGroupBox" name="avoid_obstacles_groupbox">
+           <property name="title">
+            <string>Avoid obstacles</string>
            </property>
-           <property name="checked">
+           <property name="checkable">
             <bool>true</bool>
            </property>
+           <layout class="QVBoxLayout" name="verticalLayout_5">
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout_8">
+              <item>
+               <widget class="QLabel" name="obstacle_penalty_label">
+                <property name="text">
+                 <string>Obstacle penalty:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSpinBox" name="obstacle_penalty_spin">
+                <property name="maximum">
+                 <number>65536</number>
+                </property>
+                <property name="value">
+                 <number>100</number>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="horizontalLayout_9">
+              <item>
+               <widget class="QLabel" name="label_6">
+                <property name="text">
+                 <string>Threshold:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QDoubleSpinBox" name="obstacle_threshold_spin">
+                <property name="decimals">
+                 <number>3</number>
+                </property>
+                <property name="maximum">
+                 <double>1.000000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.010000000000000</double>
+                </property>
+                <property name="value">
+                 <double>0.100000000000000</double>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+           </layout>
           </widget>
-         </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_8">
-           <item>
-            <widget class="QLabel" name="obstacle_penalty_label">
-             <property name="text">
-              <string>Obstacle penalty:</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QSpinBox" name="obstacle_penalty_spin">
-             <property name="maximum">
-              <number>65536</number>
-             </property>
-             <property name="value">
-              <number>100</number>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_9">
-           <item>
-            <widget class="QLabel" name="label_6">
-             <property name="text">
-              <string>Threshold:</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QDoubleSpinBox" name="obstacle_threshold_spin">
-             <property name="decimals">
-              <number>3</number>
-             </property>
-             <property name="maximum">
-              <double>1.000000000000000</double>
-             </property>
-             <property name="singleStep">
-              <double>0.010000000000000</double>
-             </property>
-             <property name="value">
-              <double>0.100000000000000</double>
-             </property>
-            </widget>
-           </item>
-          </layout>
          </item>
          <item>
           <spacer name="verticalSpacer">
@@ -475,9 +483,9 @@
         <zorder></zorder>
         <zorder></zorder>
         <zorder></zorder>
-        <zorder>avoid_obstacles_check</zorder>
         <zorder>pushButton_2</zorder>
         <zorder>verticalSpacer</zorder>
+        <zorder>avoid_obstacles_groupbox</zorder>
        </widget>
       </widget>
      </widget>
@@ -715,8 +723,8 @@
    <slot>visualisation_params_changed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>766</x>
-     <y>512</y>
+     <x>160</x>
+     <y>134</y>
     </hint>
     <hint type="destinationlabel">
      <x>610</x>
@@ -731,8 +739,8 @@
    <slot>step()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>754</x>
-     <y>74</y>
+     <x>1048</x>
+     <y>80</y>
     </hint>
     <hint type="destinationlabel">
      <x>760</x>
@@ -763,8 +771,8 @@
    <slot>reset_world()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>754</x>
-     <y>738</y>
+     <x>1048</x>
+     <y>749</y>
     </hint>
     <hint type="destinationlabel">
      <x>603</x>
@@ -779,8 +787,8 @@
    <slot>visualisation_params_changed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>857</x>
-     <y>515</y>
+     <x>264</x>
+     <y>137</y>
     </hint>
     <hint type="destinationlabel">
      <x>712</x>
@@ -795,12 +803,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>766</x>
-     <y>512</y>
+     <x>160</x>
+     <y>134</y>
     </hint>
     <hint type="destinationlabel">
-     <x>857</x>
-     <y>515</y>
+     <x>264</x>
+     <y>137</y>
     </hint>
    </hints>
   </connection>
@@ -811,7 +819,7 @@
    <slot>change_run_interval(double)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>866</x>
+     <x>1047</x>
      <y>153</y>
     </hint>
     <hint type="destinationlabel">
@@ -827,7 +835,7 @@
    <slot>window_changed(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>866</x>
+     <x>1047</x>
      <y>267</y>
     </hint>
     <hint type="destinationlabel">
@@ -843,7 +851,7 @@
    <slot>make_random_seed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>866</x>
+     <x>1047</x>
      <y>228</y>
     </hint>
     <hint type="destinationlabel">
@@ -859,7 +867,7 @@
    <slot>algorithm_changed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>866</x>
+     <x>1047</x>
      <y>189</y>
     </hint>
     <hint type="destinationlabel">
@@ -875,44 +883,12 @@
    <slot>visualisation_params_changed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>858</x>
-     <y>478</y>
+     <x>265</x>
+     <y>100</y>
     </hint>
     <hint type="destinationlabel">
      <x>566</x>
      <y>768</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>avoid_obstacles_check</sender>
-   <signal>clicked(bool)</signal>
-   <receiver>obstacle_penalty_spin</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>693</x>
-     <y>321</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>804</x>
-     <y>355</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>avoid_obstacles_check</sender>
-   <signal>clicked(bool)</signal>
-   <receiver>obstacle_penalty_label</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>663</x>
-     <y>324</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>669</x>
-     <y>356</y>
     </hint>
    </hints>
   </connection>
@@ -923,44 +899,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>719</x>
-     <y>291</y>
+     <x>925</x>
+     <y>302</y>
     </hint>
     <hint type="destinationlabel">
-     <x>804</x>
-     <y>290</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>avoid_obstacles_check</sender>
-   <signal>clicked(bool)</signal>
-   <receiver>label_6</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>720</x>
-     <y>327</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>701</x>
-     <y>397</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>avoid_obstacles_check</sender>
-   <signal>clicked(bool)</signal>
-   <receiver>obstacle_threshold_spin</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>739</x>
-     <y>319</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>794</x>
-     <y>402</y>
+     <x>1047</x>
+     <y>305</y>
     </hint>
    </hints>
   </connection>
