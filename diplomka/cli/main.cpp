@@ -1,4 +1,5 @@
 #include "log_sinks.hpp"
+#include "predictor.hpp"
 #include "solvers.hpp"
 #include "world.hpp"
 
@@ -17,7 +18,8 @@
 
 static std::unique_ptr<solver>
 make_solver(std::string const& name,
-            boost::program_options::variables_map const& vm) {
+            boost::program_options::variables_map const& vm,
+            map const& map) {
   using boost::algorithm::iequals;
 
   if (iequals(name, "whca") || iequals(name, "whca*")) {
@@ -27,7 +29,9 @@ make_solver(std::string const& name,
     bool avoid_obstacles = vm.count("avoid");
     return make_whca(
       null_log_sink, window,
-      rejoin_limit, avoid_obstacles,
+      rejoin_limit,
+      avoid_obstacles ?
+        make_recursive_predictor(map) : std::unique_ptr<predictor>{},
       avoid_obstacles ? vm["obstacle-penalty"].as<unsigned>() : 0,
       vm["obstacle-threshold"].as<double>()
     );
@@ -86,7 +90,7 @@ main(int argc, char** argv) try {
     rng.seed(vm["seed"].as<unsigned>());
 
   world w = load_world(vm["scenario"].as<std::string>(), rng);
-  auto solver = make_solver(vm["algorithm"].as<std::string>(), vm);
+  auto solver = make_solver(vm["algorithm"].as<std::string>(), vm, *w.map());
 
   unsigned const limit = vm.count("limit") ? vm["limit"].as<unsigned>() : 0;
 

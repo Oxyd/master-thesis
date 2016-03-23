@@ -49,6 +49,8 @@ main_window::main_window(QWidget *parent)
 
   ui_.stats_view->setModel(&stats_);
 
+  ui_.predictor_method_combo->addItem("Recursive");
+
   showMaximized();
 }
 
@@ -253,7 +255,7 @@ main_window::make_solver() {
       log_sink_,
       ui_.window_spin->value(),
       ui_.rejoin_checkbox->isChecked() ? ui_.rejoin_limit_spin->value() : 0,
-      ui_.avoid_obstacles_groupbox->isChecked(),
+      make_predictor(),
       ui_.obstacle_penalty_spin->value(),
       ui_.obstacle_threshold_spin->value()
     );
@@ -263,6 +265,16 @@ main_window::make_solver() {
     return make_greedy();
 
   assert(!"Won't get here");
+  return {};
+}
+
+std::unique_ptr<predictor>
+main_window::make_predictor() {
+  assert(world_);
+
+  if (ui_.avoid_obstacles_groupbox->isChecked())
+    return make_recursive_predictor(*world_->map());
+
   return {};
 }
 

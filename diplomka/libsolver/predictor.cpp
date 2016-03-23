@@ -1,11 +1,43 @@
 #include "predictor.hpp"
 
+#include <boost/optional.hpp>
+
 #include <stack>
 
 constexpr double stay_probability = 4.0 / 5.0;
 
+namespace {
+
+class recursive_predictor : public predictor {
+public:
+  explicit recursive_predictor(map const* m)
+    : map_(m)
+  {}
+
+  void update_obstacles(world const&) override;
+  double predict_obstacle(position_time) override;
+
+  std::unordered_map<position_time, double> field() const override {
+    return obstacles_;
+  }
+
+private:
+  std::unordered_map<position_time, double> obstacles_;
+  tick_t last_update_time_ = 0;
+  map const* map_ = nullptr;
+};
+
+}
+
+std::unique_ptr<predictor>
+make_recursive_predictor(map const& m) {
+  return std::make_unique<recursive_predictor>(&m);
+}
+
 void
-predictor::update_obstacles(world const& w) {
+recursive_predictor::update_obstacles(world const& w) {
+  assert(map_ == w.map().get());
+
   if (w.tick() == last_update_time_)
     return;
 
@@ -15,11 +47,10 @@ predictor::update_obstacles(world const& w) {
     obstacles_[{std::get<0>(pos_obstacle), w.tick()}] = 1.0;
 
   last_update_time_ = w.tick();
-  map_ = w.map().get();
 }
 
 double
-predictor::predict_obstacle(position_time where) {
+recursive_predictor::predict_obstacle(position_time where) {
   assert(where.time >= last_update_time_);
 
   std::stack<position_time> stack;

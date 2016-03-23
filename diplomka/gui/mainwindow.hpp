@@ -8,6 +8,7 @@
 
 #include "bottom_bar_controller.hpp"
 #include "log_sinks.hpp"
+#include "predictor.hpp"
 #include "solvers.hpp"
 #include "world.hpp"
 #include "world_scene.hpp"
@@ -68,6 +69,7 @@ private:
   void update_stats_headers();
   void update_stats();
   std::unique_ptr<solver> make_solver();
+  std::unique_ptr<predictor> make_predictor();
   void highlight_paths();
   void highlight_obstacle_field();
 };

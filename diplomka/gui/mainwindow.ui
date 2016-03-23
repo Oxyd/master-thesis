@@ -405,6 +405,20 @@
            </property>
            <layout class="QVBoxLayout" name="verticalLayout_5">
             <item>
+             <layout class="QHBoxLayout" name="horizontalLayout_10">
+              <item>
+               <widget class="QLabel" name="label_7">
+                <property name="text">
+                 <string>Method:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="predictor_method_combo"/>
+              </item>
+             </layout>
+            </item>
+            <item>
              <layout class="QHBoxLayout" name="horizontalLayout_8">
               <item>
                <widget class="QLabel" name="obstacle_penalty_label">

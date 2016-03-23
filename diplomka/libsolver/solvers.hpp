@@ -1,24 +1,15 @@
 #ifndef SOLVERS_HPP
 #define SOLVERS_HPP
 
-#include "a_star.hpp"
 #include "action.hpp"
-#include "predictor.hpp"
 #include "world.hpp"
 
-#include <boost/functional/hash.hpp>
-#include <boost/optional.hpp>
-
-#include <array>
-#include <functional>
-#include <map>
 #include <random>
-#include <stack>
 #include <string>
-#include <tuple>
 #include <unordered_map>
 #include <vector>
 
+class predictor;
 class log_sink;
 
 bool
@@ -48,7 +39,7 @@ make_lra(log_sink&);
 
 std::unique_ptr<solver>
 make_whca(log_sink& log, unsigned window, unsigned rejoin_limit,
-          bool avoid_obstacles, unsigned obstacle_penalty,
+          std::unique_ptr<predictor> predictor, unsigned obstacle_penalty,
           double obstacle_threshold);
 
 #endif // SOLVERS_HPP

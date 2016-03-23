@@ -2,6 +2,7 @@
 
 #include "a_star.hpp"
 #include "log_sinks.hpp"
+#include "predictor.hpp"
 
 #include <algorithm>
 #include <array>
@@ -358,7 +359,8 @@ namespace {
 class cooperative_a_star : public separate_paths_solver {
 public:
   cooperative_a_star(log_sink& log, unsigned window, unsigned rejoin_limit,
-                     bool avoid_obstacles, unsigned obstacle_penalty,
+                     std::unique_ptr<predictor> predictor,
+                     unsigned obstacle_penalty,
                      double obstacle_threshold);
   std::string name() const override { return "WHCA*"; }
   void window(unsigned new_window) override { window_ = new_window; }
@@ -402,11 +404,10 @@ private:
   void unreserve(agent::id_type);
 
   struct hierarchical_distance {
-    hierarchical_distance(heuristic_search_type& h_search, predictor& p,
-                          bool penalise_obstacles, unsigned obstacle_penalty)
+    hierarchical_distance(heuristic_search_type& h_search, predictor* p,
+                          unsigned obstacle_penalty)
       : h_search_(h_search)
       , predictor_(p)
-      , penalise_obstacles_(penalise_obstacles)
       , obstacle_penalty_(obstacle_penalty)
     { }
 
@@ -415,13 +416,12 @@ private:
 
   private:
     heuristic_search_type& h_search_;
-    predictor& predictor_;
-    bool penalise_obstacles_ = false;
+    predictor* predictor_;
     unsigned obstacle_penalty_ = 100;
   };
 
   struct passable_if_not_predicted_obstacle {
-    passable_if_not_predicted_obstacle(predictor& p,
+    passable_if_not_predicted_obstacle(predictor* p,
                                        passable_if_not_reserved pnr,
                                        double threshold)
       : not_reserved_(pnr)
@@ -434,11 +434,11 @@ private:
 
   private:
     passable_if_not_reserved not_reserved_;
-    predictor& predictor_;
+    predictor*predictor_;
     double threshold_;
   };
 
-  predictor predictor_;
+  std::unique_ptr<predictor> predictor_;
   reservation_table_type agent_reservations_;
   heuristic_map_type heuristic_map_;
   unsigned window_;
@@ -448,7 +448,6 @@ private:
   unsigned rejoin_limit_ = 0;
   unsigned rejoin_attempts_ = 0;
   unsigned rejoin_successes_ = 0;
-  bool avoid_obstacles_ = false;
   unsigned obstacle_penalty_ = 100;
   double obstacle_threshold_ = 0.1;
 
@@ -462,23 +461,23 @@ private:
 
 std::unique_ptr<solver>
 make_whca(log_sink& log, unsigned window, unsigned rejoin_limit,
-          bool avoid_obstacles, unsigned obstacle_penalty,
+          std::unique_ptr<predictor> predictor, unsigned obstacle_penalty,
           double obstacle_threshold) {
   return std::make_unique<cooperative_a_star>(
-    log, window, rejoin_limit, avoid_obstacles, obstacle_penalty,
+    log, window, rejoin_limit, std::move(predictor), obstacle_penalty,
     obstacle_threshold
   );
 }
 
 cooperative_a_star::cooperative_a_star(log_sink& log, unsigned window,
                                        unsigned rejoin_limit,
-                                       bool avoid_obstacles,
+                                       std::unique_ptr<predictor> predictor,
                                        unsigned obstacle_penalty,
                                        double obstacle_threshold)
   : separate_paths_solver(log)
+  , predictor_(std::move(predictor))
   , window_(window)
   , rejoin_limit_(rejoin_limit)
-  , avoid_obstacles_(avoid_obstacles)
   , obstacle_penalty_(obstacle_penalty)
   , obstacle_threshold_(obstacle_threshold)
 { }
@@ -515,7 +514,10 @@ cooperative_a_star::stat_values() const {
 
 std::unordered_map<position_time, double>
 cooperative_a_star::get_obstacle_field() const {
-  return predictor_.field();
+  if (predictor_)
+    return predictor_->field();
+  else
+    return {};
 }
 
 cooperative_a_star::passable_if_not_reserved::passable_if_not_reserved(
@@ -583,8 +585,8 @@ cooperative_a_star::hierarchical_distance::operator () (
 
   unsigned h_distance = h_search_.find_distance(from, w);
   double obstacle_prob =
-    penalise_obstacles_
-    ? predictor_.predict_obstacle({from, w.tick() + distance_so_far})
+    predictor_
+    ? predictor_->predict_obstacle({from, w.tick() + distance_so_far})
     : 0.0;
 
   return h_distance + obstacle_prob * obstacle_penalty_;
@@ -596,8 +598,8 @@ cooperative_a_star::passable_if_not_predicted_obstacle::operator () (
 ) {
   return
     not_reserved_(where, from, w, distance) &&
-    (threshold_ >= 1.0 ||
-     predictor_.predict_obstacle({where, w.tick() + distance}) <= threshold_);
+    (!predictor_ ||
+     predictor_->predict_obstacle({where, w.tick() + distance}) <= threshold_);
 }
 
 path
@@ -607,8 +609,8 @@ cooperative_a_star::find_path(position from, world const& w,
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
-  if (avoid_obstacles_)
-    predictor_.update_obstacles(w);
+  if (predictor_)
+    predictor_->update_obstacles(w);
   unreserve(a.id());
 
   path new_path;
@@ -631,12 +633,11 @@ cooperative_a_star::find_path(position from, world const& w,
     >;
     search_type as(
       from, a.target, w,
-      hierarchical_distance(h_search, predictor_,
-                            avoid_obstacles_, obstacle_penalty_),
+      hierarchical_distance(h_search, predictor_.get(), obstacle_penalty_),
       passable_if_not_predicted_obstacle(
-        predictor_,
+        predictor_.get(),
         passable_if_not_reserved(agent_reservations_, a, from),
-        avoid_obstacles_ ? obstacle_threshold_ : 1.0
+        predictor_ ? obstacle_threshold_ : 1.0
       )
     );
     new_path = as.find_path(w, window_);
