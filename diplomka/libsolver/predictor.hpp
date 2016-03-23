@@ -16,4 +16,7 @@ public:
 std::unique_ptr<predictor>
 make_recursive_predictor(map const&);
 
+std::unique_ptr<predictor>
+make_markov_predictor(map const&);
+
 #endif

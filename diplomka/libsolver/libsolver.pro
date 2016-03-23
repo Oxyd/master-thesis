@@ -10,6 +10,8 @@ QMAKE_CXXFLAGS_RELEASE -= -O2
 QMAKE_CXXFLAGS_RELEASE += -O3
 QMAKE_CXXFLAGS_RELEASE += -DNDEBUG
 
+INCLUDEPATH += /usr/include/eigen3
+
 SOURCES += \
     world.cpp \
     action.cpp \

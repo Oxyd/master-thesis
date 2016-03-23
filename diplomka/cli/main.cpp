@@ -16,6 +16,18 @@
 #include <stdexcept>
 #include <string>
 
+static std::unique_ptr<predictor>
+make_predictor(std::string const& name, map const& map) {
+  using boost::algorithm::iequals;
+
+  if (iequals(name, "recursive"))
+    return make_recursive_predictor(map);
+  else if (iequals(name, "markov"))
+    return make_markov_predictor(map);
+  else
+    throw std::runtime_error{std::string{"Unknown obstacle predictor: "} + name};
+}
+
 static std::unique_ptr<solver>
 make_solver(std::string const& name,
             boost::program_options::variables_map const& vm,
@@ -30,8 +42,9 @@ make_solver(std::string const& name,
     return make_whca(
       null_log_sink, window,
       rejoin_limit,
-      avoid_obstacles ?
-        make_recursive_predictor(map) : std::unique_ptr<predictor>{},
+      avoid_obstacles
+        ? make_predictor(vm["avoid"].as<std::string>(), map)
+        : std::unique_ptr<predictor>{},
       avoid_obstacles ? vm["obstacle-penalty"].as<unsigned>() : 0,
       vm["obstacle-threshold"].as<double>()
     );
@@ -58,7 +71,8 @@ main(int argc, char** argv) try {
     ("window,w", po::value<unsigned>(), "WHCA* window size")
     ("rejoin,r", po::value<unsigned>()->implicit_value(10),
      "Allow path rejoining, for at most N steps")
-    ("avoid,v", "Avoid predicted obstacles")
+    ("avoid,v", po::value<std::string>()->value_name("PREDICTOR"),
+     "Avoid predicted obstacles")
     ("obstacle-penalty", po::value<unsigned>()->default_value(100),
      "Penalty for a predicted obstacle")
     ("obstacle-threshold", po::value<double>()->default_value(0.1),

@@ -50,6 +50,7 @@ main_window::main_window(QWidget *parent)
   ui_.stats_view->setModel(&stats_);
 
   ui_.predictor_method_combo->addItem("Recursive");
+  ui_.predictor_method_combo->addItem("Markov");
 
   showMaximized();
 }
@@ -272,9 +273,16 @@ std::unique_ptr<predictor>
 main_window::make_predictor() {
   assert(world_);
 
-  if (ui_.avoid_obstacles_groupbox->isChecked())
-    return make_recursive_predictor(*world_->map());
+  if (!ui_.avoid_obstacles_groupbox->isChecked())
+    return {};
 
+  QString method = ui_.predictor_method_combo->currentText();
+  if (method == "Recursive")
+    return make_recursive_predictor(*world_->map());
+  else if (method == "Markov")
+    return make_markov_predictor(*world_->map());
+
+  assert(!"Won't get here");
   return {};
 }
 
@@ -299,7 +307,7 @@ main_window::highlight_obstacle_field() {
     if ((int) pt.time - (int) world_->tick() != ui_.obstacle_field_spin->value())
       continue;
 
-    double value = std::get<1>(pos_time_value);
+    double value = std::min(1.0, std::get<1>(pos_time_value));
     int saturation = 255 * (1 - value);
     QColor color{255, saturation, saturation};
     world_scene_.highlight_tile({pt.x, pt.y}, color);

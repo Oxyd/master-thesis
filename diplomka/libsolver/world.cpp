@@ -226,7 +226,7 @@ move_to_goal(obstacle o, position pos, world& w,
     return;
   }
 
-  position nearest_goal;
+  position nearest_goal = *goal_points.begin();
   unsigned nearest_distance = std::numeric_limits<unsigned>::max();
   for (position g : goal_points)
     if (distance(pos, g) < nearest_distance) {
