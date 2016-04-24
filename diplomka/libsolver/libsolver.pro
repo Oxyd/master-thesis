@@ -2,9 +2,9 @@ QT       -= core gui
 
 TARGET = libsolver
 TEMPLATE = lib
-CONFIG += staticlib
+CONFIG += staticlib c++14
 
-QMAKE_CXXFLAGS += -std=c++14
+QMAKE_CXXFLAGS_GNUCXX14 = -std=c++14
 
 QMAKE_CXXFLAGS_RELEASE -= -O2
 QMAKE_CXXFLAGS_RELEASE += -O3

@@ -5,9 +5,8 @@
 
 #include <boost/optional.hpp>
 
+#include <memory>
 #include <stack>
-
-#include <iomanip>
 
 constexpr double stay_probability = 4.0 / 5.0;
 
