@@ -20,7 +20,7 @@ public:
   virtual
   ~solver() { }
 
-  virtual joint_action get_action(world w, std::default_random_engine&) = 0;
+  virtual void step(world& w, std::default_random_engine&) = 0;
   virtual std::string name() const = 0;
   virtual std::vector<std::string> stat_names() const { return {}; }
   virtual std::vector<std::string> stat_values() const { return {}; };

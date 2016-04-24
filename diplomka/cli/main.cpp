@@ -118,8 +118,7 @@ main(int argc, char** argv) try {
 
   while (!solved(w)) {
     w.next_tick(rng);
-    joint_action action = solver->get_action(w, rng);
-    w = apply(action, w);
+    solver->step(w, rng);
 
     if (limit > 0 && w.tick() >= limit)
       break;

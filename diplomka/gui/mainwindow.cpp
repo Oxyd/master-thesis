@@ -81,8 +81,7 @@ main_window::step() {
   }
 
   world_->next_tick(rng_);
-  joint_action action = solver_->get_action(*world_, rng_);
-  *world_ = apply(action, *world_);
+  solver_->step(*world_, rng_);
 
   world_scene_.update();
   update_stats();

@@ -19,16 +19,13 @@ random_dir(std::default_random_engine& rng) {
 }
 
 static void
-make_random_action(position from, world& w, joint_action& actions,
-                   std::default_random_engine& rng)
+make_random_action(position from, world& w, std::default_random_engine& rng)
 {
   direction const d = random_dir(rng);
   action const a{from, d};
 
-  if (valid(a, w)) {
-    actions.add(a);
-    w = apply(a, w);
-  }
+  if (valid(a, w))
+    w = apply(a, std::move(w));
 }
 
 bool
@@ -48,7 +45,7 @@ namespace {
 
 class greedy : public solver {
 public:
-  joint_action get_action(world w, std::default_random_engine&) override;
+  void step(world& w, std::default_random_engine&) override;
   std::string name() const override { return "Greedy"; }
 };
 
@@ -59,15 +56,13 @@ make_greedy() {
   return std::make_unique<greedy>();
 }
 
-joint_action
-greedy::get_action(world temp_world, std::default_random_engine& rng) {
-  std::vector<std::tuple<position, agent>> agents(temp_world.agents().begin(),
-                                                  temp_world.agents().end());
+void
+greedy::step(world& world, std::default_random_engine& rng) {
+  std::vector<std::tuple<position, agent>> agents(world.agents().begin(),
+                                                  world.agents().end());
   std::shuffle(agents.begin(), agents.end(), rng);
 
   std::discrete_distribution<bool> random_move{0.99, 0.01};
-
-  joint_action result;
 
   for (auto const& pos_agent : agents) {
     position const& pos = std::get<0>(pos_agent);
@@ -78,7 +73,7 @@ greedy::get_action(world temp_world, std::default_random_engine& rng) {
       continue;
 
     if (random_move(rng)) {
-      make_random_action(pos, temp_world, result, rng);
+      make_random_action(pos, world, rng);
     } else {
       int const dx = goal.x - pos.x;
       int const dy = goal.y - pos.y;
@@ -90,16 +85,13 @@ greedy::get_action(world temp_world, std::default_random_engine& rng) {
         d = dy > 0 ? direction::south : direction::north;
 
       action const a{pos, d};
-      if (valid(a, temp_world)) {
-        result.add(a);
-        temp_world = apply(a, temp_world);
+      if (valid(a, world)) {
+        world = apply(a, std::move(world));
       } else {
-        make_random_action(pos, temp_world, result, rng);
+        make_random_action(pos, world, rng);
       }
     }
   }
-
-  return result;
 }
 
 namespace {
@@ -109,8 +101,8 @@ public:
   explicit
   separate_paths_solver(log_sink& log);
 
-  joint_action
-  get_action(world, std::default_random_engine&) override;
+  void
+  step(world&, std::default_random_engine&) override;
 
   std::vector<std::string>
   stat_names() const override {
@@ -150,9 +142,9 @@ private:
 separate_paths_solver::separate_paths_solver(log_sink& log)
   : log_(log) { }
 
-joint_action
-separate_paths_solver::get_action(
-  world w, std::default_random_engine& rng
+void
+separate_paths_solver::step(
+  world& w, std::default_random_engine& rng
 ) {
   std::unordered_map<agent::id_type, position> agents;
   std::vector<agent::id_type> agent_order;
@@ -163,8 +155,6 @@ separate_paths_solver::get_action(
   }
 
   std::shuffle(agent_order.begin(), agent_order.end(), rng);
-
-  joint_action result;
 
   for (agent::id_type id : agent_order) {
     position const pos = agents[id];
@@ -198,11 +188,8 @@ separate_paths_solver::get_action(
 
     dir = direction_to(pos, *maybe_next);
     action a{pos, dir};
-    result.add(a);
-    w = apply(a, w);
+    w = apply(a, std::move(w));
   }
-
-  return result;
 }
 
 std::vector<std::string>
