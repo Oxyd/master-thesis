@@ -135,6 +135,14 @@ main(int argc, char** argv) try {
   );
   results.add("success", solved(w));
 
+  results.add("agents_total", w.agents().size());
+
+  unsigned agents_solved = 0;
+  for (auto const& pos_agent : w.agents())
+    if (std::get<1>(pos_agent).target == std::get<0>(pos_agent))
+      ++agents_solved;
+  results.add("agents_solved", agents_solved);
+
   pt::ptree algo_stats;
   auto names = solver->stat_names();
   auto values = solver->stat_values();
