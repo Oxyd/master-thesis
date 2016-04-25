@@ -78,7 +78,7 @@ main(int argc, char** argv) try {
      "Avoid predicted obstacles")
     ("obstacle-penalty", po::value<unsigned>()->default_value(100),
      "Penalty for a predicted obstacle")
-    ("obstacle-threshold", po::value<double>()->default_value(0.1),
+    ("obstacle-threshold", po::value<double>()->default_value(0.5),
      "Predicted obstacles with probabilities higher than this will be "
      "considered impassable")
     ("predictor-cutoff", po::value<unsigned>()->default_value(5),
