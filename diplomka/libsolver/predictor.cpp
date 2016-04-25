@@ -8,15 +8,112 @@
 #include <memory>
 #include <stack>
 
-constexpr double stay_probability = 4.0 / 5.0;
+namespace {
+
+enum class movement : std::size_t {
+  north = 0, east, south, west, stay
+};
+
+constexpr unsigned num_moves = 5;
+
+class movement_estimator {
+public:
+  explicit
+  movement_estimator(world const&);
+
+  void update(world const&);
+  double estimate(movement) const;
+
+private:
+  using obstacle_positions = std::unordered_map<obstacle::id_type, position>;
+
+  void clear();
+  void store_positions(world const&);
+
+  obstacle_positions last_obstacles_;
+  std::array<unsigned, num_moves> move_count_;
+  unsigned num_moves_ = 0;
+
+#ifndef NDEBUG
+  tick_t last_tick_ = 0;
+#endif
+};
+
+} // anonymous namespace
+
+static movement
+direction_to_movement(direction d) {
+  return static_cast<movement>(static_cast<unsigned>(d));
+}
+
+movement_estimator::movement_estimator(world const& w) {
+  clear();
+  store_positions(w);
+}
+
+void
+movement_estimator::update(world const& w) {
+  for (auto const& pos_obstacle : w.obstacles()) {
+    obstacle::id_type id = std::get<1>(pos_obstacle).id();
+    auto last = last_obstacles_.find(id);
+
+    if (last == last_obstacles_.end())
+      continue;
+
+    position current = std::get<0>(pos_obstacle);
+
+    if (current == last->second)
+      ++move_count_[static_cast<std::size_t>(movement::stay)];
+    else
+      ++move_count_[static_cast<std::size_t>(
+        direction_to_movement(direction_to(last->second, current))
+      )];
+
+    ++num_moves_;
+  }
+
+  store_positions(w);
+}
+
+double
+movement_estimator::estimate(movement m) const {
+  std::size_t move = static_cast<std::size_t>(m);
+  if (num_moves_ > 0)
+    return (double) move_count_[move] / (double) num_moves_;
+  else
+    return m == movement::stay ? 1.0 : 0.0;
+}
+
+void
+movement_estimator::clear() {
+  std::fill(move_count_.begin(), move_count_.end(), 0);
+  num_moves_ = 0;
+}
+
+void
+movement_estimator::store_positions(world const& w) {
+  assert(last_tick_ == 0 || w.tick() == last_tick_ + 1);
+
+  last_obstacles_.clear();
+
+  for (auto const& pos_obstacle : w.obstacles())
+    last_obstacles_.insert(
+      {std::get<1>(pos_obstacle).id(), std::get<0>(pos_obstacle)}
+    );
+
+#ifndef NDEBUG
+  last_tick_ = w.tick();
+#endif
+}
 
 namespace {
 
 class recursive_predictor : public predictor {
 public:
-  recursive_predictor(map const* m, unsigned cutoff)
-    : map_(m)
+  recursive_predictor(world const& w, unsigned cutoff)
+    : map_(w.map().get())
     , cutoff_(cutoff)
+    , estimator_(w)
   {}
 
   void update_obstacles(world const&) override;
@@ -31,13 +128,14 @@ private:
   tick_t last_update_time_ = 0;
   map const* map_ = nullptr;
   unsigned cutoff_ = 0;
+  movement_estimator estimator_;
 };
 
 }
 
 std::unique_ptr<predictor>
-make_recursive_predictor(map const& m, unsigned cutoff) {
-  return std::make_unique<recursive_predictor>(&m, cutoff);
+make_recursive_predictor(world const& w, unsigned cutoff) {
+  return std::make_unique<recursive_predictor>(w, cutoff);
 }
 
 void
@@ -53,6 +151,8 @@ recursive_predictor::update_obstacles(world const& w) {
     obstacles_[{std::get<0>(pos_obstacle), w.tick()}] = 1.0;
 
   last_update_time_ = w.tick();
+
+  estimator_.update(w);
 }
 
 double
@@ -83,6 +183,8 @@ recursive_predictor::predict_obstacle(position_time where) {
       double result = 0.0;
       double next = 1.0;
 
+      double const stay_probability = estimator_.estimate(movement::stay);
+
       auto previous = obstacles_.find({pt.x, pt.y, pt.time - 1});
       if (previous == obstacles_.end()) {
         stack.push({pt.x, pt.y, pt.time - 1});
@@ -108,21 +210,11 @@ recursive_predictor::predict_obstacle(position_time where) {
         if (!have_neighbours)
           continue;
 
-        unsigned neighbour_options = 0;
-        for (direction e : all_directions) {
-          position q = translate(p, e);
-          position_time q_pt{q, pt.time - 1};
-          if (map_->get(q) != tile::wall)
-            ++neighbour_options;
-        }
-
-        if (neighbour_options == 0)
-          continue;
-
         double probability =
           neighbour->second *
-          (1 - stay_probability) *
-          (1 / (double) neighbour_options);
+          estimator_.estimate(direction_to_movement(
+            direction_to(p, {pt.x, pt.y})
+          ));
 
         result += next * probability;
         next *= 1 - probability;
@@ -151,13 +243,16 @@ using obstacle_state_vector_type = Eigen::VectorXd;
 
 class matrix_predictor : public predictor {
 public:
-  matrix_predictor(map const&, unsigned cutoff);
+  matrix_predictor(world const&, unsigned cutoff);
 
   void update_obstacles(world const&) override;
   double predict_obstacle(position_time) override;
   std::unordered_map<position_time, double> field() const override;
 
 private:
+  static constexpr tick_t matrix_update_frequency_ = 5;
+
+  movement_estimator estimator_;
   transition_matrix_type transition_;
   std::vector<obstacle_state_vector_type> states_;
   tick_t last_update_time_ = 0;
@@ -171,7 +266,7 @@ private:
 }
 
 static transition_matrix_type
-make_transition_matrix(map const& m) {
+make_transition_matrix(map const& m, movement_estimator const& estimator) {
   map::coord_type map_size = m.width() * m.height();
   auto linear = [&] (position p) { return p.y * m.width() + p.x; };
 
@@ -194,18 +289,23 @@ make_transition_matrix(map const& m) {
         neighbours.push_back(to);
       }
 
+      double const stay_probability = estimator.estimate(movement::stay);
+
       if (neighbours.empty()) {
         transitions.emplace_back(linear(from), linear(from), 1.0);
         continue;
       } else
         transitions.emplace_back(linear(from), linear(from), stay_probability);
 
-      double const transition_probability =
-        (1 - stay_probability) * (1.0 / neighbours.size());
+      for (position to : neighbours) {
+        double const transition_probability =
+          estimator.estimate(direction_to_movement(
+            direction_to(from, to)
+          ));
 
-      for (position to : neighbours)
         transitions.emplace_back(linear(to), linear(from),
                                  transition_probability);
+      }
     }
 
   transition_matrix_type result(map_size, map_size);
@@ -221,13 +321,14 @@ make_transition_matrix(map const& m) {
 }
 
 std::unique_ptr<predictor>
-make_matrix_predictor(map const& m, unsigned cutoff) {
-  return std::make_unique<matrix_predictor>(m, cutoff);
+make_matrix_predictor(world const& w, unsigned cutoff) {
+  return std::make_unique<matrix_predictor>(w, cutoff);
 }
 
-matrix_predictor::matrix_predictor(map const& m, unsigned cutoff)
-  : transition_(make_transition_matrix(m))
-  , width_(m.width())
+matrix_predictor::matrix_predictor(world const& w, unsigned cutoff)
+  : estimator_(w)
+  , transition_(make_transition_matrix(*w.map(), estimator_))
+  , width_(w.map()->width())
   , cutoff_(cutoff)
 {}
 
@@ -236,7 +337,11 @@ matrix_predictor::update_obstacles(world const& w) {
   if (last_update_time_ == w.tick())
     return;
 
+  estimator_.update(w);
   states_.clear();
+
+  if (w.tick() % matrix_update_frequency_ == 0)
+    transition_ = make_transition_matrix(*w.map(), estimator_);
 
   obstacle_state_vector_type known_state(w.map()->width() * w.map()->height());
   known_state.fill(0.0);

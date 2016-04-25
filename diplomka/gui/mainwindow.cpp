@@ -278,9 +278,9 @@ main_window::make_predictor() {
   int cutoff = ui_.predictor_cutoff_spin->value();
   QString method = ui_.predictor_method_combo->currentText();
   if (method == "Recursive")
-    return make_recursive_predictor(*world_->map(), cutoff);
+    return make_recursive_predictor(*world_, cutoff);
   else if (method == "Matrix")
-    return make_matrix_predictor(*world_->map(), cutoff);
+    return make_matrix_predictor(*world_, cutoff);
 
   assert(!"Won't get here");
   return {};

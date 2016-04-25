@@ -19,14 +19,14 @@
 static std::unique_ptr<predictor>
 make_predictor(std::string const& name,
                boost::program_options::variables_map const& vm,
-               map const& map) {
+               world const& world) {
   using boost::algorithm::iequals;
 
   unsigned cutoff = vm["predictor-cutoff"].as<unsigned>();
   if (iequals(name, "recursive"))
-    return make_recursive_predictor(map, cutoff);
+    return make_recursive_predictor(world, cutoff);
   else if (iequals(name, "matrix"))
-    return make_matrix_predictor(map, cutoff);
+    return make_matrix_predictor(world, cutoff);
   else
     throw std::runtime_error{std::string{"Unknown obstacle predictor: "} + name};
 }
@@ -34,7 +34,7 @@ make_predictor(std::string const& name,
 static std::unique_ptr<solver>
 make_solver(std::string const& name,
             boost::program_options::variables_map const& vm,
-            map const& map) {
+            world const& world) {
   using boost::algorithm::iequals;
 
   if (iequals(name, "whca") || iequals(name, "whca*")) {
@@ -46,7 +46,7 @@ make_solver(std::string const& name,
       null_log_sink, window,
       rejoin_limit,
       avoid_obstacles
-      ? make_predictor(vm["avoid"].as<std::string>(), vm, map)
+      ? make_predictor(vm["avoid"].as<std::string>(), vm, world)
         : std::unique_ptr<predictor>{},
       avoid_obstacles ? vm["obstacle-penalty"].as<unsigned>() : 0,
       vm["obstacle-threshold"].as<double>()
@@ -109,7 +109,7 @@ main(int argc, char** argv) try {
     rng.seed(vm["seed"].as<unsigned>());
 
   world w = load_world(vm["scenario"].as<std::string>(), rng);
-  auto solver = make_solver(vm["algorithm"].as<std::string>(), vm, *w.map());
+  auto solver = make_solver(vm["algorithm"].as<std::string>(), vm, w);
 
   unsigned const limit = vm.count("limit") ? vm["limit"].as<unsigned>() : 0;
 

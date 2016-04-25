@@ -14,9 +14,9 @@ public:
 };
 
 std::unique_ptr<predictor>
-make_recursive_predictor(map const&, unsigned cutoff);
+make_recursive_predictor(world const&, unsigned cutoff);
 
 std::unique_ptr<predictor>
-make_matrix_predictor(map const&, unsigned cutoff);
+make_matrix_predictor(world const&, unsigned cutoff);
 
 #endif

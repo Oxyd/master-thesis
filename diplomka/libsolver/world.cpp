@@ -274,7 +274,7 @@ make_obstacles(world& w, obstacle_settings settings,
   for (position p : spawn_candidates)
     if (w.get(p) == ::tile::free && rand() < settings.tile_probability)
     {
-      obstacle o{time_to_move};
+      obstacle o = w.create_obstacle(time_to_move);
       o.next_move = w.tick() + std::max(tick_t{1},
                                         (tick_t) o.move_distrib(rng));
 
@@ -325,6 +325,11 @@ world::get_agent(position p) {
 agent
 world::create_agent(position goal) {
   return agent{goal, next_agent_id_++};
+}
+
+obstacle
+world::create_obstacle(std::normal_distribution<> move_distribution) {
+  return obstacle{std::move(move_distribution), next_obstacle_id_++};
 }
 
 boost::optional<agent const&>

@@ -349,6 +349,8 @@ public:
                      std::unique_ptr<predictor> predictor,
                      unsigned obstacle_penalty,
                      double obstacle_threshold);
+  void step(world& w, std::default_random_engine& rng) override;
+
   std::string name() const override { return "WHCA*"; }
   void window(unsigned new_window) override { window_ = new_window; }
 
@@ -468,6 +470,13 @@ cooperative_a_star::cooperative_a_star(log_sink& log, unsigned window,
   , obstacle_penalty_(obstacle_penalty)
   , obstacle_threshold_(obstacle_threshold)
 { }
+
+void cooperative_a_star::step(world& w, std::default_random_engine& rng) {
+  if (predictor_)
+    predictor_->update_obstacles(w);
+
+  separate_paths_solver::step(w, rng);
+}
 
 std::vector<std::string>
 cooperative_a_star::stat_names() const {
@@ -596,8 +605,6 @@ cooperative_a_star::find_path(position from, world const& w,
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
-  if (predictor_)
-    predictor_->update_obstacles(w);
   unreserve(a.id());
 
   path new_path;

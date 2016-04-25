@@ -249,12 +249,22 @@ private:
 };
 
 struct obstacle {
+  using id_type = unsigned;
+
   tick_t next_move{};
   std::normal_distribution<> move_distrib;
 
-  explicit
-  obstacle(std::normal_distribution<> d)
-    : move_distrib(std::move(d)) { }
+  id_type id() const { return id_; }
+
+private:
+  friend class world;
+
+  id_type id_;
+
+  obstacle(std::normal_distribution<> d, id_type id)
+    : move_distrib(std::move(d))
+    , id_(id)
+  { }
 };
 
 struct normal_distribution {
@@ -304,6 +314,9 @@ public:
   agent
   create_agent(position goal);
 
+  obstacle
+  create_obstacle(std::normal_distribution<> move_distribution);
+
   void
   put_agent(position p, agent a);  // Throws std::logic_error if p not empty.
 
@@ -349,6 +362,7 @@ private:
   ::obstacle_settings obstacle_settings_;
   ::agent_settings agent_settings_;
   agent::id_type next_agent_id_ = 0;
+  obstacle::id_type next_obstacle_id_ = 0;
 };
 
 struct bad_world_format : std::runtime_error {
