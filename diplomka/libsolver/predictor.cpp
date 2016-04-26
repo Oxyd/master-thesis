@@ -243,21 +243,20 @@ using obstacle_state_vector_type = Eigen::VectorXd;
 
 class matrix_predictor : public predictor {
 public:
-  matrix_predictor(world const&, unsigned cutoff);
+  matrix_predictor(world const&, unsigned cutoff, tick_t update_frequency);
 
   void update_obstacles(world const&) override;
   double predict_obstacle(position_time) override;
   std::unordered_map<position_time, double> field() const override;
 
 private:
-  static constexpr tick_t matrix_update_frequency_ = 5;
-
   movement_estimator estimator_;
   transition_matrix_type transition_;
   std::vector<obstacle_state_vector_type> states_;
   tick_t last_update_time_ = 0;
   map::coord_type width_ = 0;
   unsigned cutoff_ = 0;
+  tick_t matrix_update_frequency_;
 
   position::coord_type
   linear(position p) const { return p.y * width_ + p.x; }
@@ -321,15 +320,18 @@ make_transition_matrix(map const& m, movement_estimator const& estimator) {
 }
 
 std::unique_ptr<predictor>
-make_matrix_predictor(world const& w, unsigned cutoff) {
-  return std::make_unique<matrix_predictor>(w, cutoff);
+make_matrix_predictor(world const& w, unsigned cutoff,
+                      tick_t update_frequency) {
+  return std::make_unique<matrix_predictor>(w, cutoff, update_frequency);
 }
 
-matrix_predictor::matrix_predictor(world const& w, unsigned cutoff)
+matrix_predictor::matrix_predictor(world const& w, unsigned cutoff,
+                                   tick_t update_frequency)
   : estimator_(w)
   , transition_(make_transition_matrix(*w.map(), estimator_))
   , width_(w.map()->width())
   , cutoff_(cutoff)
+  , matrix_update_frequency_(update_frequency)
 {}
 
 void

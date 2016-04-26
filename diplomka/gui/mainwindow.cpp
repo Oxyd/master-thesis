@@ -280,7 +280,7 @@ main_window::make_predictor() {
   if (method == "Recursive")
     return make_recursive_predictor(*world_, cutoff);
   else if (method == "Matrix")
-    return make_matrix_predictor(*world_, cutoff);
+    return make_matrix_predictor(*world_, cutoff, ui_.window_spin->value());
 
   assert(!"Won't get here");
   return {};
