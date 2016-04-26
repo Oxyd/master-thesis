@@ -409,6 +409,23 @@ private:
     unsigned obstacle_penalty_ = 100;
   };
 
+  struct predicted_manhattan_distance {
+    predicted_manhattan_distance(position destination, predictor* p,
+                                 unsigned obstacle_penalty)
+      : destination_(destination)
+      , predictor_(p)
+      , obstacle_penalty_(obstacle_penalty)
+    { }
+
+    double operator () (position from, world const& w,
+                        unsigned distance_so_far);
+
+  private:
+    position destination_;
+    predictor* predictor_;
+    unsigned obstacle_penalty_;
+  };
+
   struct passable_if_not_predicted_obstacle {
     passable_if_not_predicted_obstacle(predictor* p,
                                        passable_if_not_reserved pnr,
@@ -588,6 +605,24 @@ cooperative_a_star::hierarchical_distance::operator () (
   return h_distance + obstacle_prob * obstacle_penalty_;
 }
 
+double
+cooperative_a_star::predicted_manhattan_distance::operator () (
+  position from,
+  world const& w,
+  unsigned distance_so_far
+) {
+  if (from == destination_)
+    return 0.0;
+
+  unsigned md = distance(from, destination_);
+  double obstacle_prob =
+    predictor_
+    ? predictor_->predict_obstacle({from, w.tick() + distance_so_far})
+    : 0.0;
+
+  return md + obstacle_prob * obstacle_penalty_;
+}
+
 bool
 cooperative_a_star::passable_if_not_predicted_obstacle::operator () (
   position where, position from, world const& w, unsigned distance
@@ -662,30 +697,37 @@ cooperative_a_star::rejoin_path(position from, world const& w,
   if (old_path.empty())
     return {};
 
-  ++rejoin_attempts_;
-
-  boost::optional<position> to;
-  std::unordered_map<position, path::const_iterator> target_positions;
+  boost::optional<position> to = boost::none;
+  std::unordered_map<position, path::const_reverse_iterator> target_positions;
   for (auto point = old_path.rbegin(); point != old_path.rend(); ++point)
     if (w.get(*point) == tile::free) {
       if (!to)
         to = *point;
-      target_positions.insert({*point, point.base()});
+      target_positions.insert({*point, point});
     }
 
   if (!to)
     return {};
 
+  ++rejoin_attempts_;
+
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
   using search_type = a_star<
-    passable_if_not_reserved,
-    manhattan_distance_heuristic,
+    passable_if_not_predicted_obstacle,
+    predicted_manhattan_distance,
     space_time_coordinate
   >;
   search_type as(from, *to, w,
-                 passable_if_not_reserved(agent_reservations_, a, from));
+                 predicted_manhattan_distance(
+                   *to, predictor_.get(), obstacle_penalty_
+                 ),
+                 passable_if_not_predicted_obstacle(
+                   predictor_.get(),
+                   passable_if_not_reserved(agent_reservations_, a, from),
+                   predictor_ ? obstacle_threshold_ : 1.0
+                 ));
 
   path join_path = as.find_path(
     w,
@@ -699,12 +741,16 @@ cooperative_a_star::rejoin_path(position from, world const& w,
     return {};
 
   assert(target_positions.count(join_path.front()));
-  path::const_iterator rejoin_point = target_positions[join_path.front()];
+  path::const_reverse_iterator rejoin_point =
+    target_positions[join_path.front()];
 
   path result;
-  if (rejoin_point != old_path.begin())
-    result.insert(result.end(), old_path.begin(), std::prev(rejoin_point));
-  result.insert(result.end(), join_path.begin(), join_path.end());
+
+  auto old_end = rejoin_point.base() - 1;
+  auto new_begin = join_path.begin();
+
+  result.insert(result.end(), old_path.begin(), old_end);
+  result.insert(result.end(), new_begin, join_path.end());
 
   ++rejoin_successes_;
   return result;
