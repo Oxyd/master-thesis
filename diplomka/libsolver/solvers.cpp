@@ -820,6 +820,21 @@ public:
   void step(world&, std::default_random_engine&) override;
   std::string name() const override { return "OD"; }
 
+  std::vector<std::string>
+  stat_names() const override {
+    return {"Replans", "Plan invalid", "Nodes primary", "Nodes heuristic"};
+  }
+
+  std::vector<std::string>
+  stat_values() const override {
+    return {
+      std::to_string(replans_),
+      std::to_string(plan_invalid_),
+      std::to_string(nodes_primary_),
+      std::to_string(nodes_heuristic_)
+    };
+  }
+
 private:
   std::vector<agents_state> plan_;
   std::unordered_map<agent::id_type, a_star<>> hierarchical_distances_;
@@ -827,6 +842,11 @@ private:
   bool admissible(agents_state const& state, world const& w) const;
   void replan(world const& w);
   void make_hierarchical_distances(world const&);
+
+  unsigned replans_ = 0;
+  unsigned plan_invalid_ = 0;
+  unsigned nodes_primary_ = 0;
+  unsigned nodes_heuristic_ = 0;
 };
 
 } // anonymous namespace
@@ -1039,6 +1059,8 @@ operator_decomposition::admissible(agents_state const& state,  // not needed?
 
 void
 operator_decomposition::replan(world const& w) {
+  ++replans_;
+
   plan_.clear();
   make_hierarchical_distances(w);
 
@@ -1068,6 +1090,11 @@ operator_decomposition::replan(world const& w) {
   );
 
   path<agents_state> result = search.find_path(w);
+
+  nodes_primary_ += search.nodes_expanded();
+
+  for (auto const& id_search : hierarchical_distances_)
+    nodes_heuristic_ = std::get<1>(id_search).nodes_expanded();
 
   result.erase(std::remove_if(result.begin(), result.end(),
                               [] (agents_state const& state) {
