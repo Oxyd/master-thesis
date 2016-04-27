@@ -13,7 +13,8 @@
 #include <unordered_set>
 
 struct always_passable {
-  constexpr bool operator () (position, position,
+  template <typename State>
+  constexpr bool operator () (State const&, State const&,
                               world const&, unsigned) const {
     return true;
   }
@@ -27,11 +28,12 @@ struct manhattan_distance_heuristic {
   }
 };
 
+template <typename StateT = position>
 struct space_coordinate {
-  using type = position;
+  using type = StateT;
 
   static type
-  make(position p, unsigned) { return p; }
+  make(StateT p, unsigned) { return p; }
 };
 
 struct space_time_coordinate {
@@ -41,19 +43,64 @@ struct space_time_coordinate {
   make(position p, unsigned g) { return position_time{p, g}; }
 };
 
+template <typename State, typename Node>
+struct no_distance_storage {
+  void
+  store(State, Node) { }
+
+  void
+  get() const { }
+};
+
+template <typename State, typename Node>
+struct position_distance_storage {
+  using storage_type = std::unordered_map<State, Node>;
+
+  storage_type storage;
+
+  void
+  store(State s, Node n) {
+    storage.insert({s, n});
+  }
+
+  storage_type const&
+  get() const { return storage; }
+};
+
+struct position_successors {
+  static std::vector<position>
+  get(position p, world const& w) {
+    std::vector<position> result;
+
+    for (direction d : all_directions) {
+      position const n = translate(p, d);
+      if (in_bounds(n, *w.map()) && w.get(n) != tile::wall)
+        result.push_back(n);
+    }
+
+    return result;
+  }
+};
+
 constexpr unsigned
 infinity = std::numeric_limits<unsigned>::max();
 
-template <typename Passable = always_passable,
-          typename Distance = manhattan_distance_heuristic,
-          typename Coordinate = space_coordinate>
+template <
+  typename State = position,
+  typename SuccessorsFunc = position_successors,
+  typename Passable = always_passable,
+  typename Distance = manhattan_distance_heuristic,
+  typename Coordinate = space_coordinate<State>,
+  template <typename, typename> class DistanceStorage =
+    position_distance_storage
+>
 class a_star {
 public:
-  a_star(position from, position to, world const& w,
+  a_star(State from, State to, world const& w,
          Passable passable = Passable{})
     : a_star(from, to, w, Distance{to}, passable) { }
 
-  a_star(position from, position to, world const& w,
+  a_star(State from, State to, world const& w,
          Distance distance,
          Passable passable = Passable{})
     : from_(from)
@@ -72,33 +119,35 @@ public:
   a_star(a_star&&) = default;
   a_star& operator = (a_star&&) = default;
 
-  path
+  path<State>
   find_path(world const& w) {
     return do_find_path(w, [&] (node const* n) { return n->pos == to_; });
   }
 
-  path
+  path<State>
   find_path(world const& w, unsigned window) {
     return do_find_path(w, [&] (node const* n) { return n->g == window; });
   }
 
   template <typename PositionPred>
-  path
+  path<State>
   find_path(world const& w, PositionPred goal,
             unsigned limit = std::numeric_limits<unsigned>::max()) {
     return do_find_path(w, [&] (node const* n) { return goal(n->pos); }, limit);
   }
 
   double
-  find_distance(position p, world const& w) {
-    auto it = shortest_paths_.find(p);
-    if (it != shortest_paths_.end())
+  find_distance(State p, world const& w) {
+    auto const& shortest_paths = distance_storage_.get();
+
+    auto it = shortest_paths.find(p);
+    if (it != shortest_paths.end())
       return it->second->g;
 
     expand_until([&] (node const* n) { return n->pos == p; }, w);
 
-    it = shortest_paths_.find(p);
-    if (it != shortest_paths_.end())
+    it = shortest_paths.find(p);
+    if (it != shortest_paths.end())
       return it->second->g;
     else
       return infinity;
@@ -106,18 +155,18 @@ public:
 
   unsigned nodes_expanded() const { return expanded_; }
 
-  position from() const { return from_; }
-  position to() const { return to_; }
+  State from() const { return from_; }
+  State to() const { return to_; }
 
 private:
   struct node {
-    position pos;
+    State pos;
     unsigned g;
     double h;
 
     node* come_from = nullptr;
 
-    node(position pos, unsigned g, double h)
+    node(State pos, unsigned g, double h)
       : pos(pos), g(g), h(h) { }
 
     double f() const { return g + h; }
@@ -140,22 +189,22 @@ private:
 
   using coordinate_type = typename Coordinate::type;
 
-  position from_;
-  position to_;
+  State from_;
+  State to_;
   heap_type heap_;
   unsigned expanded_ = 0;
   pool_type node_pool_;
   std::unordered_map<coordinate_type, handle_type> open_;
   std::unordered_set<coordinate_type> closed_;
-  std::unordered_map<position, node*> shortest_paths_;
+  DistanceStorage<State, node*> distance_storage_;
   Passable passable_;
   Distance distance_;
 
   template <typename EndPred>
-  path
+  path<State>
   do_find_path(world const& w, EndPred goal,
                unsigned limit = std::numeric_limits<unsigned>::max()) {
-    path result;
+    path<State> result;
 
     node* current = expand_until(goal, w, limit);
     if (!current)
@@ -185,30 +234,21 @@ private:
       open_.erase(current_coord);
       closed_.insert({current_coord});
 
-      shortest_paths_.insert({current->pos, current});
+      distance_storage_.store(current->pos, current);
 
       ++expanded_;
 
       if (current->g == limit)
         return nullptr;
 
-      std::vector<position> neighbours;
-      for (direction d : all_directions) {
-        position const n = translate(current->pos, d);
-        if (in_bounds(n, *w.map()) && w.get(n) != tile::wall)
-          neighbours.push_back(n);
-      }
+      std::vector<State> neighbours = SuccessorsFunc::get(current->pos, w);
 
       if (Coordinate::make(current->pos, current->g + 1) != current_coord)
         neighbours.push_back(current->pos);
 
-      for (position neighbour : neighbours) {
+      for (State neighbour : neighbours) {
         coordinate_type const neighbour_coord =
           Coordinate::make(neighbour, current->g + 1);
-
-        if (!in_bounds(neighbour, *w.map()) ||
-            w.get(neighbour) == tile::wall)
-          continue;
 
         if (closed_.count(neighbour_coord))
           continue;

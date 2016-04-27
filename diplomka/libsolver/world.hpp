@@ -1,6 +1,8 @@
 #ifndef WORLD_HPP
 #define WORLD_HPP
 
+#include "hash.hpp"
+
 #include <boost/functional/hash.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/optional.hpp>
@@ -74,14 +76,15 @@ struct hash<position> {
   result_type
   operator () (argument_type p) const {
     std::size_t seed{};
-    boost::hash_combine(seed, p.x);
-    boost::hash_combine(seed, p.y);
+    hash_combine(seed, p.x);
+    hash_combine(seed, p.y);
     return seed;
   }
 };
 }
 
-using path = std::vector<position>;
+template <typename State = position>
+using path = std::vector<State>;
 
 position
 translate(position, direction);
@@ -131,9 +134,9 @@ struct hash<position_time> {
   result_type
   operator () (argument_type pt) const {
     std::size_t seed{};
-    boost::hash_combine(seed, pt.x);
-    boost::hash_combine(seed, pt.y);
-    boost::hash_combine(seed, pt.time);
+    hash_combine(seed, pt.x);
+    hash_combine(seed, pt.y);
+    hash_combine(seed, pt.time);
 
     return seed;
   }
@@ -313,6 +316,9 @@ public:
 
   agent
   create_agent(position goal);
+
+  agent::id_type
+  agent_id_end() const { return next_agent_id_; }
 
   obstacle
   create_obstacle(std::normal_distribution<> move_distribution);

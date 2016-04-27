@@ -284,6 +284,14 @@ make_obstacles(world& w, obstacle_settings settings,
 
 void
 world::next_tick(std::default_random_engine& rng) {
+#ifndef NDEBUG
+  for (agent::id_type id = 0; id < agent_id_end(); ++id)
+    assert(std::find_if(agents_.begin(), agents_.end(),
+                        [&] (auto pos_agent) {
+                          return std::get<1>(pos_agent).id() == id;
+                        }) != agents_.end());
+#endif
+
   ++tick_;
 
   if (obstacle_settings_.mode == obstacle_mode::spawn_to_goal)

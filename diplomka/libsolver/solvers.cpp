@@ -1,6 +1,7 @@
 #include "solvers.hpp"
 
 #include "a_star.hpp"
+#include "hash.hpp"
 #include "log_sinks.hpp"
 #include "predictor.hpp"
 
@@ -122,19 +123,19 @@ protected:
   unsigned path_invalid_ = 0;
 
 private:
-  std::unordered_map<agent::id_type, path> paths_;
+  std::unordered_map<agent::id_type, path<>> paths_;
 
-  path
+  path<>
   recalculate(position, world const&, std::default_random_engine&,
-              boost::optional<path const&> old_path = {});
+              boost::optional<path<> const&> old_path = {});
 
   boost::optional<position>
   next_step(position, world const&, std::default_random_engine&,
-            boost::optional<path const&> old_path = {});
+            boost::optional<path<> const&> old_path = {});
 
-  virtual path
+  virtual path<>
   find_path(position, world const&, std::default_random_engine&,
-            boost::optional<path const&> old_path) = 0;
+            boost::optional<path<> const&> old_path) = 0;
 };
 
 }
@@ -178,7 +179,7 @@ separate_paths_solver::step(
       log_ << "Path invalid for " << pos << '\n';
       ++path_invalid_;
 
-      path old_path = std::move(paths_[agent.id()]);
+      path<> old_path = std::move(paths_[agent.id()]);
       paths_.erase(agent.id());
       maybe_next = next_step(pos, w, rng, old_path);
     }
@@ -210,15 +211,15 @@ separate_paths_solver::get_path(agent::id_type a) const {
     return {};
 }
 
-path
+path<>
 separate_paths_solver::recalculate(position from, world const& w,
                                    std::default_random_engine& rng,
-                                   boost::optional<path const&> old_path) {
+                                   boost::optional<path<> const&> old_path) {
   log_ << "Recalculating for " << w.get_agent(from)->id()
        << '@' << from << '\n';
   ++recalculations_;
 
-  path new_path = find_path(from, w, rng, old_path);
+  path<> new_path = find_path(from, w, rng, old_path);
 
   if (new_path.empty())
     log_ << "Found no path for " << from << '\n';
@@ -229,7 +230,7 @@ separate_paths_solver::recalculate(position from, world const& w,
 boost::optional<position>
 separate_paths_solver::next_step(position from, world const& w,
                                  std::default_random_engine& rng,
-                                 boost::optional<path const&> old_path) {
+                                 boost::optional<path<> const&> old_path) {
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
@@ -281,8 +282,8 @@ private:
   std::unordered_map<agent::id_type, agent_data> data_;
   unsigned nodes_ = 0;
 
-  path find_path(position, world const&, std::default_random_engine&,
-                 boost::optional<path const&>) override;
+  path<> find_path(position, world const&, std::default_random_engine&,
+                   boost::optional<path<> const&>) override;
 };
 
 }
@@ -312,9 +313,9 @@ lra::agitated_distance::operator () (position from, world const&, unsigned) cons
   return distance(from, destination) + agit(rng);
 }
 
-path
+path<>
 lra::find_path(position from, world const& w, std::default_random_engine& rng,
-               boost::optional<path const&>) {
+               boost::optional<path<> const&>) {
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
@@ -328,12 +329,15 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng,
   else
     data_[a.id()].agitation = 0.0;
 
-  a_star<passable_not_immediate_neighbour, agitated_distance> as(
+  a_star<
+    position, position_successors,
+    passable_not_immediate_neighbour, agitated_distance
+  > as(
     from, a.target, w,
     agitated_distance{a.target, data_[a.id()].agitation, rng},
     passable_not_immediate_neighbour{from}
   );
-  path new_path = as.find_path(w);
+  path<> new_path = as.find_path(w);
   nodes_ += as.nodes_expanded();
 
   data_[a.id()].last_recalculation = w.tick();
@@ -342,6 +346,14 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng,
 }
 
 namespace {
+
+struct reservation_table_record {
+  ::agent::id_type agent;
+  boost::optional<position> from;
+};
+
+using reservation_table_type =
+  std::unordered_map<position_time, reservation_table_record>;
 
 class cooperative_a_star : public separate_paths_solver {
 public:
@@ -367,14 +379,6 @@ private:
   using heuristic_search_type = a_star<>;
   using heuristic_map_type = std::map<agent::id_type, heuristic_search_type>;
 
-  struct reservation_table_record {
-    ::agent::id_type agent;
-    boost::optional<position> from;
-  };
-
-  using reservation_table_type =
-    std::unordered_map<position_time, reservation_table_record>;
-
   class passable_if_not_reserved {
   public:
     passable_if_not_reserved(reservation_table_type const& reservations,
@@ -389,7 +393,7 @@ private:
     position from_;
   };
 
-  void reserve(agent::id_type for_agent, path const&, tick_t from);
+  void reserve(agent::id_type for_agent, path<> const&, tick_t from);
   void unreserve(agent::id_type);
 
   struct hierarchical_distance {
@@ -457,10 +461,10 @@ private:
   unsigned obstacle_penalty_ = 100;
   double obstacle_threshold_ = 0.1;
 
-  path find_path(position, world const&, std::default_random_engine&,
-                 boost::optional<path const&> old_path) override;
-  boost::optional<path> rejoin_path(position from, world const& w,
-                                    path const& old_path);
+  path<> find_path(position, world const&, std::default_random_engine&,
+                   boost::optional<path<> const&> old_path) override;
+  boost::optional<path<>> rejoin_path(position from, world const& w,
+                                      path<> const& old_path);
 };
 
 }
@@ -562,7 +566,7 @@ cooperative_a_star::passable_if_not_reserved::operator () (
 }
 
 void
-cooperative_a_star::reserve(agent::id_type a_id, path const& path,
+cooperative_a_star::reserve(agent::id_type a_id, path<> const& path,
                             tick_t from) {
   for (tick_t distance = 0; distance < path.size(); ++distance) {
     position const p = path[path.size() - distance - 1];
@@ -633,16 +637,16 @@ cooperative_a_star::passable_if_not_predicted_obstacle::operator () (
      predictor_->predict_obstacle({where, w.tick() + distance}) <= threshold_);
 }
 
-path
+path<>
 cooperative_a_star::find_path(position from, world const& w,
                               std::default_random_engine&,
-                              boost::optional<path const&> old_path) {
+                              boost::optional<path<> const&> old_path) {
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
   unreserve(a.id());
 
-  path new_path;
+  path<> new_path;
   if (rejoin_limit_ > 0 && old_path)
     if (auto p = rejoin_path(from, w, *old_path))
       return new_path = std::move(*p);
@@ -656,6 +660,8 @@ cooperative_a_star::find_path(position from, world const& w,
     unsigned const old_h_search_nodes = h_search.nodes_expanded();
 
     using search_type = a_star<
+      position,
+      position_successors,
       passable_if_not_predicted_obstacle,
       hierarchical_distance,
       space_time_coordinate
@@ -681,7 +687,7 @@ cooperative_a_star::find_path(position from, world const& w,
 }
 
 std::ostream&
-operator << (std::ostream& out, path const& p) {
+operator << (std::ostream& out, path<> const& p) {
   for (auto point = p.rbegin(); point != p.rend(); ++point) {
     if (point != p.rbegin())
       out << " -> ";
@@ -691,14 +697,14 @@ operator << (std::ostream& out, path const& p) {
   return out;
 }
 
-boost::optional<path>
+boost::optional<path<>>
 cooperative_a_star::rejoin_path(position from, world const& w,
-                                path const& old_path) {
+                                path<> const& old_path) {
   if (old_path.empty())
     return {};
 
   boost::optional<position> to = boost::none;
-  std::unordered_map<position, path::const_reverse_iterator> target_positions;
+  std::unordered_map<position, path<>::const_reverse_iterator> target_positions;
   for (auto point = old_path.rbegin(); point != old_path.rend(); ++point)
     if (w.get(*point) == tile::free) {
       if (!to)
@@ -715,6 +721,8 @@ cooperative_a_star::rejoin_path(position from, world const& w,
   agent const& a = *w.get_agent(from);
 
   using search_type = a_star<
+    position,
+    position_successors,
     passable_if_not_predicted_obstacle,
     predicted_manhattan_distance,
     space_time_coordinate
@@ -729,7 +737,7 @@ cooperative_a_star::rejoin_path(position from, world const& w,
                    predictor_ ? obstacle_threshold_ : 1.0
                  ));
 
-  path join_path = as.find_path(
+  path<> join_path = as.find_path(
     w,
     [&] (position p) { return target_positions.count(p); },
     rejoin_limit_
@@ -741,10 +749,10 @@ cooperative_a_star::rejoin_path(position from, world const& w,
     return {};
 
   assert(target_positions.count(join_path.front()));
-  path::const_reverse_iterator rejoin_point =
+  path<>::const_reverse_iterator rejoin_point =
     target_positions[join_path.front()];
 
-  path result;
+  path<> result;
 
   auto old_end = rejoin_point.base() - 1;
   auto new_begin = join_path.begin();
@@ -754,4 +762,332 @@ cooperative_a_star::rejoin_path(position from, world const& w,
 
   ++rejoin_successes_;
   return result;
+}
+
+namespace {
+
+enum class agent_action : unsigned {
+  north = 0, east, south, west, stay, unassigned
+};
+
+struct agent_state_record {
+  ::position position;
+  agent::id_type id;
+  agent_action action = agent_action::unassigned;
+};
+
+struct agents_state {
+  std::vector<agent_state_record> agents;
+  std::size_t next_agent = 0;
+};
+
+static bool
+operator == (agent_state_record const& lhs, agent_state_record const& rhs) {
+  return lhs.position == rhs.position &&
+         lhs.id == rhs.id &&
+         lhs.action == rhs.action;
+}
+
+static bool
+operator == (agents_state const& lhs, agents_state const& rhs) {
+  return lhs.agents == rhs.agents && lhs.next_agent == rhs.next_agent;
+}
+
+static bool
+operator != (agents_state const& lhs, agents_state const& rhs) {
+  return !operator == (lhs, rhs);
+}
+
+struct state_successors {
+  static std::vector<agents_state>
+  get(agents_state& state, world const& w);
+};
+
+struct combined_heuristic_distance {
+  explicit
+  combined_heuristic_distance(
+    std::unordered_map<agent::id_type, a_star<>>& h_searches
+  );
+
+  unsigned
+  operator () (agents_state const& state, world const& w, tick_t) const;
+
+  std::unordered_map<agent::id_type, a_star<>>& h_searches_;
+};
+
+class operator_decomposition : public solver {
+public:
+  void step(world&, std::default_random_engine&) override;
+  std::string name() const override { return "OD"; }
+
+private:
+  std::vector<agents_state> plan_;
+  std::unordered_map<agent::id_type, a_star<>> hierarchical_distances_;
+
+  bool admissible(agents_state const& state, world const& w) const;
+  void replan(world const& w);
+  void make_hierarchical_distances(world const&);
+};
+
+} // anonymous namespace
+
+static direction
+agent_action_to_direction(agent_action aa) {
+  assert(aa != agent_action::stay);
+  assert(aa != agent_action::unassigned);
+
+  return static_cast<direction>(static_cast<unsigned>(aa));
+}
+
+static agent_action
+direction_to_action(direction d) {
+  return static_cast<agent_action>(static_cast<unsigned>(d));
+}
+
+static void
+make_full(agents_state& state) {
+  assert(state.next_agent == 0);
+
+  for (agent_state_record& a : state.agents) {
+    assert(a.action != agent_action::unassigned);
+
+    if (a.action != agent_action::stay)
+      a.position = translate(a.position, agent_action_to_direction(a.action));
+
+    a.action = agent_action::unassigned;
+  }
+}
+
+std::vector<agents_state>
+state_successors::get(agents_state& state, world const& w) {
+  std::vector<agents_state> result;
+
+  auto add = [&] (agent_action action) {
+    result.push_back(state);
+    result.back().agents[state.next_agent].action = action;
+    result.back().next_agent =
+    (result.back().next_agent + 1) % result.back().agents.size();
+
+    if (result.back().next_agent == 0)
+      make_full(result.back());
+  };
+
+  agent_state_record const& agent = state.agents[state.next_agent];
+  bool needs_vacate = false;
+
+  for (direction d : all_directions) {
+    position const p = translate(agent.position, d);
+    if (in_bounds(p, *w.map()) && w.get(p) != tile::wall) {
+      bool possible = true;
+
+      for (agent_state_record const& other_agent : state.agents) {
+        if (other_agent.action == agent_action::unassigned)
+          break;
+
+        if (other_agent.action == agent_action::stay) {
+          if (p == other_agent.position) {
+            possible = false;
+            break;
+          }
+        } else {
+          position q = translate(
+            other_agent.position,
+            agent_action_to_direction(other_agent.action)
+          );
+
+          if (p == q ||
+              (other_agent.position == p && agent.position == q)) {
+            possible = false;
+            break;
+          }
+          else if (q == agent.position)
+            needs_vacate = true;
+        }
+      }
+
+      if (possible)
+        add(direction_to_action(d));
+    }
+  }
+
+  if (!needs_vacate)
+    add(agent_action::stay);
+
+  return result;
+}
+
+combined_heuristic_distance::combined_heuristic_distance(
+  std::unordered_map<agent::id_type, a_star<>>& h_searches
+)
+  : h_searches_(h_searches)
+{}
+
+unsigned
+combined_heuristic_distance::operator () (agents_state const& state,
+                                          world const& w, tick_t) const {
+  unsigned result = 0;
+  for (agent_state_record const& agent : state.agents) {
+    assert(h_searches_.count(agent.id));
+
+    position p = agent.position;
+    if (agent.action != agent_action::unassigned &&
+        agent.action != agent_action::stay)
+      p = translate(p, agent_action_to_direction(agent.action));
+
+    auto h_search = h_searches_.find(agent.id);
+    assert(h_search != h_searches_.end());
+
+    result += h_search->second.find_distance(p, w);
+  }
+
+  return result;
+}
+
+
+namespace std {
+
+template <>
+struct hash<agent_state_record> {
+  using argument_type = agent_state_record;
+  using result_type = std::size_t;
+
+  result_type
+  operator () (argument_type agent) const {
+    std::size_t result = 0;
+    hash_combine(result, agent.position);
+    hash_combine(result, agent.id);
+    hash_combine(result, static_cast<unsigned>(agent.action));
+    return result;
+  }
+};
+
+template <>
+struct hash<agents_state> {
+  using argument_type = agents_state;
+  using result_type = std::size_t;
+
+  result_type
+  operator () (argument_type const& state) const {
+    std::size_t result = 0;
+    for (agent_state_record agent : state.agents)
+      hash_combine(result, agent);
+
+    hash_combine(result, state.next_agent);
+
+    return result;
+  }
+};
+
+} // namespace std
+
+static joint_action
+make_action(agents_state const& from, agents_state const& to) {
+  assert(from.agents.size() == to.agents.size());
+
+  joint_action result;
+  for (std::size_t i = 0; i < from.agents.size(); ++i) {
+    assert(from.agents[i].id == to.agents[i].id);
+
+    if (from.agents[i].position != to.agents[i].position)
+      result.add(action{from.agents[i].position,
+                        direction_to(from.agents[i].position,
+                                     to.agents[i].position)});
+  }
+
+  return result;
+}
+
+std::unique_ptr<solver>
+make_od() {
+  return std::make_unique<operator_decomposition>();
+}
+
+void
+operator_decomposition::step(world& w, std::default_random_engine&) {
+  if (plan_.size() < 2)
+    replan(w);
+
+  if (plan_.empty())
+    return;
+
+  assert(plan_.size() >= 2);
+
+  agents_state current = plan_.back();
+  plan_.pop_back();
+  w = apply(make_action(current, plan_.back()), std::move(w));
+}
+
+bool
+operator_decomposition::admissible(agents_state const& state,  // not needed?
+                                   world const& w) const {
+  for (agent_state_record const& record : state.agents) {
+    assert(w.get(record.position) == tile::agent);
+
+    if (record.action != agent_action::unassigned &&
+        record.action != agent_action::stay) {
+      tile dest_tile = w.get(
+        translate(record.position,
+                  agent_action_to_direction(record.action))
+      );
+      if (dest_tile == tile::obstacle || dest_tile == tile::wall)
+        return false;
+    }
+  }
+
+  return true;
+}
+
+void
+operator_decomposition::replan(world const& w) {
+  plan_.clear();
+  make_hierarchical_distances(w);
+
+  agents_state current_state;
+  for (auto const& pos_agent : w.agents())
+    current_state.agents.push_back({std::get<0>(pos_agent),
+                                    std::get<1>(pos_agent).id()});
+
+  agents_state goal_state;
+  for (auto const& pos_agent : w.agents())
+    goal_state.agents.push_back({std::get<1>(pos_agent).target,
+                                 std::get<1>(pos_agent).id()});
+
+  using search_type = a_star<
+    agents_state,
+    state_successors,
+    always_passable,
+    combined_heuristic_distance,
+    space_coordinate<agents_state>,
+    no_distance_storage
+  >;
+  search_type search(
+    current_state,
+    goal_state,
+    w,
+    combined_heuristic_distance(hierarchical_distances_)
+  );
+
+  path<agents_state> result = search.find_path(w);
+
+  result.erase(std::remove_if(result.begin(), result.end(),
+                              [] (agents_state const& state) {
+                                return state.next_agent != 0;
+                              }),
+               result.end());
+
+  plan_ = std::move(result);
+}
+
+void
+operator_decomposition::make_hierarchical_distances(world const& w) {
+  for (auto const& pos_agent : w.agents()) {
+    position from = std::get<0>(pos_agent);
+    agent const& a = std::get<1>(pos_agent);
+
+    hierarchical_distances_.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple(a.id()),
+      std::forward_as_tuple(a.target, from, w)
+    );
+  }
 }

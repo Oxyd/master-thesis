@@ -57,6 +57,9 @@ make_solver(std::string const& name,
   if (iequals(name, "lra") || iequals(name, "lra*"))
     return make_lra(null_log_sink);
 
+  if (iequals(name, "od"))
+    return make_od();
+
   throw std::runtime_error{std::string{"Unknown solver type: "} + name};
 }
 

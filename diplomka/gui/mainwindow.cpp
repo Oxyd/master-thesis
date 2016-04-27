@@ -44,6 +44,7 @@ main_window::main_window(QWidget *parent)
   connect(&run_timer_, &QTimer::timeout, this, &main_window::step);
 
   ui_.algorithm_combo->addItem("WHCA*");
+  ui_.algorithm_combo->addItem("OD");
   ui_.algorithm_combo->addItem("LRA*");
   ui_.algorithm_combo->addItem("Greedy");
 
@@ -259,6 +260,8 @@ main_window::make_solver() {
       ui_.obstacle_penalty_spin->value(),
       ui_.obstacle_threshold_spin->value()
     );
+  else if (algo == "OD")
+    return make_od();
   else if (algo == "LRA*")
     return make_lra(log_sink_);
   else if (algo == "Greedy")
