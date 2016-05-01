@@ -39,6 +39,9 @@ all_directions{
   direction::west
 };
 
+direction
+inverse(direction);
+
 bool
 traversable(tile);
 

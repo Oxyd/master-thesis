@@ -66,6 +66,16 @@ operator << (std::ostream& out, direction d) {
   return out;
 }
 
+direction
+inverse(direction d) {
+  switch (d) {
+  case direction::north: return direction::south;
+  case direction::east: return direction::west;
+  case direction::south: return direction::north;
+  case direction::west: return direction::east;
+  }
+}
+
 bool
 traversable(tile t) {
   return t == tile::free;

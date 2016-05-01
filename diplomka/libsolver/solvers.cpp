@@ -771,7 +771,7 @@ enum class agent_action : unsigned {
 };
 
 struct agent_state_record {
-  ::position position;
+  ::position position;  // Post-move position.
   agent::id_type id;
   agent_action action = agent_action::unassigned;
 };
@@ -790,7 +790,7 @@ operator == (agent_state_record const& lhs, agent_state_record const& rhs) {
 
 static bool
 operator == (agents_state const& lhs, agents_state const& rhs) {
-  return lhs.agents == rhs.agents && lhs.next_agent == rhs.next_agent;
+  return lhs.next_agent == rhs.next_agent && lhs.agents == rhs.agents;
 }
 
 static bool
@@ -839,7 +839,6 @@ private:
   std::vector<agents_state> plan_;
   std::unordered_map<agent::id_type, a_star<>> hierarchical_distances_;
 
-  bool admissible(agents_state const& state, world const& w) const;
   void replan(world const& w);
   void make_hierarchical_distances(world const&);
 
@@ -868,23 +867,18 @@ static void
 make_full(agents_state& state) {
   assert(state.next_agent == 0);
 
-  for (agent_state_record& a : state.agents) {
-    assert(a.action != agent_action::unassigned);
-
-    if (a.action != agent_action::stay)
-      a.position = translate(a.position, agent_action_to_direction(a.action));
-
+  for (agent_state_record& a : state.agents)
     a.action = agent_action::unassigned;
-  }
 }
 
 std::vector<agents_state>
 state_successors::get(agents_state& state, world const& w) {
   std::vector<agents_state> result;
 
-  auto add = [&] (agent_action action) {
+  auto add = [&] (agent_action action, position dest) {
     result.push_back(state);
     result.back().agents[state.next_agent].action = action;
+    result.back().agents[state.next_agent].position = dest;
     result.back().next_agent =
     (result.back().next_agent + 1) % result.back().agents.size();
 
@@ -896,42 +890,44 @@ state_successors::get(agents_state& state, world const& w) {
   bool needs_vacate = false;
 
   for (direction d : all_directions) {
-    position const p = translate(agent.position, d);
-    if (in_bounds(p, *w.map()) && w.get(p) != tile::wall) {
-      bool possible = true;
+    position const destination = translate(agent.position, d);
+    if (!in_bounds(destination, *w.map()) || w.get(destination) == tile::wall)
+      continue;
 
-      for (agent_state_record const& other_agent : state.agents) {
-        if (other_agent.action == agent_action::unassigned)
+    bool possible = true;
+
+    for (agent_state_record const& other_agent : state.agents) {
+      if (other_agent.action == agent_action::unassigned)
+        break;
+
+      if (other_agent.action == agent_action::stay) {
+        if (destination == other_agent.position) {
+          possible = false;
           break;
-
-        if (other_agent.action == agent_action::stay) {
-          if (p == other_agent.position) {
-            possible = false;
-            break;
-          }
-        } else {
-          position q = translate(
-            other_agent.position,
-            agent_action_to_direction(other_agent.action)
-          );
-
-          if (p == q ||
-              (other_agent.position == p && agent.position == q)) {
-            possible = false;
-            break;
-          }
-          else if (q == agent.position)
-            needs_vacate = true;
         }
-      }
+      } else {
+        position came_from = translate(
+          other_agent.position,
+          inverse(agent_action_to_direction(other_agent.action))
+        );
 
-      if (possible)
-        add(direction_to_action(d));
+        if (destination == other_agent.position ||
+            (destination == came_from &&
+             other_agent.position == agent.position)) {
+          possible = false;
+          break;
+        }
+        else if (other_agent.position == agent.position)
+          needs_vacate = true;
+      }
     }
+
+    if (possible)
+      add(direction_to_action(d), destination);
   }
 
   if (!needs_vacate)
-    add(agent_action::stay);
+    add(agent_action::stay, agent.position);
 
   return result;
 }
@@ -947,17 +943,10 @@ combined_heuristic_distance::operator () (agents_state const& state,
                                           world const& w, tick_t) const {
   unsigned result = 0;
   for (agent_state_record const& agent : state.agents) {
-    assert(h_searches_.count(agent.id));
-
-    position p = agent.position;
-    if (agent.action != agent_action::unassigned &&
-        agent.action != agent_action::stay)
-      p = translate(p, agent_action_to_direction(agent.action));
-
     auto h_search = h_searches_.find(agent.id);
     assert(h_search != h_searches_.end());
 
-    result += h_search->second.find_distance(p, w);
+    result += h_search->second.find_distance(agent.position, w);
   }
 
   return result;
@@ -1035,26 +1024,6 @@ operator_decomposition::step(world& w, std::default_random_engine&) {
   agents_state current = plan_.back();
   plan_.pop_back();
   w = apply(make_action(current, plan_.back()), std::move(w));
-}
-
-bool
-operator_decomposition::admissible(agents_state const& state,  // not needed?
-                                   world const& w) const {
-  for (agent_state_record const& record : state.agents) {
-    assert(w.get(record.position) == tile::agent);
-
-    if (record.action != agent_action::unassigned &&
-        record.action != agent_action::stay) {
-      tile dest_tile = w.get(
-        translate(record.position,
-                  agent_action_to_direction(record.action))
-      );
-      if (dest_tile == tile::obstacle || dest_tile == tile::wall)
-        return false;
-    }
-  }
-
-  return true;
 }
 
 void
