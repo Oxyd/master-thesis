@@ -1,0 +1,33 @@
+{
+    "map": "maps\/tiny.map",
+    "obstacles": {
+        "mode": "random",
+        "tile_probability": "0.5",
+        "obstacle_movement": {
+            "move_probability": {
+                "distribution": "normal",
+                "parameters": [
+                    "5",
+                    "1"
+                ]
+            }
+        },
+        "spawn_points": "",
+        "goal_points": ""
+    },
+    "agent_settings": {
+        "random_agents": "0"
+    },
+    "agents": [
+        {
+            "position": [
+                "1",
+                "1"
+            ],
+            "goal": [
+                "3",
+                "3"
+            ]
+        }
+    ]
+}

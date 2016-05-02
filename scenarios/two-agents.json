@@ -1,0 +1,43 @@
+{
+    "map": "maps\/arena.map",
+    "obstacles": {
+        "mode": "random",
+        "tile_probability": "0",
+        "obstacle_movement": {
+            "move_probability": {
+                "distribution": "normal",
+                "parameters": [
+                    "5",
+                    "1"
+                ]
+            }
+        },
+        "spawn_points": "",
+        "goal_points": ""
+    },
+    "agent_settings": {
+        "random_agents": "0"
+    },
+    "agents": [
+        {
+            "position": [
+                "9",
+                "27"
+            ],
+            "goal": [
+                "39",
+                "27"
+            ]
+        },
+        {
+            "position": [
+                "9",
+                "25"
+            ],
+            "goal": [
+                "39",
+                "25"
+            ]
+        }
+    ]
+}
