@@ -851,6 +851,14 @@ private:
     group_id
   >;
 
+  struct passable_not_immediate_neighbour {
+    agents_state const& from;
+
+    bool
+    operator () (agents_state const& state, agents_state const&, world const& w,
+                 unsigned);
+  };
+
   std::unordered_map<agent::id_type, a_star<>> hierarchical_distances_;
   group_list groups_;
   reservation_table_type reservation_table_;
@@ -863,6 +871,9 @@ private:
 
   plan
   replan_group(world const& w, group const& group);
+
+  bool
+  admissible(world const& w);
 
   void
   merge_groups(std::vector<group_id> const& groups);
@@ -1057,7 +1068,7 @@ make_od() {
 
 void
 operator_decomposition::step(world& w, std::default_random_engine&) {
-  if (groups_.empty())
+  if (groups_.empty() || !admissible(w))
     replan(w);
 
   joint_action result;
@@ -1071,6 +1082,23 @@ operator_decomposition::step(world& w, std::default_random_engine&) {
   }
 
   w = apply(result, std::move(w));
+}
+
+bool
+operator_decomposition::passable_not_immediate_neighbour::operator () (
+  agents_state const& state, agents_state const&, world const& w, unsigned
+) {
+  for (agent_state_record const& agent : state.agents)
+    if (w.get(agent.position) == tile::obstacle)
+      for (agent_state_record const& from_agent : from.agents)
+        if (from_agent.id == agent.id) {
+          if (neighbours(from_agent.position, agent.position))
+            return false;
+          else
+            break;
+        }
+
+  return true;
 }
 
 void
@@ -1146,7 +1174,7 @@ operator_decomposition::replan_group(world const& w,
   using search_type = a_star<
     agents_state,
     state_successors,
-    always_passable,
+    passable_not_immediate_neighbour,
     combined_heuristic_distance,
     space_coordinate<agents_state>,
     no_distance_storage
@@ -1155,7 +1183,8 @@ operator_decomposition::replan_group(world const& w,
     current_state,
     goal_state,
     w,
-    combined_heuristic_distance(hierarchical_distances_)
+    combined_heuristic_distance(hierarchical_distances_),
+    passable_not_immediate_neighbour{current_state}
   );
 
   path<agents_state> result = search.find_path(w);
@@ -1182,6 +1211,21 @@ operator_decomposition::replan_group(world const& w,
 #endif
 
   return result;
+}
+
+bool
+operator_decomposition::admissible(world const& w) {
+  for (group const& group : groups_) {
+    if (group.plan.size() < 2)
+      return false;
+
+    plan::const_iterator next_state = std::prev(std::prev(group.plan.end()));
+    for (agent_state_record const& agent : next_state->agents)
+      if (w.get(agent.position) == tile::obstacle)
+        return false;
+  }
+
+  return true;
 }
 
 void
