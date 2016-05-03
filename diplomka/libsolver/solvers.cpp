@@ -1121,6 +1121,9 @@ operator_decomposition::replan(world const& w) {
 bool
 operator_decomposition::replan_groups(world const& w) {
   for (group_id group = groups_.begin(); group != groups_.end(); ++group) {
+    if (!group->plan.empty())
+      continue;
+
     group->plan = replan_group(w, *group);
 
     tick_t time = w.tick();
@@ -1233,6 +1236,7 @@ operator_decomposition::merge_groups(std::vector<group_id> const& groups) {
   assert(!groups.empty());
   group_id target = groups.front();
   unreserve(target);
+  target->plan = {};
 
   for (auto g = std::next(groups.begin()); g != groups.end(); ++g) {
     unreserve(*g);
