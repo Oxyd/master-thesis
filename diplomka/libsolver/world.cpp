@@ -74,6 +74,9 @@ inverse(direction d) {
   case direction::south: return direction::north;
   case direction::west: return direction::east;
   }
+
+  assert(!"Can't get here");
+  return d;
 }
 
 bool

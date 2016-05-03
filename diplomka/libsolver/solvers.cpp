@@ -7,11 +7,12 @@
 
 #include <algorithm>
 #include <array>
+#include <list>
+#include <queue>
 #include <random>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
-#include <tuple>
-#include <queue>
 
 static direction
 random_dir(std::default_random_engine& rng) {
@@ -347,14 +348,6 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng,
 
 namespace {
 
-struct reservation_table_record {
-  ::agent::id_type agent;
-  boost::optional<position> from;
-};
-
-using reservation_table_type =
-  std::unordered_map<position_time, reservation_table_record>;
-
 class cooperative_a_star : public separate_paths_solver {
 public:
   cooperative_a_star(log_sink& log, unsigned window, unsigned rejoin_limit,
@@ -376,6 +369,14 @@ public:
   get_obstacle_field() const override;
 
 private:
+  struct reservation_table_record {
+    ::agent::id_type agent;
+    boost::optional<position> from;
+  };
+
+  using reservation_table_type =
+    std::unordered_map<position_time, reservation_table_record>;
+
   using heuristic_search_type = a_star<>;
   using heuristic_map_type = std::map<agent::id_type, heuristic_search_type>;
 
@@ -800,7 +801,7 @@ operator != (agents_state const& lhs, agents_state const& rhs) {
 
 struct state_successors {
   static std::vector<agents_state>
-  get(agents_state& state, world const& w);
+  get(agents_state const& state, world const& w);
 };
 
 struct combined_heuristic_distance {
@@ -836,11 +837,44 @@ public:
   }
 
 private:
-  std::vector<agents_state> plan_;
-  std::unordered_map<agent::id_type, a_star<>> hierarchical_distances_;
+  using plan = path<agents_state>;
 
-  void replan(world const& w);
-  void make_hierarchical_distances(world const&);
+  struct group {
+    operator_decomposition::plan plan;
+    std::vector<position> starting_positions;
+  };
+  using group_list = std::list<group>;
+
+  using group_id = group_list::iterator;
+  using reservation_table_type = std::unordered_map<
+    position_time,
+    group_id
+  >;
+
+  std::unordered_map<agent::id_type, a_star<>> hierarchical_distances_;
+  group_list groups_;
+  reservation_table_type reservation_table_;
+
+  void
+  replan(world const& w);
+
+  bool
+  replan_groups(world const& w);
+
+  plan
+  replan_group(world const& w, group const& group);
+
+  void
+  merge_groups(std::vector<group_id> const& groups);
+
+  void
+  reserve(plan const&, group_id, tick_t start);
+
+  void
+  unreserve(group_id);
+
+  void
+  make_hierarchical_distances(world const&);
 
   unsigned replans_ = 0;
   unsigned plan_invalid_ = 0;
@@ -872,7 +906,7 @@ make_full(agents_state& state) {
 }
 
 std::vector<agents_state>
-state_successors::get(agents_state& state, world const& w) {
+state_successors::get(agents_state const& state, world const& w) {
   std::vector<agents_state> result;
 
   auto add = [&] (agent_action action, position dest) {
@@ -881,6 +915,15 @@ state_successors::get(agents_state& state, world const& w) {
     result.back().agents[state.next_agent].position = dest;
     result.back().next_agent =
     (result.back().next_agent + 1) % result.back().agents.size();
+
+#ifndef NDEBUG
+    for (agent_state_record const& agent_a : state.agents)
+      for (agent_state_record const& agent_b : state.agents)
+        assert(agent_a.action == agent_action::unassigned ||
+               agent_b.action == agent_action::unassigned ||
+               agent_a.id == agent_b.id ||
+               agent_a.position != agent_b.position);
+#endif
 
     if (result.back().next_agent == 0)
       make_full(result.back());
@@ -900,6 +943,9 @@ state_successors::get(agents_state& state, world const& w) {
       if (other_agent.action == agent_action::unassigned)
         break;
 
+      if (other_agent.position == agent.position)
+        needs_vacate = true;
+
       if (other_agent.action == agent_action::stay) {
         if (destination == other_agent.position) {
           possible = false;
@@ -917,8 +963,6 @@ state_successors::get(agents_state& state, world const& w) {
           possible = false;
           break;
         }
-        else if (other_agent.position == agent.position)
-          needs_vacate = true;
       }
     }
 
@@ -1013,35 +1057,91 @@ make_od() {
 
 void
 operator_decomposition::step(world& w, std::default_random_engine&) {
-  if (plan_.size() < 2)
+  if (groups_.empty())
     replan(w);
 
-  if (plan_.empty())
-    return;
+  joint_action result;
+  for (group& group : groups_) {
+    if (group.plan.size() < 2)
+      continue;
 
-  assert(plan_.size() >= 2);
+    agents_state current = group.plan.back();
+    group.plan.pop_back();
+    result.extend(make_action(current, group.plan.back()));
+  }
 
-  agents_state current = plan_.back();
-  plan_.pop_back();
-  w = apply(make_action(current, plan_.back()), std::move(w));
+  w = apply(result, std::move(w));
 }
 
 void
 operator_decomposition::replan(world const& w) {
   ++replans_;
+  groups_.clear();
+  reservation_table_.clear();
 
-  plan_.clear();
   make_hierarchical_distances(w);
 
-  agents_state current_state;
   for (auto const& pos_agent : w.agents())
-    current_state.agents.push_back({std::get<0>(pos_agent),
-                                    std::get<1>(pos_agent).id()});
+    groups_.push_back(group{{}, {std::get<0>(pos_agent)}});
 
+  bool conflicted;
+  do
+    conflicted = replan_groups(w);
+  while (conflicted);
+}
+
+bool
+operator_decomposition::replan_groups(world const& w) {
+  for (group_id group = groups_.begin(); group != groups_.end(); ++group) {
+    group->plan = replan_group(w, *group);
+
+    tick_t time = w.tick();
+    std::vector<group_id> conflicts;
+
+    for (auto state = group->plan.rbegin();
+         state != group->plan.rend();
+         ++state)
+    {
+      for (agent_state_record const& agent : state->agents) {
+        auto conflict = reservation_table_.find(
+          {agent.position.x, agent.position.y, time}
+        );
+
+        if (conflict != reservation_table_.end() &&
+            std::find(conflicts.begin(), conflicts.end(),
+                      conflict->second) == conflicts.end())
+          conflicts.push_back(conflict->second);
+      }
+
+      ++time;
+    }
+
+    if (conflicts.empty())
+      reserve(group->plan, group, w.tick());
+    else {
+      conflicts.push_back(group);
+      merge_groups(conflicts);
+
+      return true;
+    }
+  }
+
+  return false;
+}
+
+path<agents_state>
+operator_decomposition::replan_group(world const& w,
+                                     group const& group) {
+  agents_state current_state;
   agents_state goal_state;
-  for (auto const& pos_agent : w.agents())
-    goal_state.agents.push_back({std::get<1>(pos_agent).target,
-                                 std::get<1>(pos_agent).id()});
+
+  for (auto const& member_pos : group.starting_positions) {
+    assert(w.get_agent(member_pos));
+    agent const& a = *w.get_agent(member_pos);
+
+    current_state.agents.push_back({member_pos, a.id()});
+    goal_state.agents.push_back({a.target, a.id()});
+  }
 
   using search_type = a_star<
     agents_state,
@@ -1071,7 +1171,55 @@ operator_decomposition::replan(world const& w) {
                               }),
                result.end());
 
-  plan_ = std::move(result);
+#ifndef NDEBUG
+  for (agents_state const& state : result) {
+    assert(state.agents.size() == group.starting_positions.size());
+    for (agent_state_record const& agent_a : state.agents)
+      for (agent_state_record const& agent_b : state.agents)
+        assert(agent_a.id == agent_b.id ||
+               agent_a.position != agent_b.position);
+  }
+#endif
+
+  return result;
+}
+
+void
+operator_decomposition::merge_groups(std::vector<group_id> const& groups) {
+  assert(!groups.empty());
+  group_id target = groups.front();
+  unreserve(target);
+
+  for (auto g = std::next(groups.begin()); g != groups.end(); ++g) {
+    unreserve(*g);
+
+    target->starting_positions.insert(target->starting_positions.end(),
+                                      (**g).starting_positions.begin(),
+                                      (**g).starting_positions.end());
+    groups_.erase(*g);
+  }
+}
+
+void
+operator_decomposition::reserve(plan const& plan, group_id group,
+                                tick_t start) {
+  tick_t time = start;
+  for (auto state = plan.rbegin(); state != plan.rend(); ++state) {
+    for (agent_state_record const& agent : state->agents)
+      reservation_table_[{agent.position.x, agent.position.y, time}] =
+        group;
+
+    ++time;
+  }
+}
+
+void
+operator_decomposition::unreserve(group_id group) {
+  for (auto it = reservation_table_.begin(); it != reservation_table_.end();)
+    if (it->second == group)
+      it = reservation_table_.erase(it);
+    else
+      ++it;
 }
 
 void

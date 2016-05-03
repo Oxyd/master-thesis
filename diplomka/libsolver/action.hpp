@@ -39,6 +39,9 @@ public:
   void
   add(action a);
 
+  void
+  extend(joint_action const& other);
+
   boost::optional<action>
   action_for(position) const;
 

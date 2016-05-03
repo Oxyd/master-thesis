@@ -49,6 +49,25 @@ joint_action::add(action a) {
   actions_.insert({a.from(), a.where()});
 }
 
+void
+joint_action::extend(joint_action const& other) {
+#ifndef NDEBUG
+  for (auto pos_dir : other.actions_) {
+    assert(actions_.find(std::get<0>(pos_dir)) == actions_.end());
+
+    position destination = translate(std::get<0>(pos_dir),
+                                     std::get<1>(pos_dir));
+    auto other = actions_.find(destination);
+    if (other != actions_.end()) {
+      position other_dest = translate(destination, other->second);
+      assert(other_dest != std::get<0>(pos_dir));
+    }
+  }
+#endif
+
+  actions_.insert(other.actions_.begin(), other.actions_.end());
+}
+
 boost::optional<action>
 joint_action::action_for(position p) const {
   auto it = actions_.find(p);
@@ -68,6 +87,7 @@ joint_action::show(std::ostream& out) const {
     out << action{pd.first, pd.second};
     first = false;
   }
+  out << "}";
 }
 
 std::ostream&
