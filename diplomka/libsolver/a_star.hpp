@@ -96,11 +96,11 @@ template <
 >
 class a_star {
 public:
-  a_star(State from, State to, world const& w,
+  a_star(State const& from, State const& to, world const& w,
          Passable passable = Passable{})
     : a_star(from, to, w, Distance{to}, passable) { }
 
-  a_star(State from, State to, world const& w,
+  a_star(State const& from, State const& to, world const& w,
          Distance distance,
          Passable passable = Passable{})
     : from_(from)
@@ -137,7 +137,7 @@ public:
   }
 
   double
-  find_distance(State p, world const& w) {
+  find_distance(State const& p, world const& w) {
     auto const& shortest_paths = distance_storage_.get();
 
     auto it = shortest_paths.find(p);
@@ -155,8 +155,8 @@ public:
 
   unsigned nodes_expanded() const { return expanded_; }
 
-  State from() const { return from_; }
-  State to() const { return to_; }
+  State const& from() const { return from_; }
+  State const& to() const { return to_; }
 
 private:
   struct node {
@@ -166,7 +166,7 @@ private:
 
     node* come_from = nullptr;
 
-    node(State pos, unsigned g, double h)
+    node(State const& pos, unsigned g, double h)
       : pos(pos), g(g), h(h) { }
 
     double f() const { return g + h; }
@@ -246,7 +246,7 @@ private:
       if (Coordinate::make(current->pos, current->g + 1) != current_coord)
         neighbours.push_back(current->pos);
 
-      for (State neighbour : neighbours) {
+      for (State const& neighbour : neighbours) {
         coordinate_type const neighbour_coord =
           Coordinate::make(neighbour, current->g + 1);
 
