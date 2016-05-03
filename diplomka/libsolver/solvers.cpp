@@ -1190,12 +1190,19 @@ operator_decomposition::replan_group(world const& w,
     passable_not_immediate_neighbour{current_state}
   );
 
+  unsigned old_nodes_heuristic = 0;
+  for (auto const& id_search : hierarchical_distances_)
+    old_nodes_heuristic += std::get<1>(id_search).nodes_expanded();
+
   path<agents_state> result = search.find_path(w);
 
   nodes_primary_ += search.nodes_expanded();
 
+  unsigned new_nodes_heuristic = 0;
   for (auto const& id_search : hierarchical_distances_)
-    nodes_heuristic_ = std::get<1>(id_search).nodes_expanded();
+    new_nodes_heuristic += std::get<1>(id_search).nodes_expanded();
+
+  nodes_heuristic_ += new_nodes_heuristic - old_nodes_heuristic;
 
   result.erase(std::remove_if(result.begin(), result.end(),
                               [] (agents_state const& state) {
