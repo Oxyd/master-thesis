@@ -782,6 +782,8 @@ struct agents_state {
   std::size_t next_agent = 0;
 };
 
+using agents_state_time = std::tuple<agents_state, unsigned>;
+
 static bool
 operator == (agent_state_record const& lhs, agent_state_record const& rhs) {
   return lhs.position == rhs.position &&
@@ -983,7 +985,6 @@ state_successors::get(agents_state const& state, world const& w) {
   };
 
   agent_state_record const& agent = state.agents[state.next_agent];
-  bool needs_vacate = false;
 
   for (direction d : all_directions) {
     position const destination = translate(agent.position, d);
@@ -995,9 +996,6 @@ state_successors::get(agents_state const& state, world const& w) {
     for (agent_state_record const& other_agent : state.agents) {
       if (other_agent.action == agent_action::unassigned)
         break;
-
-      if (other_agent.position == agent.position)
-        needs_vacate = true;
 
       if (other_agent.action == agent_action::stay) {
         if (destination == other_agent.position) {
@@ -1021,6 +1019,17 @@ state_successors::get(agents_state const& state, world const& w) {
 
     if (possible)
       add(direction_to_action(d), destination);
+  }
+
+  bool needs_vacate = false;
+  for (agent_state_record const& other_agent : state.agents) {
+    if (other_agent.action == agent_action::unassigned)
+      break;
+
+    if (other_agent.position == agent.position) {
+      needs_vacate = true;
+      break;
+    }
   }
 
   if (!needs_vacate)
