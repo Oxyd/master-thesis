@@ -804,20 +804,16 @@ struct state_successors {
   get(agents_state const& state, world const& w);
 };
 
-struct combined_heuristic_distance {
-  explicit
-  combined_heuristic_distance(
-    std::unordered_map<agent::id_type, a_star<>>& h_searches
-  );
-
-  unsigned
-  operator () (agents_state const& state, world const& w, tick_t) const;
-
-  std::unordered_map<agent::id_type, a_star<>>& h_searches_;
-};
-
 class operator_decomposition : public solver {
 public:
+  operator_decomposition(std::unique_ptr<predictor> predictor,
+                         unsigned obstacle_penalty,
+                         double obstacle_threshold)
+    : predictor_(std::move(predictor))
+    , obstacle_penalty_(obstacle_penalty)
+    , obstacle_threshold_(obstacle_threshold)
+  { }
+
   void step(world&, std::default_random_engine&) override;
   std::string name() const override { return "OD"; }
 
@@ -851,8 +847,27 @@ private:
     group_id
   >;
 
+  struct combined_heuristic_distance {
+    combined_heuristic_distance(
+      std::unordered_map<agent::id_type, a_star<>>& h_searches,
+      predictor* predictor,
+      unsigned obstacle_penalty
+    );
+
+    unsigned
+    operator () (agents_state const& state, world const& w,
+                 unsigned distance_so_far) const;
+
+  private:
+    std::unordered_map<agent::id_type, a_star<>>& h_searches_;
+    predictor* predictor_;
+    unsigned obstacle_penalty_;
+  };
+
   struct passable_not_immediate_neighbour {
     agents_state const& from;
+    predictor* predictor_;
+    double threshold_ = 1.0;
 
     bool
     operator () (agents_state const& state, agents_state const&, world const& w,
@@ -862,6 +877,15 @@ private:
   std::unordered_map<agent::id_type, a_star<>> hierarchical_distances_;
   group_list groups_;
   reservation_table_type reservation_table_;
+  std::unique_ptr<predictor> predictor_;
+  unsigned obstacle_penalty_ = 100;
+  double obstacle_threshold_ = 0.5;
+
+  unsigned replans_ = 0;
+  unsigned plan_invalid_ = 0;
+  unsigned nodes_primary_ = 0;
+  unsigned nodes_heuristic_ = 0;
+
 
   void
   replan(world const& w);
@@ -873,7 +897,10 @@ private:
   replan_group(world const& w, group const& group);
 
   bool
-  admissible(world const& w);
+  admissible(world const& w) const;
+
+  bool
+  final(agents_state const& state, world const& w) const;
 
   void
   merge_groups(std::vector<group_id> const& groups);
@@ -886,11 +913,6 @@ private:
 
   void
   make_hierarchical_distances(world const&);
-
-  unsigned replans_ = 0;
-  unsigned plan_invalid_ = 0;
-  unsigned nodes_primary_ = 0;
-  unsigned nodes_heuristic_ = 0;
 };
 
 } // anonymous namespace
@@ -987,21 +1009,32 @@ state_successors::get(agents_state const& state, world const& w) {
   return result;
 }
 
+operator_decomposition::
 combined_heuristic_distance::combined_heuristic_distance(
-  std::unordered_map<agent::id_type, a_star<>>& h_searches
+  std::unordered_map<agent::id_type, a_star<>>& h_searches,
+  predictor* predictor,
+  unsigned obstacle_penalty
 )
   : h_searches_(h_searches)
+  , predictor_(predictor)
+  , obstacle_penalty_(obstacle_penalty)
 {}
 
 unsigned
-combined_heuristic_distance::operator () (agents_state const& state,
-                                          world const& w, tick_t) const {
+operator_decomposition::combined_heuristic_distance::operator () (
+  agents_state const& state, world const& w, unsigned distance_so_far
+) const {
   unsigned result = 0;
   for (agent_state_record const& agent : state.agents) {
     auto h_search = h_searches_.find(agent.id);
     assert(h_search != h_searches_.end());
 
     result += h_search->second.find_distance(agent.position, w);
+
+    if (predictor_)
+      result += obstacle_penalty_ * predictor_->predict_obstacle(
+        {agent.position, w.tick() + distance_so_far}
+      );
   }
 
   return result;
@@ -1062,12 +1095,18 @@ make_action(agents_state const& from, agents_state const& to) {
 }
 
 std::unique_ptr<solver>
-make_od() {
-  return std::make_unique<operator_decomposition>();
+make_od(std::unique_ptr<predictor> predictor, unsigned obstacle_penalty,
+        double obstacle_threshold) {
+  return std::make_unique<operator_decomposition>(std::move(predictor),
+                                                  obstacle_penalty,
+                                                  obstacle_threshold);
 }
 
 void
 operator_decomposition::step(world& w, std::default_random_engine&) {
+  if (predictor_)
+    predictor_->update_obstacles(w);
+
   if (groups_.empty() || !admissible(w))
     replan(w);
 
@@ -1086,9 +1125,16 @@ operator_decomposition::step(world& w, std::default_random_engine&) {
 
 bool
 operator_decomposition::passable_not_immediate_neighbour::operator () (
-  agents_state const& state, agents_state const&, world const& w, unsigned
+  agents_state const& state, agents_state const&, world const& w,
+  unsigned distance
 ) {
-  for (agent_state_record const& agent : state.agents)
+  for (agent_state_record const& agent : state.agents) {
+    if (predictor_ &&
+        predictor_->predict_obstacle(
+          {agent.position, w.tick() + distance}
+        ) > threshold_)
+      return false;
+
     if (w.get(agent.position) == tile::obstacle)
       for (agent_state_record const& from_agent : from.agents)
         if (from_agent.id == agent.id) {
@@ -1097,6 +1143,7 @@ operator_decomposition::passable_not_immediate_neighbour::operator () (
           else
             break;
         }
+  }
 
   return true;
 }
@@ -1186,8 +1233,10 @@ operator_decomposition::replan_group(world const& w,
     current_state,
     goal_state,
     w,
-    combined_heuristic_distance(hierarchical_distances_),
-    passable_not_immediate_neighbour{current_state}
+    combined_heuristic_distance(
+      hierarchical_distances_, predictor_.get(), obstacle_penalty_
+    ),
+    passable_not_immediate_neighbour{current_state, predictor_.get()}
   );
 
   unsigned old_nodes_heuristic = 0;
@@ -1224,15 +1273,30 @@ operator_decomposition::replan_group(world const& w,
 }
 
 bool
-operator_decomposition::admissible(world const& w) {
+operator_decomposition::admissible(world const& w) const {
   for (group const& group : groups_) {
-    if (group.plan.size() < 2)
-      return false;
+    if (group.plan.size() < 2) {
+      if (group.plan.empty() || !final(group.plan.front(), w))
+        return false;
+      else
+        continue;
+    }
 
     plan::const_iterator next_state = std::prev(std::prev(group.plan.end()));
     for (agent_state_record const& agent : next_state->agents)
       if (w.get(agent.position) == tile::obstacle)
         return false;
+  }
+
+  return true;
+}
+
+bool
+operator_decomposition::final(agents_state const& state, world const& w) const {
+  for (agent_state_record const& agent : state.agents) {
+    assert(w.get_agent(agent.position));
+    if (w.get_agent(agent.position)->target != agent.position)
+      return false;
   }
 
   return true;

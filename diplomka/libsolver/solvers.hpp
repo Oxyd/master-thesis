@@ -43,6 +43,7 @@ make_whca(log_sink& log, unsigned window, unsigned rejoin_limit,
           double obstacle_threshold);
 
 std::unique_ptr<solver>
-make_od();
+make_od(std::unique_ptr<predictor> predictor, unsigned obstacle_penalty,
+        double obstacle_threshold);
 
 #endif // SOLVERS_HPP

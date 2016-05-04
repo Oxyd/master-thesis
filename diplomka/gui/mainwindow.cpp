@@ -261,7 +261,9 @@ main_window::make_solver() {
       ui_.obstacle_threshold_spin->value()
     );
   else if (algo == "OD")
-    return make_od();
+    return make_od(make_predictor(),
+                   ui_.obstacle_penalty_spin->value(),
+                   ui_.obstacle_threshold_spin->value());
   else if (algo == "LRA*")
     return make_lra(log_sink_);
   else if (algo == "Greedy")

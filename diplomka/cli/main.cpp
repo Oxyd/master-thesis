@@ -38,19 +38,29 @@ make_solver(std::string const& name,
             world const& world) {
   using boost::algorithm::iequals;
 
+  std::unique_ptr<predictor> predictor;
+  unsigned obstacle_penalty = 0;
+  double obstacle_threshold = 1.0;
+
+  unsigned window = vm.count("window") ? vm["window"].as<unsigned>() : 10;
+  bool avoid_obstacles = vm.count("avoid");
+
+  if (avoid_obstacles) {
+    predictor = make_predictor(vm["avoid"].as<std::string>(), vm,
+                               world, window);
+    obstacle_penalty = vm["obstacle-penalty"].as<unsigned>();
+    obstacle_threshold = vm["obstacle-threshold"].as<double>();
+  }
+
   if (iequals(name, "whca") || iequals(name, "whca*")) {
-    unsigned window = vm.count("window") ? vm["window"].as<unsigned>() : 10;
     unsigned rejoin_limit =
       vm.count("rejoin") ? vm["rejoin"].as<unsigned>() : 0;
-    bool avoid_obstacles = vm.count("avoid");
     return make_whca(
       null_log_sink, window,
       rejoin_limit,
-      avoid_obstacles
-      ? make_predictor(vm["avoid"].as<std::string>(), vm, world, window)
-        : std::unique_ptr<predictor>{},
-      avoid_obstacles ? vm["obstacle-penalty"].as<unsigned>() : 0,
-      vm["obstacle-threshold"].as<double>()
+      std::move(predictor),
+      obstacle_penalty,
+      obstacle_threshold
     );
   }
 
@@ -58,7 +68,7 @@ make_solver(std::string const& name,
     return make_lra(null_log_sink);
 
   if (iequals(name, "od"))
-    return make_od();
+    return make_od(std::move(predictor), obstacle_penalty, obstacle_threshold);
 
   throw std::runtime_error{std::string{"Unknown solver type: "} + name};
 }
