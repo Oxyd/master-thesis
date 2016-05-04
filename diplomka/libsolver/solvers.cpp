@@ -834,6 +834,9 @@ public:
     };
   }
 
+  std::vector<position>
+  get_path(agent::id_type) const override;
+
   std::unordered_map<position_time, double>
   get_obstacle_field() const override;
 
@@ -1145,6 +1148,19 @@ operator_decomposition::step(world& w, std::default_random_engine&) {
   }
 
   w = apply(result, std::move(w));
+}
+
+std::vector<position>
+operator_decomposition::get_path(agent::id_type agent_id) const {
+  std::vector<position> result;
+
+  for (group const& g : groups_)
+    for (agents_state const& state : g.plan)
+      for (agent_state_record const& agent : state.agents)
+        if (agent.id == agent_id)
+          result.push_back(agent.position);
+
+  return result;
 }
 
 std::unordered_map<position_time, double>
