@@ -39,6 +39,9 @@ public:
   void
   add(action a);
 
+  bool
+  can_extend(joint_action const& other) const;
+
   void
   extend(joint_action const& other);
 

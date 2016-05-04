@@ -132,7 +132,8 @@ main_window::edit() {
 
 void
 main_window::algorithm_changed() {
-  bool enable_window = ui_.algorithm_combo->currentText() == "WHCA*";
+  bool enable_window = ui_.algorithm_combo->currentText() == "WHCA*" ||
+                       ui_.algorithm_combo->currentText() == "OD";
   bool enable_rejoin = ui_.algorithm_combo->currentText() == "WHCA*";
 
   if (enable_window) {
@@ -261,7 +262,8 @@ main_window::make_solver() {
       ui_.obstacle_threshold_spin->value()
     );
   else if (algo == "OD")
-    return make_od(make_predictor(),
+    return make_od(ui_.window_spin->value(),
+                   make_predictor(),
                    ui_.obstacle_penalty_spin->value(),
                    ui_.obstacle_threshold_spin->value());
   else if (algo == "LRA*")

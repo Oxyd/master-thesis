@@ -68,7 +68,8 @@ make_solver(std::string const& name,
     return make_lra(null_log_sink);
 
   if (iequals(name, "od"))
-    return make_od(std::move(predictor), obstacle_penalty, obstacle_threshold);
+    return make_od(window, std::move(predictor),
+                   obstacle_penalty, obstacle_threshold);
 
   throw std::runtime_error{std::string{"Unknown solver type: "} + name};
 }

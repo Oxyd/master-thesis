@@ -806,10 +806,12 @@ struct state_successors {
 
 class operator_decomposition : public solver {
 public:
-  operator_decomposition(std::unique_ptr<predictor> predictor,
+  operator_decomposition(unsigned window,
+                         std::unique_ptr<predictor> predictor,
                          unsigned obstacle_penalty,
                          double obstacle_threshold)
-    : predictor_(std::move(predictor))
+    : window_(window)
+    , predictor_(std::move(predictor))
     , obstacle_penalty_(obstacle_penalty)
     , obstacle_threshold_(obstacle_threshold)
   { }
@@ -842,9 +844,15 @@ private:
   using group_list = std::list<group>;
 
   using group_id = group_list::iterator;
+
+  struct reservation_table_record {
+    group_id group;
+    boost::optional<position> from;
+  };
+
   using reservation_table_type = std::unordered_map<
     position_time,
-    group_id
+    reservation_table_record
   >;
 
   struct combined_heuristic_distance {
@@ -877,6 +885,7 @@ private:
   std::unordered_map<agent::id_type, a_star<>> hierarchical_distances_;
   group_list groups_;
   reservation_table_type reservation_table_;
+  unsigned window_;
   std::unique_ptr<predictor> predictor_;
   unsigned obstacle_penalty_ = 100;
   double obstacle_threshold_ = 0.5;
@@ -1095,9 +1104,11 @@ make_action(agents_state const& from, agents_state const& to) {
 }
 
 std::unique_ptr<solver>
-make_od(std::unique_ptr<predictor> predictor, unsigned obstacle_penalty,
+make_od(unsigned window,
+        std::unique_ptr<predictor> predictor, unsigned obstacle_penalty,
         double obstacle_threshold) {
-  return std::make_unique<operator_decomposition>(std::move(predictor),
+  return std::make_unique<operator_decomposition>(window,
+                                                  std::move(predictor),
                                                   obstacle_penalty,
                                                   obstacle_threshold);
 }
@@ -1180,15 +1191,34 @@ operator_decomposition::replan_groups(world const& w) {
          state != group->plan.rend();
          ++state)
     {
-      for (agent_state_record const& agent : state->agents) {
-        auto conflict = reservation_table_.find(
-          {agent.position.x, agent.position.y, time}
-        );
+      for (std::size_t i = 0; i < state->agents.size(); ++i) {
+        agent_state_record const& agent = state->agents[i];
 
-        if (conflict != reservation_table_.end() &&
+        boost::optional<group_id> conflicting_group;
+
+        auto conflict = reservation_table_.find({agent.position, time});
+        if (conflict != reservation_table_.end())
+          conflicting_group = conflict->second.group;
+
+        if (!conflicting_group && state != group->plan.rbegin()) {
+          assert(std::prev(state)->agents[i].id == agent.id);
+
+          boost::optional<position> from = std::prev(state)->agents[i].position;
+          if (from) {
+            auto vacated = reservation_table_.find({*from, time});
+            if (vacated != reservation_table_.end() &&
+                vacated->second.from &&
+                *vacated->second.from == agent.position)
+              conflicting_group = vacated->second.group;
+          }
+        }
+
+        assert(!conflicting_group || group != *conflicting_group);
+
+        if (conflicting_group &&
             std::find(conflicts.begin(), conflicts.end(),
-                      conflict->second) == conflicts.end())
-          conflicts.push_back(conflict->second);
+                      *conflicting_group) == conflicts.end())
+          conflicts.push_back(*conflicting_group);
       }
 
       ++time;
@@ -1243,7 +1273,15 @@ operator_decomposition::replan_group(world const& w,
   for (auto const& id_search : hierarchical_distances_)
     old_nodes_heuristic += std::get<1>(id_search).nodes_expanded();
 
-  path<agents_state> result = search.find_path(w);
+  path<agents_state> result;
+  if (window_)
+    result = search.find_path_to_goal_or_window(
+      w, (unsigned) (window_ * group.starting_positions.size())
+    );
+  else
+    result = search.find_path(w);
+
+  assert(result.empty() || result.back().next_agent == 0);
 
   nodes_primary_ += search.nodes_expanded();
 
@@ -1324,9 +1362,16 @@ operator_decomposition::reserve(plan const& plan, group_id group,
                                 tick_t start) {
   tick_t time = start;
   for (auto state = plan.rbegin(); state != plan.rend(); ++state) {
-    for (agent_state_record const& agent : state->agents)
-      reservation_table_[{agent.position.x, agent.position.y, time}] =
-        group;
+    for (std::size_t i = 0; i < state->agents.size(); ++i) {
+      boost::optional<position> from;
+
+      if (state != plan.rbegin()) {
+        assert(std::prev(state)->agents[i].id == state->agents[i].id);
+        from = std::prev(state)->agents[i].position;
+      }
+
+      reservation_table_[{state->agents[i].position, time}] = {group, from};
+    }
 
     ++time;
   }
@@ -1335,7 +1380,7 @@ operator_decomposition::reserve(plan const& plan, group_id group,
 void
 operator_decomposition::unreserve(group_id group) {
   for (auto it = reservation_table_.begin(); it != reservation_table_.end();)
-    if (it->second == group)
+    if (it->second.group == group)
       it = reservation_table_.erase(it);
     else
       ++it;

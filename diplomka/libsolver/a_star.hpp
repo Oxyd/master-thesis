@@ -125,6 +125,13 @@ public:
   }
 
   path<State>
+  find_path_to_goal_or_window(world const& w, unsigned window) {
+    return do_find_path(
+      w, [&] (node const* n) { return n->pos == to_ || n->g == window; }
+    );
+  }
+
+  path<State>
   find_path(world const& w, unsigned window) {
     return do_find_path(w, [&] (node const* n) { return n->g == window; });
   }
