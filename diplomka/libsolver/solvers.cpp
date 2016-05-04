@@ -834,6 +834,9 @@ public:
     };
   }
 
+  std::unordered_map<position_time, double>
+  get_obstacle_field() const override;
+
 private:
   using plan = path<agents_state>;
 
@@ -1142,6 +1145,14 @@ operator_decomposition::step(world& w, std::default_random_engine&) {
   }
 
   w = apply(result, std::move(w));
+}
+
+std::unordered_map<position_time, double>
+operator_decomposition::get_obstacle_field() const {
+  if (predictor_)
+    return predictor_->field();
+  else
+    return {};
 }
 
 bool
