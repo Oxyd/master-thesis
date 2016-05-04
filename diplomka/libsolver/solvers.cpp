@@ -1167,6 +1167,10 @@ operator_decomposition::replan(world const& w) {
 
   make_hierarchical_distances(w);
 
+  unsigned old_nodes_heuristic = 0;
+  for (auto const& id_search : hierarchical_distances_)
+    old_nodes_heuristic += std::get<1>(id_search).nodes_expanded();
+
   for (auto const& pos_agent : w.agents())
     groups_.push_back(group{{}, {std::get<0>(pos_agent)}});
 
@@ -1174,6 +1178,12 @@ operator_decomposition::replan(world const& w) {
   do
     conflicted = replan_groups(w);
   while (conflicted);
+
+  unsigned new_nodes_heuristic = 0;
+  for (auto const& id_search : hierarchical_distances_)
+    new_nodes_heuristic += std::get<1>(id_search).nodes_expanded();
+
+  nodes_heuristic_ += new_nodes_heuristic - old_nodes_heuristic;
 }
 
 bool
@@ -1269,10 +1279,6 @@ operator_decomposition::replan_group(world const& w,
     passable_not_immediate_neighbour{current_state, predictor_.get()}
   );
 
-  unsigned old_nodes_heuristic = 0;
-  for (auto const& id_search : hierarchical_distances_)
-    old_nodes_heuristic += std::get<1>(id_search).nodes_expanded();
-
   path<agents_state> result;
   if (window_)
     result = search.find_path_to_goal_or_window(
@@ -1284,12 +1290,6 @@ operator_decomposition::replan_group(world const& w,
   assert(result.empty() || result.back().next_agent == 0);
 
   nodes_primary_ += search.nodes_expanded();
-
-  unsigned new_nodes_heuristic = 0;
-  for (auto const& id_search : hierarchical_distances_)
-    new_nodes_heuristic += std::get<1>(id_search).nodes_expanded();
-
-  nodes_heuristic_ += new_nodes_heuristic - old_nodes_heuristic;
 
   result.erase(std::remove_if(result.begin(), result.end(),
                               [] (agents_state const& state) {
