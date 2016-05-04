@@ -895,7 +895,6 @@ private:
   unsigned nodes_primary_ = 0;
   unsigned nodes_heuristic_ = 0;
 
-
   void
   replan(world const& w);
 
@@ -905,8 +904,14 @@ private:
   plan
   replan_group(world const& w, group const& group);
 
-  bool
-  admissible(world const& w) const;
+  enum class admissibility {
+    admissible = 0,
+    incomplete,
+    invalid
+  };
+
+  admissibility
+  plans_admissible(world const& w) const;
 
   bool
   final(agents_state const& state, world const& w) const;
@@ -1118,8 +1123,13 @@ operator_decomposition::step(world& w, std::default_random_engine&) {
   if (predictor_)
     predictor_->update_obstacles(w);
 
-  if (groups_.empty() || !admissible(w))
+  admissibility ad = plans_admissible(w);
+  if (groups_.empty() || ad != admissibility::admissible) {
+    if (ad == admissibility::invalid)
+      ++plan_invalid_;
+
     replan(w);
+  }
 
   joint_action result;
   for (group& group : groups_) {
@@ -1310,12 +1320,16 @@ operator_decomposition::replan_group(world const& w,
   return result;
 }
 
-bool
-operator_decomposition::admissible(world const& w) const {
+auto
+operator_decomposition::plans_admissible(world const& w) const -> admissibility {
+  admissibility result = admissibility::admissible;
+
   for (group const& group : groups_) {
     if (group.plan.size() < 2) {
-      if (group.plan.empty() || !final(group.plan.front(), w))
-        return false;
+      if (group.plan.empty() || !final(group.plan.front(), w)) {
+        result = std::max(result, admissibility::incomplete);
+        continue;
+      }
       else
         continue;
     }
@@ -1323,10 +1337,10 @@ operator_decomposition::admissible(world const& w) const {
     plan::const_iterator next_state = std::prev(std::prev(group.plan.end()));
     for (agent_state_record const& agent : next_state->agents)
       if (w.get(agent.position) == tile::obstacle)
-        return false;
+        return admissibility::invalid;
   }
 
-  return true;
+  return result;
 }
 
 bool
