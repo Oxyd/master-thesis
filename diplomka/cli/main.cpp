@@ -42,7 +42,7 @@ make_solver(std::string const& name,
   unsigned obstacle_penalty = 0;
   double obstacle_threshold = 1.0;
 
-  unsigned window = vm.count("window") ? vm["window"].as<unsigned>() : 10;
+  unsigned window = vm.count("window") ? vm["window"].as<unsigned>() : 0;
   bool avoid_obstacles = vm.count("avoid");
 
   if (avoid_obstacles) {
@@ -53,6 +53,9 @@ make_solver(std::string const& name,
   }
 
   if (iequals(name, "whca") || iequals(name, "whca*")) {
+    if (!vm.count("window"))
+      window = 10;
+
     unsigned rejoin_limit =
       vm.count("rejoin") ? vm["rejoin"].as<unsigned>() : 0;
     return make_whca(
