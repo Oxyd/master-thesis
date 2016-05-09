@@ -858,9 +858,19 @@ private:
     boost::optional<position> from;
   };
 
+  struct permanent_reservation_record {
+    group_id group;
+    tick_t from_time;
+  };
+
   using reservation_table_type = std::unordered_map<
     position_time,
     reservation_table_record
+  >;
+
+  using permanent_reservation_table_type = std::unordered_map<
+    position,
+    permanent_reservation_record
   >;
 
   struct combined_heuristic_distance {
@@ -893,6 +903,8 @@ private:
   std::unordered_map<agent::id_type, a_star<>> hierarchical_distances_;
   group_list groups_;
   reservation_table_type reservation_table_;
+  permanent_reservation_table_type permanent_reservation_table_;
+  tick_t last_nonpermanent_reservation_ = 0;
   unsigned window_;
   std::unique_ptr<predictor> predictor_;
   unsigned obstacle_penalty_ = 100;
@@ -932,6 +944,12 @@ private:
 
   void
   unreserve(group_id);
+
+  boost::optional<group_id>
+  find_conflict(position to, boost::optional<position> from, tick_t time) const;
+
+  boost::optional<group_id>
+  find_permanent_conflict(position, tick_t since) const;
 
   void
   make_hierarchical_distances(world const&);
@@ -1210,6 +1228,8 @@ operator_decomposition::replan(world const& w) {
   ++replans_;
   groups_.clear();
   reservation_table_.clear();
+  permanent_reservation_table_.clear();
+  last_nonpermanent_reservation_ = 0;
 
   make_hierarchical_distances(w);
 
@@ -1250,26 +1270,17 @@ operator_decomposition::replan_groups(world const& w) {
       for (std::size_t i = 0; i < state->agents.size(); ++i) {
         agent_state_record const& agent = state->agents[i];
 
-        boost::optional<group_id> conflicting_group;
-
-        auto conflict = reservation_table_.find({agent.position, time});
-        if (conflict != reservation_table_.end())
-          conflicting_group = conflict->second.group;
-
-        if (!conflicting_group && state != group->plan.rbegin()) {
-          assert(std::prev(state)->agents[i].id == agent.id);
-
-          boost::optional<position> from = std::prev(state)->agents[i].position;
-          if (from) {
-            auto vacated = reservation_table_.find({*from, time});
-            if (vacated != reservation_table_.end() &&
-                vacated->second.from &&
-                *vacated->second.from == agent.position)
-              conflicting_group = vacated->second.group;
-          }
-        }
-
+        boost::optional<group_id> conflicting_group = find_conflict(
+          agent.position,
+          state != group->plan.rbegin()
+            ? boost::optional<position>{std::prev(state)->agents[i].position}
+            : boost::none,
+          time
+        );
         assert(!conflicting_group || group != *conflicting_group);
+
+        if (!conflicting_group && std::next(state) == group->plan.rend())
+          conflicting_group = find_permanent_conflict(agent.position, time);
 
         if (conflicting_group &&
             std::find(conflicts.begin(), conflicts.end(),
@@ -1421,19 +1432,80 @@ operator_decomposition::reserve(plan const& plan, group_id group,
       }
 
       reservation_table_[{state->agents[i].position, time}] = {group, from};
+      last_nonpermanent_reservation_ =
+        std::max(time, last_nonpermanent_reservation_);
     }
 
     ++time;
+  }
+
+  if (plan.empty())
+    return;
+
+  agents_state const& final_state = plan.front();
+  for (agent_state_record const& agent : final_state.agents) {
+    assert(!permanent_reservation_table_.count(agent.position));
+    permanent_reservation_table_[agent.position] = {group, time};
   }
 }
 
 void
 operator_decomposition::unreserve(group_id group) {
-  for (auto it = reservation_table_.begin(); it != reservation_table_.end();)
-    if (it->second.group == group)
-      it = reservation_table_.erase(it);
-    else
-      ++it;
+  auto do_it = [&] (auto& table) {
+    for (auto it = table.begin(); it != table.end();)
+      if (it->second.group == group)
+        it = table.erase(it);
+      else
+        ++it;
+  };
+
+  do_it(reservation_table_);
+  do_it(permanent_reservation_table_);
+}
+
+auto
+operator_decomposition::find_conflict(position to,
+                                      boost::optional<position> from,
+                                      tick_t time) const
+  -> boost::optional<group_id>
+{
+  boost::optional<group_id> conflicting_group;
+
+  auto conflict = reservation_table_.find({to, time});
+  if (conflict != reservation_table_.end())
+    conflicting_group = conflict->second.group;
+
+  if (!conflicting_group && from) {
+    auto vacated = reservation_table_.find({*from, time});
+    if (vacated != reservation_table_.end() &&
+        vacated->second.from &&
+        *vacated->second.from == to)
+      conflicting_group = vacated->second.group;
+  }
+
+  if (!conflicting_group) {
+    auto permanent_conflict =
+      permanent_reservation_table_.find(to);
+    if (permanent_conflict != permanent_reservation_table_.end() &&
+        permanent_conflict->second.from_time <= time)
+      conflicting_group = permanent_conflict->second.group;
+  }
+
+  return conflicting_group;
+}
+
+auto
+operator_decomposition::find_permanent_conflict(position pos,
+                                                tick_t since) const
+  -> boost::optional<group_id>
+{
+  for (tick_t t = since; t < last_nonpermanent_reservation_; ++t) {
+    auto conflict = reservation_table_.find({pos, t});
+    if (conflict != reservation_table_.end())
+      return conflict->second.group;
+  }
+
+  return boost::none;
 }
 
 void
