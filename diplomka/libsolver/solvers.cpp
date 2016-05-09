@@ -823,7 +823,8 @@ public:
 
   std::vector<std::string>
   stat_names() const override {
-    return {"Replans", "Plan invalid", "Nodes primary", "Nodes heuristic"};
+    return {"Replans", "Plan invalid", "Nodes primary", "Nodes heuristic",
+            "Max group size"};
   }
 
   std::vector<std::string>
@@ -832,7 +833,8 @@ public:
       std::to_string(replans_),
       std::to_string(plan_invalid_),
       std::to_string(nodes_primary_),
-      std::to_string(nodes_heuristic_)
+      std::to_string(nodes_heuristic_),
+      std::to_string(max_group_size_)
     };
   }
 
@@ -914,6 +916,7 @@ private:
   unsigned plan_invalid_ = 0;
   unsigned nodes_primary_ = 0;
   unsigned nodes_heuristic_ = 0;
+  unsigned max_group_size_ = 0;
 
   void
   replan(world const& w);
@@ -1307,6 +1310,9 @@ operator_decomposition::replan_groups(world const& w) {
 path<agents_state>
 operator_decomposition::replan_group(world const& w,
                                      group const& group) {
+  max_group_size_ = std::max(max_group_size_,
+                             (unsigned) group.starting_positions.size());
+
   agents_state current_state;
   agents_state goal_state;
 
