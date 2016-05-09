@@ -844,6 +844,9 @@ public:
   std::unordered_map<position_time, double>
   get_obstacle_field() const override;
 
+  void
+  window(unsigned new_window) { window_ = new_window; }
+
 private:
   using plan = path<agents_state>;
 
