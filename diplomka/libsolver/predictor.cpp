@@ -111,7 +111,7 @@ namespace {
 class recursive_predictor : public predictor {
 public:
   recursive_predictor(world const& w, unsigned cutoff)
-    : map_(w.map().get())
+    : world_(&w)
     , cutoff_(cutoff)
     , estimator_(w)
   {}
@@ -126,7 +126,7 @@ public:
 private:
   std::unordered_map<position_time, double> obstacles_;
   tick_t last_update_time_ = 0;
-  map const* map_ = nullptr;
+  world const* world_ = nullptr;
   unsigned cutoff_ = 0;
   movement_estimator estimator_;
 };
@@ -140,7 +140,7 @@ make_recursive_predictor(world const& w, unsigned cutoff) {
 
 void
 recursive_predictor::update_obstacles(world const& w) {
-  assert(map_ == w.map().get());
+  assert(world_->map() == w.map().get());
 
   if (w.tick() == last_update_time_)
     return;
@@ -173,8 +173,9 @@ recursive_predictor::predict_obstacle(position_time where) {
       continue;
     }
 
-    if (pt.time == last_update_time_ ||
-        map_->get(pt.x, pt.y) == tile::wall) {
+    if (pt.time == last_update_time_
+        || world_->get({pt.x, pt.y}) == tile::wall
+        || world_->get({pt.x, pt.y}) == tile::agent) {
       obstacles_[pt] = 0.0;
       stack.pop();
 
@@ -198,7 +199,7 @@ recursive_predictor::predict_obstacle(position_time where) {
         position p = translate({pt.x, pt.y}, d);
         position_time neighbour_pt{p, pt.time - 1};
 
-        if (map_->get(p) == tile::wall)
+        if (world_->get(p) == tile::wall || world_->get(p) == tile::agent)
           continue;
 
         auto neighbour = obstacles_.find(neighbour_pt);
