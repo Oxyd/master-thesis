@@ -40,7 +40,7 @@ world_scene::attach(world const* w) {
 static QPen const black_pen{{0, 0, 0}};
 static QPen const white_pen{{255, 255, 255}};
 static QPen const highlight_pen{QBrush{QColor{0, 0, 0}}, 2};
-static QPen const target_pen{QBrush{QColor{127, 127, 127, 64}}, 1};
+static QPen const target_pen{QBrush{QColor{255, 0, 0, 200}}, 1};
 static QBrush const wall_brush{QColor{0, 0, 0}};
 static QBrush const obstacle_brush{QColor{255, 0, 0}};
 static QBrush const brush{{0, 255, 0}};
