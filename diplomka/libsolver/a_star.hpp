@@ -23,7 +23,7 @@ struct always_passable {
 struct manhattan_distance_heuristic {
   position destination;
 
-  double operator () (position from, world const&, unsigned) const {
+  double operator () (position from, world const&) const {
     return distance(from, destination);
   }
 };
@@ -117,7 +117,7 @@ public:
     , step_cost_(std::move(step_cost))
   {
     node* start = node_pool_.construct(
-      node(from, 0.0, distance_(from, w, 0), 0u)
+      node(from, 0.0, distance_(from, w), 0u)
     );
     handle_type h = heap_.push(start);
     open_.insert({Coordinate::make(from, 0), h});
@@ -297,7 +297,7 @@ private:
         } else {
           node* neighbour_node = node_pool_.construct(node(
             neighbour, current->g + step_cost,
-            distance_(neighbour, w, current->steps_distance + 1),
+            distance_(neighbour, w),
             current->steps_distance + 1
           ));
           handle_type h = heap_.push(neighbour_node);

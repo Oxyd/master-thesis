@@ -277,7 +277,7 @@ private:
     double agitation;
     std::default_random_engine& rng;
 
-    double operator () (position from, world const&, unsigned) const;
+    double operator () (position from, world const&) const;
   };
 
   std::unordered_map<agent::id_type, agent_data> data_;
@@ -309,7 +309,7 @@ lra::stat_values() const {
 }
 
 double
-lra::agitated_distance::operator () (position from, world const&, unsigned) const {
+lra::agitated_distance::operator () (position from, world const&) const {
   std::uniform_real_distribution<> agit(0.0, agitation);
   return distance(from, destination) + agit(rng);
 }
@@ -403,8 +403,7 @@ private:
       : h_search_(h_search)
     { }
 
-    double operator () (position from, world const& w,
-                        unsigned distance_so_far);
+    double operator () (position from, world const& w);
 
   private:
     heuristic_search_type& h_search_;
@@ -590,12 +589,12 @@ cooperative_a_star::unreserve(agent::id_type a_id) {
 double
 cooperative_a_star::hierarchical_distance::operator () (
   position from,
-  world const& w,
-  unsigned
+  world const& w
 ) {
   if (from == h_search_.from())
     return 0.0;
 
+  
   return h_search_.find_distance(from, w);
 }
 
@@ -869,8 +868,7 @@ private:
     );
 
     unsigned
-    operator () (agents_state const& state, world const& w,
-                 unsigned distance_so_far) const;
+    operator () (agents_state const& state, world const& w) const;
 
   private:
     std::unordered_map<agent::id_type, a_star<>>& h_searches_;
@@ -1069,7 +1067,7 @@ combined_heuristic_distance::combined_heuristic_distance(
 
 unsigned
 operator_decomposition::combined_heuristic_distance::operator () (
-  agents_state const& state, world const& w, unsigned
+  agents_state const& state, world const& w
 ) const {
   unsigned result = 0;
   for (agent_state_record const& agent : state.agents) {
