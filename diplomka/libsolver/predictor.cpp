@@ -140,7 +140,7 @@ make_recursive_predictor(world const& w, unsigned cutoff) {
 
 void
 recursive_predictor::update_obstacles(world const& w) {
-  assert(world_->map() == w.map().get());
+  assert(world_->map() == w.map());
 
   if (w.tick() == last_update_time_)
     return;

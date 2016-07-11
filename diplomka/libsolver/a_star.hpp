@@ -28,6 +28,12 @@ struct manhattan_distance_heuristic {
   }
 };
 
+struct unitary_step_cost {
+  template <typename T>
+  double
+  operator () (T, unsigned) const { return 1.0; }
+};
+
 template <typename StateT = position>
 struct space_coordinate {
   using type = StateT;
@@ -90,6 +96,7 @@ template <
   typename SuccessorsFunc = position_successors,
   typename Passable = always_passable,
   typename Distance = manhattan_distance_heuristic,
+  typename StepCost = unitary_step_cost,
   typename Coordinate = space_coordinate<State>,
   template <typename, typename> class DistanceStorage =
     position_distance_storage
@@ -98,17 +105,20 @@ class a_star {
 public:
   a_star(State const& from, State const& to, world const& w,
          Passable passable = Passable{})
-    : a_star(from, to, w, Distance{to}, passable) { }
+    : a_star(from, to, w, Distance{to}, StepCost{}, passable) { }
 
   a_star(State const& from, State const& to, world const& w,
-         Distance distance,
+         Distance distance, StepCost step_cost,
          Passable passable = Passable{})
     : from_(from)
     , to_(to)
     , passable_(std::move(passable))
     , distance_(std::move(distance))
+    , step_cost_(std::move(step_cost))
   {
-    node* start = node_pool_.construct(from, 0, distance_(from, w, 0));
+    node* start = node_pool_.construct(
+      node(from, 0.0, distance_(from, w, 0), 0u)
+    );
     handle_type h = heap_.push(start);
     open_.insert({Coordinate::make(from, 0), h});
   }
@@ -127,13 +137,19 @@ public:
   path<State>
   find_path_to_goal_or_window(world const& w, unsigned window) {
     return do_find_path(
-      w, [&] (node const* n) { return n->pos == to_ || n->g == window; }
+      w, [&] (node const* n) {
+        return n->pos == to_ || n->steps_distance == window;
+      }
     );
   }
 
   path<State>
   find_path(world const& w, unsigned window) {
-    return do_find_path(w, [&] (node const* n) { return n->g == window; });
+    return do_find_path(
+      w, [&] (node const* n) {
+        return n->steps_distance == window;
+      }
+    );
   }
 
   template <typename PositionPred>
@@ -168,13 +184,14 @@ public:
 private:
   struct node {
     State pos;
-    unsigned g;
+    double g;
     double h;
+    unsigned steps_distance;
 
     node* come_from = nullptr;
 
-    node(State const& pos, unsigned g, double h)
-      : pos(pos), g(g), h(h) { }
+    node(State const& pos, double g, double h, unsigned steps_distance)
+      : pos(pos), g(g), h(h), steps_distance(steps_distance) { }
 
     double f() const { return g + h; }
   };
@@ -206,6 +223,7 @@ private:
   DistanceStorage<State, node*> distance_storage_;
   Passable passable_;
   Distance distance_;
+  StepCost step_cost_;
 
   template <typename EndPred>
   path<State>
@@ -232,7 +250,7 @@ private:
     while (!heap_.empty()) {
       node* const current = heap_.top();
       coordinate_type const current_coord =
-        Coordinate::make(current->pos, current->g);
+        Coordinate::make(current->pos, current->steps_distance);
 
       assert(open_.count(current_coord));
       assert(!closed_.count(current_coord));
@@ -245,38 +263,43 @@ private:
 
       ++expanded_;
 
-      if (current->g == limit)
+      if (current->steps_distance == limit)
         return nullptr;
 
       std::vector<State> neighbours = SuccessorsFunc::get(current->pos, w);
 
-      if (Coordinate::make(current->pos, current->g + 1) != current_coord)
+      if (Coordinate::make(current->pos, current->steps_distance + 1)
+          != current_coord)
         neighbours.push_back(current->pos);
 
       for (State const& neighbour : neighbours) {
         coordinate_type const neighbour_coord =
-          Coordinate::make(neighbour, current->g + 1);
+          Coordinate::make(neighbour, current->steps_distance + 1);
 
         if (closed_.count(neighbour_coord))
           continue;
 
-        if (!passable_(neighbour, current->pos, w, current->g + 1))
+        if (!passable_(neighbour, current->pos, w, current->steps_distance + 1))
           continue;
 
+        double step_cost = step_cost_(neighbour_coord,
+                                      current->steps_distance + 1);
         auto n = open_.find(neighbour_coord);
         if (n != open_.end()) {
           handle_type neighbour_handle = n->second;
-          if ((**neighbour_handle).g > current->g + 1) {
-            (**neighbour_handle).g = current->g + 1;
+          if ((**neighbour_handle).g > current->g + step_cost) {
+            (**neighbour_handle).g = current->g + step_cost;
             (**neighbour_handle).come_from = current;
+            (**neighbour_handle).steps_distance = current->steps_distance + 1;
             heap_.decrease(neighbour_handle);
           }
 
         } else {
-          node* neighbour_node = node_pool_.construct(
-            neighbour, current->g + 1,
-            distance_(neighbour, w, current->g + 1)
-          );
+          node* neighbour_node = node_pool_.construct(node(
+            neighbour, current->g + step_cost,
+            distance_(neighbour, w, current->steps_distance + 1),
+            current->steps_distance + 1
+          ));
           handle_type h = heap_.push(neighbour_node);
           neighbour_node->come_from = current;
           open_.insert({neighbour_coord, h});

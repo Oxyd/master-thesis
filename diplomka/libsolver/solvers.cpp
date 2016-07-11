@@ -336,6 +336,7 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng,
   > as(
     from, a.target, w,
     agitated_distance{a.target, data_[a.id()].agitation, rng},
+    unitary_step_cost{},
     passable_not_immediate_neighbour{from}
   );
   path<> new_path = as.find_path(w);
@@ -398,11 +399,8 @@ private:
   void unreserve(agent::id_type);
 
   struct hierarchical_distance {
-    hierarchical_distance(heuristic_search_type& h_search, predictor* p,
-                          unsigned obstacle_penalty)
+    hierarchical_distance(heuristic_search_type& h_search)
       : h_search_(h_search)
-      , predictor_(p)
-      , obstacle_penalty_(obstacle_penalty)
     { }
 
     double operator () (position from, world const& w,
@@ -410,25 +408,6 @@ private:
 
   private:
     heuristic_search_type& h_search_;
-    predictor* predictor_;
-    unsigned obstacle_penalty_ = 100;
-  };
-
-  struct predicted_manhattan_distance {
-    predicted_manhattan_distance(position destination, predictor* p,
-                                 unsigned obstacle_penalty)
-      : destination_(destination)
-      , predictor_(p)
-      , obstacle_penalty_(obstacle_penalty)
-    { }
-
-    double operator () (position from, world const& w,
-                        unsigned distance_so_far);
-
-  private:
-    position destination_;
-    predictor* predictor_;
-    unsigned obstacle_penalty_;
   };
 
   struct passable_if_not_predicted_obstacle {
@@ -447,6 +426,22 @@ private:
     passable_if_not_reserved not_reserved_;
     predictor*predictor_;
     double threshold_;
+  };
+
+  struct predicted_cost {
+    predicted_cost(predictor* p, tick_t start_tick, unsigned obstacle_penalty)
+      : predictor_(p)
+      , start_tick_(start_tick)
+      , obstacle_penalty_(obstacle_penalty)
+    { }
+
+    double
+    operator () (position_time pt, unsigned) const;
+
+  private:
+    predictor* predictor_;
+    tick_t start_tick_;
+    unsigned obstacle_penalty_;
   };
 
   std::unique_ptr<predictor> predictor_;
@@ -596,36 +591,12 @@ double
 cooperative_a_star::hierarchical_distance::operator () (
   position from,
   world const& w,
-  unsigned distance_so_far
+  unsigned
 ) {
   if (from == h_search_.from())
     return 0.0;
 
-  unsigned h_distance = h_search_.find_distance(from, w);
-  double obstacle_prob =
-    predictor_
-    ? predictor_->predict_obstacle({from, w.tick() + distance_so_far})
-    : 0.0;
-
-  return h_distance + obstacle_prob * obstacle_penalty_;
-}
-
-double
-cooperative_a_star::predicted_manhattan_distance::operator () (
-  position from,
-  world const& w,
-  unsigned distance_so_far
-) {
-  if (from == destination_)
-    return 0.0;
-
-  unsigned md = distance(from, destination_);
-  double obstacle_prob =
-    predictor_
-    ? predictor_->predict_obstacle({from, w.tick() + distance_so_far})
-    : 0.0;
-
-  return md + obstacle_prob * obstacle_penalty_;
+  return h_search_.find_distance(from, w);
 }
 
 bool
@@ -636,6 +607,18 @@ cooperative_a_star::passable_if_not_predicted_obstacle::operator () (
     not_reserved_(where, from, w, distance) &&
     (!predictor_ ||
      predictor_->predict_obstacle({where, w.tick() + distance}) <= threshold_);
+}
+
+double
+cooperative_a_star::predicted_cost::operator () (position_time pt,
+                                                 unsigned) const {
+  if (!predictor_)
+    return 1.0;
+
+  return
+    1.0
+    + predictor_->predict_obstacle({pt.x, pt.y, start_tick_ + pt.time})
+    * obstacle_penalty_;
 }
 
 path<>
@@ -665,11 +648,13 @@ cooperative_a_star::find_path(position from, world const& w,
       position_successors,
       passable_if_not_predicted_obstacle,
       hierarchical_distance,
+      predicted_cost,
       space_time_coordinate
     >;
     search_type as(
       from, a.target, w,
-      hierarchical_distance(h_search, predictor_.get(), obstacle_penalty_),
+      hierarchical_distance(h_search),
+      predicted_cost(predictor_.get(), w.tick(), obstacle_penalty_),
       passable_if_not_predicted_obstacle(
         predictor_.get(),
         passable_if_not_reserved(agent_reservations_, a, from),
@@ -725,13 +710,13 @@ cooperative_a_star::rejoin_path(position from, world const& w,
     position,
     position_successors,
     passable_if_not_predicted_obstacle,
-    predicted_manhattan_distance,
+    manhattan_distance_heuristic,
+    predicted_cost,
     space_time_coordinate
   >;
   search_type as(from, *to, w,
-                 predicted_manhattan_distance(
-                   *to, predictor_.get(), obstacle_penalty_
-                 ),
+                 manhattan_distance_heuristic{},
+                 predicted_cost(predictor_.get(), w.tick(), obstacle_penalty_),
                  passable_if_not_predicted_obstacle(
                    predictor_.get(),
                    passable_if_not_reserved(agent_reservations_, a, from),
@@ -880,9 +865,7 @@ private:
 
   struct combined_heuristic_distance {
     combined_heuristic_distance(
-      std::unordered_map<agent::id_type, a_star<>>& h_searches,
-      predictor* predictor,
-      unsigned obstacle_penalty
+      std::unordered_map<agent::id_type, a_star<>>& h_searches
     );
 
     unsigned
@@ -891,8 +874,23 @@ private:
 
   private:
     std::unordered_map<agent::id_type, a_star<>>& h_searches_;
+  };
+
+  struct predicted_step_cost {
+    predicted_step_cost(predictor* predictor, unsigned obstacle_penalty,
+                        tick_t start_time)
+      : predictor_(predictor)
+      , obstacle_penalty_(obstacle_penalty)
+      , start_time_(start_time)
+    { }
+
+    double
+    operator () (agents_state const& state, tick_t time) const;
+
+  private:
     predictor* predictor_;
     unsigned obstacle_penalty_;
+    tick_t start_time_;
   };
 
   struct passable_not_immediate_neighbour {
@@ -1064,18 +1062,14 @@ state_successors::get(agents_state const& state, world const& w) {
 
 operator_decomposition::
 combined_heuristic_distance::combined_heuristic_distance(
-  std::unordered_map<agent::id_type, a_star<>>& h_searches,
-  predictor* predictor,
-  unsigned obstacle_penalty
+  std::unordered_map<agent::id_type, a_star<>>& h_searches
 )
   : h_searches_(h_searches)
-  , predictor_(predictor)
-  , obstacle_penalty_(obstacle_penalty)
 {}
 
 unsigned
 operator_decomposition::combined_heuristic_distance::operator () (
-  agents_state const& state, world const& w, unsigned distance_so_far
+  agents_state const& state, world const& w, unsigned
 ) const {
   unsigned result = 0;
   for (agent_state_record const& agent : state.agents) {
@@ -1083,16 +1077,25 @@ operator_decomposition::combined_heuristic_distance::operator () (
     assert(h_search != h_searches_.end());
 
     result += h_search->second.find_distance(agent.position, w);
-
-    if (predictor_)
-      result += obstacle_penalty_ * predictor_->predict_obstacle(
-        {agent.position, w.tick() + distance_so_far}
-      );
   }
 
   return result;
 }
 
+double
+operator_decomposition::predicted_step_cost::operator () (
+  agents_state const& state,
+  tick_t time
+) const {
+  if (!predictor_)
+    return 1.0;
+
+  return
+    1.0
+    + predictor_->predict_obstacle({state.agents[state.next_agent].position,
+                                    start_time_ + time})
+    * obstacle_penalty_;
+}
 
 namespace std {
 
@@ -1332,6 +1335,7 @@ operator_decomposition::replan_group(world const& w,
     state_successors,
     passable_not_immediate_neighbour,
     combined_heuristic_distance,
+    predicted_step_cost,
     space_coordinate<agents_state>,
     no_distance_storage
   >;
@@ -1339,9 +1343,8 @@ operator_decomposition::replan_group(world const& w,
     current_state,
     goal_state,
     w,
-    combined_heuristic_distance(
-      hierarchical_distances_, predictor_.get(), obstacle_penalty_
-    ),
+    combined_heuristic_distance(hierarchical_distances_),
+    predicted_step_cost(predictor_.get(), obstacle_penalty_, w.tick()),
     passable_not_immediate_neighbour{current_state, predictor_.get()}
   );
 
