@@ -18,14 +18,25 @@ SOURCES += \
     action.cpp \
     predictor.cpp \
     solvers.cpp \
-    log_sinks.cpp
+    log_sinks.cpp \
+    greedy.cpp \
+    separate_paths_solver.cpp \
+    lra.cpp \
+    whca.cpp \
+    operator_decomposition.cpp
 
 HEADERS += \
     world.hpp \
     action.hpp \
     predictor.hpp \
     solvers.hpp \
-    a_star.hpp
+    a_star.hpp \
+    greedy.hpp \
+    separate_paths_solver.hpp \
+    lra.hpp \
+    whca.hpp \
+    operator_decomposition.hpp
+
 unix {
     target.path = /usr/lib
     INSTALLS += target

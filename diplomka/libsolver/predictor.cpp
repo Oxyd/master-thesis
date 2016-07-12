@@ -384,3 +384,25 @@ matrix_predictor::field() const {
 
   return result;
 }
+
+double
+predicted_cost::operator () (position_time pt, unsigned) const {
+  if (!predictor_)
+    return 1.0;
+
+  return
+    1.0
+    + predictor_->predict_obstacle({pt.x, pt.y, start_tick_ + pt.time})
+    * obstacle_penalty_;
+}
+
+double
+predicted_cost::operator () (position p, unsigned distance) const {
+  if (!predictor_)
+    return 1.0;
+
+  return
+    1.0
+    + predictor_->predict_obstacle({p.x, p.y, start_tick_ + distance})
+    * obstacle_penalty_;
+}
