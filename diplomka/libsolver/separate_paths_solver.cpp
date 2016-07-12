@@ -1,9 +1,19 @@
 #include "separate_paths_solver.hpp"
 
 #include "log_sinks.hpp"
+#include "predictor.hpp"
 
-separate_paths_solver::separate_paths_solver(log_sink& log)
-  : log_(log) { }
+separate_paths_solver::separate_paths_solver(
+  log_sink& log,
+  std::unique_ptr<predictor> predictor,
+  unsigned obstacle_penalty,
+  double obstacle_threshold
+)
+  : log_(log)
+  , predictor_(std::move(predictor))
+  , obstacle_penalty_(obstacle_penalty)
+  , obstacle_threshold_(obstacle_threshold)
+{ }
 
 void
 separate_paths_solver::step(

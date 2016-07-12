@@ -9,10 +9,8 @@ public:
                std::unique_ptr<predictor> predictor,
                unsigned obstacle_penalty,
                double obstacle_threshold)
-    : separate_paths_solver(log)
-    , predictor_(std::move(predictor))
-    , obstacle_penalty_(obstacle_penalty)
-    , obstacle_threshold_(obstacle_threshold)
+    : separate_paths_solver(log, std::move(predictor), obstacle_penalty,
+                            obstacle_threshold)
   { }
 
   void step(world& w, std::default_random_engine& rng) override;
@@ -69,9 +67,6 @@ private:
 
   std::unordered_map<agent::id_type, agent_data> data_;
   unsigned nodes_ = 0;
-  std::unique_ptr<predictor> predictor_;
-  unsigned obstacle_penalty_;
-  double obstacle_threshold_;
 
   path<> find_path(position, world const&, std::default_random_engine&,
                    boost::optional<path<> const&>) override;

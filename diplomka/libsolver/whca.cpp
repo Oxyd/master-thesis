@@ -7,12 +7,10 @@ whca::whca(log_sink& log, unsigned window,
            std::unique_ptr<predictor> predictor,
            unsigned obstacle_penalty,
            double obstacle_threshold)
-  : separate_paths_solver(log)
-  , predictor_(std::move(predictor))
+  : separate_paths_solver(log, std::move(predictor), obstacle_penalty,
+                          obstacle_threshold)
   , window_(window)
   , rejoin_limit_(rejoin_limit)
-  , obstacle_penalty_(obstacle_penalty)
-  , obstacle_threshold_(obstacle_threshold)
 { }
 
 void whca::step(world& w, std::default_random_engine& rng) {

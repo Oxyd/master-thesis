@@ -6,7 +6,10 @@
 class separate_paths_solver : public solver {
 public:
   explicit
-  separate_paths_solver(log_sink& log);
+  separate_paths_solver(log_sink& log,
+                        std::unique_ptr<predictor> predictor,
+                        unsigned obstacle_penalty,
+                        double obstacle_threshold);
 
   void
   step(world&, std::default_random_engine&) override;
@@ -27,6 +30,10 @@ protected:
   unsigned times_without_path_ = 0;
   unsigned recalculations_ = 0;
   unsigned path_invalid_ = 0;
+
+  std::unique_ptr<predictor> predictor_;
+  unsigned obstacle_penalty_ = 100;
+  double obstacle_threshold_ = 0.1;
 
 private:
   std::unordered_map<agent::id_type, path<>> paths_;

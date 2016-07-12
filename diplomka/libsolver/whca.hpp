@@ -93,8 +93,6 @@ private:
   unsigned rejoin_limit_ = 0;
   unsigned rejoin_attempts_ = 0;
   unsigned rejoin_successes_ = 0;
-  unsigned obstacle_penalty_ = 100;
-  double obstacle_threshold_ = 0.1;
 
   path<> find_path(position, world const&, std::default_random_engine&,
                    boost::optional<path<> const&> old_path) override;
