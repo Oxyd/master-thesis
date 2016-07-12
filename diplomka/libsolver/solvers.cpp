@@ -98,6 +98,25 @@ greedy::step(world& world, std::default_random_engine& rng) {
 
 namespace {
 
+struct predicted_cost {
+  predicted_cost(predictor* p, tick_t start_tick, unsigned obstacle_penalty)
+    : predictor_(p)
+    , start_tick_(start_tick)
+    , obstacle_penalty_(obstacle_penalty)
+  { }
+
+  double
+  operator () (position_time pt, unsigned) const;
+
+  double
+  operator () (position p, unsigned distance) const;
+
+private:
+  predictor* predictor_;
+  tick_t start_tick_;
+  unsigned obstacle_penalty_;
+};
+
 class separate_paths_solver : public solver {
 public:
   explicit
@@ -139,6 +158,28 @@ private:
             boost::optional<path<> const&> old_path) = 0;
 };
 
+}
+
+double
+predicted_cost::operator () (position_time pt, unsigned) const {
+  if (!predictor_)
+    return 1.0;
+
+  return
+    1.0
+    + predictor_->predict_obstacle({pt.x, pt.y, start_tick_ + pt.time})
+    * obstacle_penalty_;
+}
+
+double
+predicted_cost::operator () (position p, unsigned distance) const {
+  if (!predictor_)
+    return 1.0;
+
+  return
+    1.0
+    + predictor_->predict_obstacle({p.x, p.y, start_tick_ + distance})
+    * obstacle_penalty_;
 }
 
 separate_paths_solver::separate_paths_solver(log_sink& log)
@@ -250,7 +291,18 @@ namespace {
 
 class lra : public separate_paths_solver {
 public:
-  explicit lra(log_sink& log) : separate_paths_solver(log) { }
+  explicit lra(log_sink& log,
+               std::unique_ptr<predictor> predictor,
+               unsigned obstacle_penalty,
+               double obstacle_threshold)
+    : separate_paths_solver(log)
+    , predictor_(std::move(predictor))
+    , obstacle_penalty_(obstacle_penalty)
+    , obstacle_threshold_(obstacle_threshold)
+  { }
+
+  void step(world& w, std::default_random_engine& rng) override;
+
   std::string name() const override { return "LRA*"; }
 
   std::vector<std::string>
@@ -258,6 +310,14 @@ public:
 
   std::vector<std::string>
   stat_values() const override;
+
+  std::unordered_map<position_time, double>
+  get_obstacle_field() const override {
+    if (predictor_)
+      return predictor_->field();
+    else
+      return {};
+  }
 
 private:
   struct agent_data {
@@ -267,9 +327,33 @@ private:
 
   struct passable_not_immediate_neighbour {
     position from;
-    bool operator () (position p, position, world const& w, unsigned) {
+    bool operator () (position p, position, world const& w, unsigned) const {
       return w.get(p) == tile::free || !neighbours(p, from);
     }
+  };
+
+  struct passable_if_not_predicted_obstacle {
+    passable_if_not_predicted_obstacle(position from,
+                                       predictor* predictor,
+                                       double threshold)
+      : not_neighbour_{from}
+      , predictor_(predictor)
+      , threshold_(threshold)
+    { }
+
+    bool operator () (position where, position from, world const& w,
+                      unsigned distance) const {
+      return
+        not_neighbour_(where, from, w, distance)
+        && (!predictor_
+            || (predictor_->predict_obstacle({where, w.tick() + distance})
+                <= threshold_));
+    }
+
+  private:
+    passable_not_immediate_neighbour not_neighbour_;
+    predictor* predictor_;
+    double threshold_;
   };
 
   struct agitated_distance {
@@ -282,6 +366,9 @@ private:
 
   std::unordered_map<agent::id_type, agent_data> data_;
   unsigned nodes_ = 0;
+  std::unique_ptr<predictor> predictor_;
+  unsigned obstacle_penalty_;
+  double obstacle_threshold_;
 
   path<> find_path(position, world const&, std::default_random_engine&,
                    boost::optional<path<> const&>) override;
@@ -290,8 +377,18 @@ private:
 }
 
 std::unique_ptr<solver>
-make_lra(log_sink& log) {
-  return std::make_unique<lra>(log);
+make_lra(log_sink& log, std::unique_ptr<predictor> predictor,
+         unsigned obstacle_penalty, double obstacle_threshold) {
+  return std::make_unique<lra>(log, std::move(predictor), obstacle_penalty,
+                               obstacle_threshold);
+}
+
+void
+lra::step(world& w, std::default_random_engine& rng) {
+  if (predictor_)
+    predictor_->update_obstacles(w);
+
+  separate_paths_solver::step(w, rng);
 }
 
 std::vector<std::string>
@@ -332,12 +429,15 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng,
 
   a_star<
     position, position_successors,
-    passable_not_immediate_neighbour, agitated_distance
+    passable_if_not_predicted_obstacle, agitated_distance,
+    predicted_cost
   > as(
     from, a.target, w,
     agitated_distance{a.target, data_[a.id()].agitation, rng},
-    unitary_step_cost{},
-    passable_not_immediate_neighbour{from}
+    predicted_cost(predictor_.get(), w.tick(), obstacle_penalty_),
+    passable_if_not_predicted_obstacle{
+      from, predictor_.get(), obstacle_threshold_
+    }
   );
   path<> new_path = as.find_path(w);
   nodes_ += as.nodes_expanded();
@@ -425,22 +525,6 @@ private:
     passable_if_not_reserved not_reserved_;
     predictor*predictor_;
     double threshold_;
-  };
-
-  struct predicted_cost {
-    predicted_cost(predictor* p, tick_t start_tick, unsigned obstacle_penalty)
-      : predictor_(p)
-      , start_tick_(start_tick)
-      , obstacle_penalty_(obstacle_penalty)
-    { }
-
-    double
-    operator () (position_time pt, unsigned) const;
-
-  private:
-    predictor* predictor_;
-    tick_t start_tick_;
-    unsigned obstacle_penalty_;
   };
 
   std::unique_ptr<predictor> predictor_;
@@ -606,18 +690,6 @@ cooperative_a_star::passable_if_not_predicted_obstacle::operator () (
     not_reserved_(where, from, w, distance) &&
     (!predictor_ ||
      predictor_->predict_obstacle({where, w.tick() + distance}) <= threshold_);
-}
-
-double
-cooperative_a_star::predicted_cost::operator () (position_time pt,
-                                                 unsigned) const {
-  if (!predictor_)
-    return 1.0;
-
-  return
-    1.0
-    + predictor_->predict_obstacle({pt.x, pt.y, start_tick_ + pt.time})
-    * obstacle_penalty_;
 }
 
 path<>

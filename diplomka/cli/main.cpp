@@ -68,7 +68,8 @@ make_solver(std::string const& name,
   }
 
   if (iequals(name, "lra") || iequals(name, "lra*"))
-    return make_lra(null_log_sink);
+    return make_lra(null_log_sink, std::move(predictor), obstacle_penalty,
+                    obstacle_threshold);
 
   if (iequals(name, "od"))
     return make_od(window, std::move(predictor),
