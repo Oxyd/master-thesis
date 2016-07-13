@@ -73,12 +73,15 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng) {
   if (from == a.target)
     return {};
 
-  tick_t const recalc_interval = w.tick() - data_[a.id()].last_recalculation;
-  assert(recalc_interval > 0);
-  if (recalc_interval < 5)
-    data_[a.id()].agitation += 5 / recalc_interval;
-  else
-    data_[a.id()].agitation = 0.0;
+  if (data_[a.id()].last_recalculation) {
+    tick_t const recalc_interval = w.tick() - *data_[a.id()].last_recalculation;
+    assert(recalc_interval > 0);
+
+    if (recalc_interval < 5)
+      data_[a.id()].agitation += 5 / recalc_interval;
+    else
+      data_[a.id()].agitation = 0.0;
+  }
 
   a_star<
     position, position_successors,

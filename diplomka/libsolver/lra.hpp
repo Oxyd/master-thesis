@@ -42,7 +42,7 @@ public:
 
 private:
   struct agent_data {
-    tick_t last_recalculation = 0;
+    boost::optional<tick_t> last_recalculation;
     double agitation = 0;
   };
 
