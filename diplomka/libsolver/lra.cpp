@@ -3,13 +3,14 @@
 #include "a_star.hpp"
 #include "predictor.hpp"
 
-void
-lra::step(world& w, std::default_random_engine& rng) {
-  if (predictor_)
-    predictor_->update_obstacles(w);
-
-  separate_paths_solver::step(w, rng);
-}
+lra::lra(log_sink& log,
+         unsigned rejoin_limit,
+         std::unique_ptr<predictor> predictor,
+         unsigned obstacle_penalty,
+         double obstacle_threshold)
+: separate_paths_solver(log, rejoin_limit, std::move(predictor),
+                        obstacle_penalty, obstacle_threshold)
+{ }
 
 std::vector<std::string>
 lra::stat_names() const {
@@ -33,6 +34,19 @@ lra::get_obstacle_field() const {
     return {};
 }
 
+auto
+lra::make_rejoin_search(position from, position to, world const& w,
+                        agent const&) const
+  -> std::unique_ptr<rejoin_search_type> {
+  return std::make_unique<rejoin_search_type>(
+    from, to, w,
+    manhattan_distance_heuristic{},
+    predicted_cost(predictor_.get(), w.tick(), obstacle_penalty_),
+    passable_if_not_predicted_obstacle(from, predictor_.get(),
+                                       obstacle_threshold_)
+  );
+}
+
 double
 lra::agitated_distance::operator () (position from, world const&) const {
   std::uniform_real_distribution<> agit(0.0, agitation);
@@ -52,8 +66,7 @@ lra::passable_if_not_predicted_obstacle::operator () (
 
 
 path<>
-lra::find_path(position from, world const& w, std::default_random_engine& rng,
-               boost::optional<path<> const&>) {
+lra::find_path(position from, world const& w, std::default_random_engine& rng) {
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 

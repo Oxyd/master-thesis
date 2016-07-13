@@ -35,7 +35,9 @@ std::unique_ptr<solver>
 make_greedy();
 
 std::unique_ptr<solver>
-make_lra(log_sink&, std::unique_ptr<predictor> predictor,
+make_lra(log_sink&,
+         unsigned rejoin_limit,
+         std::unique_ptr<predictor> predictor,
          unsigned obstacle_penalty, double obstacle_threshold);
 
 std::unique_ptr<solver>

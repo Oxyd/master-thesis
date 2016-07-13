@@ -7,26 +7,17 @@ whca::whca(log_sink& log, unsigned window,
            std::unique_ptr<predictor> predictor,
            unsigned obstacle_penalty,
            double obstacle_threshold)
-  : separate_paths_solver(log, std::move(predictor), obstacle_penalty,
-                          obstacle_threshold)
+  : separate_paths_solver(log, rejoin_limit, std::move(predictor),
+                          obstacle_penalty, obstacle_threshold)
   , window_(window)
-  , rejoin_limit_(rejoin_limit)
 { }
-
-void whca::step(world& w, std::default_random_engine& rng) {
-  if (predictor_)
-    predictor_->update_obstacles(w);
-
-  separate_paths_solver::step(w, rng);
-}
 
 std::vector<std::string>
 whca::stat_names() const {
   std::vector<std::string> result = separate_paths_solver::stat_names();
   result.insert(result.end(),
                 {"Primary nodes expanded", "Heuristic nodes expanded",
-                 "Rejoin nodes expanded", "Total nodes expanded",
-                 "Rejoin attempts", "Rejoin successes", "Rejoin success rate"});
+                 "Total nodes expanded"});
   return result;
 }
 
@@ -38,24 +29,26 @@ whca::stat_values() const {
     {
       std::to_string(nodes_primary_),
       std::to_string(nodes_heuristic_),
-      std::to_string(nodes_rejoin_),
-      std::to_string(nodes_primary_ + nodes_heuristic_ + nodes_rejoin_),
-      std::to_string(rejoin_attempts_),
-      std::to_string(rejoin_successes_),
-      rejoin_attempts_ > 0
-        ? std::to_string((double) rejoin_successes_ / (double) rejoin_attempts_)
-        : "0"
+      std::to_string(nodes_primary_ + nodes_heuristic_),
     }
   );
   return result;
 }
 
-std::unordered_map<position_time, double>
-whca::get_obstacle_field() const {
-  if (predictor_)
-    return predictor_->field();
-  else
-    return {};
+auto
+whca::make_rejoin_search(position from, position to, world const& w,
+                         agent const& agent) const
+  -> std::unique_ptr<rejoin_search_type> {
+  return std::make_unique<rejoin_search_type>(
+    from, to, w,
+    manhattan_distance_heuristic{},
+    predicted_cost(predictor_.get(), w.tick(), obstacle_penalty_),
+    passable_if_not_predicted_obstacle(
+      predictor_.get(),
+      passable_if_not_reserved(agent_reservations_, agent, from),
+      predictor_ ? obstacle_threshold_ : 1.0
+    )
+  );
 }
 
 whca::passable_if_not_reserved::passable_if_not_reserved(
@@ -134,130 +127,62 @@ whca::passable_if_not_predicted_obstacle::operator () (
 }
 
 path<>
-whca::find_path(position from, world const& w,
-                              std::default_random_engine&,
-                              boost::optional<path<> const&> old_path) {
+whca::find_path(position from, world const& w, std::default_random_engine&) {
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
-  unreserve(a.id());
-
-  path<> new_path;
-  if (rejoin_limit_ > 0 && old_path)
-    if (auto p = rejoin_path(from, w, *old_path))
-      return new_path = std::move(*p);
-
-  if (new_path.empty()) {
-    heuristic_search_type& h_search = heuristic_map_.emplace(
-      std::piecewise_construct,
-      std::forward_as_tuple(a.id()),
-      std::forward_as_tuple(a.target, from, w)
-    ).first->second;
-    unsigned const old_h_search_nodes = h_search.nodes_expanded();
-
-    using search_type = a_star<
-      position,
-      position_successors,
-      passable_if_not_predicted_obstacle,
-      hierarchical_distance,
-      predicted_cost,
-      space_time_coordinate
-    >;
-    search_type as(
-      from, a.target, w,
-      hierarchical_distance(h_search),
-      predicted_cost(predictor_.get(), w.tick(), obstacle_penalty_),
-      passable_if_not_predicted_obstacle(
-        predictor_.get(),
-        passable_if_not_reserved(agent_reservations_, a, from),
-        predictor_ ? obstacle_threshold_ : 1.0
-      )
-    );
-    new_path = as.find_path(w, window_);
-
-    nodes_primary_ += as.nodes_expanded();
-    nodes_heuristic_ += h_search.nodes_expanded() - old_h_search_nodes;
-  }
-
-  reserve(a.id(), new_path, w.tick());
-
-  return new_path;
-}
-
-std::ostream&
-operator << (std::ostream& out, path<> const& p) {
-  for (auto point = p.rbegin(); point != p.rend(); ++point) {
-    if (point != p.rbegin())
-      out << " -> ";
-    out << *point;
-  }
-
-  return out;
-}
-
-boost::optional<path<>>
-whca::rejoin_path(position from, world const& w,
-                  path<> const& old_path) {
-  if (old_path.empty())
-    return {};
-
-  boost::optional<position> to = boost::none;
-  std::unordered_map<position, path<>::const_reverse_iterator> target_positions;
-  for (auto point = old_path.rbegin(); point != old_path.rend(); ++point)
-    if (w.get(*point) == tile::free) {
-      if (!to)
-        to = *point;
-      target_positions.insert({*point, point});
-    }
-
-  if (!to)
-    return {};
-
-  ++rejoin_attempts_;
-
-  assert(w.get_agent(from));
-  agent const& a = *w.get_agent(from);
+  heuristic_search_type& h_search = heuristic_map_.emplace(
+    std::piecewise_construct,
+    std::forward_as_tuple(a.id()),
+    std::forward_as_tuple(a.target, from, w)
+  ).first->second;
+  unsigned const old_h_search_nodes = h_search.nodes_expanded();
 
   using search_type = a_star<
     position,
     position_successors,
     passable_if_not_predicted_obstacle,
-    manhattan_distance_heuristic,
+    hierarchical_distance,
     predicted_cost,
     space_time_coordinate
   >;
-  search_type as(from, *to, w,
-                 manhattan_distance_heuristic{},
-                 predicted_cost(predictor_.get(), w.tick(), obstacle_penalty_),
-                 passable_if_not_predicted_obstacle(
-                   predictor_.get(),
-                   passable_if_not_reserved(agent_reservations_, a, from),
-                   predictor_ ? obstacle_threshold_ : 1.0
-                 ));
-
-  path<> join_path = as.find_path(
-    w,
-    [&] (position p) { return target_positions.count(p); },
-    rejoin_limit_
+  search_type as(
+    from, a.target, w,
+    hierarchical_distance(h_search),
+    predicted_cost(predictor_.get(), w.tick(), obstacle_penalty_),
+    passable_if_not_predicted_obstacle(
+      predictor_.get(),
+      passable_if_not_reserved(agent_reservations_, a, from),
+      predictor_ ? obstacle_threshold_ : 1.0
+    )
   );
+  path<> new_path = as.find_path(w, window_);
 
-  nodes_rejoin_ += as.nodes_expanded();
+  nodes_primary_ += as.nodes_expanded();
+  nodes_heuristic_ += h_search.nodes_expanded() - old_h_search_nodes;
 
-  if (join_path.empty())
-    return {};
+  return new_path;
+}
 
-  assert(target_positions.count(join_path.front()));
-  path<>::const_reverse_iterator rejoin_point =
-    target_positions[join_path.front()];
+void
+whca::on_path_invalid(agent::id_type agent) {
+  unreserve(agent);
+}
 
-  path<> result;
+void
+whca::on_path_found(agent::id_type agent, path<> const& path, world const& w) {
+  reserve(agent, path, w.tick());
+}
 
-  auto old_end = rejoin_point.base() - 1;
-  auto new_begin = join_path.begin();
+bool
+whca::path_valid(path<> const& path, world const& w) const {
+  for (tick_t distance = 0; distance < path.size(); ++distance) {
+    position const p = path[path.size() - distance - 1];
+    position_time const pt{p, w.tick() + distance};
 
-  result.insert(result.end(), old_path.begin(), old_end);
-  result.insert(result.end(), new_begin, join_path.end());
+    if (agent_reservations_.count(pt))
+      return false;
+  }
 
-  ++rejoin_successes_;
-  return result;
+  return true;
 }

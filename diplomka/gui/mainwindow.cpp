@@ -252,11 +252,15 @@ main_window::make_solver() {
   assert(world_);
 
   QString algo = ui_.algorithm_combo->currentText();
+  unsigned rejoin_limit = ui_.rejoin_checkbox->isChecked()
+                          ? ui_.rejoin_limit_spin->value()
+                          : 0;
+
   if (algo == "WHCA*")
     return make_whca(
       log_sink_,
       ui_.window_spin->value(),
-      ui_.rejoin_checkbox->isChecked() ? ui_.rejoin_limit_spin->value() : 0,
+      rejoin_limit,
       make_predictor(),
       ui_.obstacle_penalty_spin->value(),
       ui_.obstacle_threshold_spin->value()
@@ -267,7 +271,9 @@ main_window::make_solver() {
                    ui_.obstacle_penalty_spin->value(),
                    ui_.obstacle_threshold_spin->value());
   else if (algo == "LRA*")
-    return make_lra(log_sink_, make_predictor(),
+    return make_lra(log_sink_,
+                    rejoin_limit,
+                    make_predictor(),
                     ui_.obstacle_penalty_spin->value(),
                     ui_.obstacle_threshold_spin->value());
   else if (algo == "Greedy")

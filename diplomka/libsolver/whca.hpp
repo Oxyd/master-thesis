@@ -5,13 +5,25 @@
 
 #include "a_star.hpp"
 
-class whca : public separate_paths_solver {
+class predicted_cost;
+
+class whca : public separate_paths_solver<whca> {
+  class passable_if_not_predicted_obstacle;
+
 public:
+  using rejoin_search_type = a_star<
+    position,
+    position_successors,
+    passable_if_not_predicted_obstacle,
+    manhattan_distance_heuristic,
+    predicted_cost,
+    space_time_coordinate
+  >;
+
   whca(log_sink& log, unsigned window, unsigned rejoin_limit,
        std::unique_ptr<predictor> predictor,
        unsigned obstacle_penalty,
        double obstacle_threshold);
-  void step(world& w, std::default_random_engine& rng) override;
 
   std::string name() const override { return "WHCA*"; }
   void window(unsigned new_window) override { window_ = new_window; }
@@ -22,8 +34,9 @@ public:
   std::vector<std::string>
   stat_values() const override;
 
-  std::unordered_map<position_time, double>
-  get_obstacle_field() const override;
+  std::unique_ptr<rejoin_search_type>
+  make_rejoin_search(position from, position to, world const& w,
+                     agent const& agent) const;
 
 private:
   struct reservation_table_record {
@@ -83,21 +96,23 @@ private:
     double threshold_;
   };
 
-  std::unique_ptr<predictor> predictor_;
   reservation_table_type agent_reservations_;
   heuristic_map_type heuristic_map_;
   unsigned window_;
   unsigned nodes_primary_ = 0;
   unsigned nodes_heuristic_ = 0;
-  unsigned nodes_rejoin_ = 0;
-  unsigned rejoin_limit_ = 0;
-  unsigned rejoin_attempts_ = 0;
-  unsigned rejoin_successes_ = 0;
 
-  path<> find_path(position, world const&, std::default_random_engine&,
-                   boost::optional<path<> const&> old_path) override;
-  boost::optional<path<>> rejoin_path(position from, world const& w,
-                                      path<> const& old_path);
+  path<> find_path(position, world const&,
+                   std::default_random_engine&) override;
+
+  void
+  on_path_invalid(agent::id_type) override;
+
+  void
+  on_path_found(agent::id_type, path<> const&, world const&) override;
+
+  bool
+  path_valid(path<> const&, world const&) const override;
 };
 
 #endif

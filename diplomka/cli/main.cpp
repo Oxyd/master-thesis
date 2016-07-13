@@ -52,12 +52,13 @@ make_solver(std::string const& name,
     obstacle_threshold = vm["obstacle-threshold"].as<double>();
   }
 
+  unsigned rejoin_limit
+    = vm.count("rejoin") ? vm["rejoin"].as<unsigned>() : 0;
+
   if (iequals(name, "whca") || iequals(name, "whca*")) {
     if (!vm.count("window"))
       window = 10;
 
-    unsigned rejoin_limit =
-      vm.count("rejoin") ? vm["rejoin"].as<unsigned>() : 0;
     return make_whca(
       null_log_sink, window,
       rejoin_limit,
@@ -68,7 +69,9 @@ make_solver(std::string const& name,
   }
 
   if (iequals(name, "lra") || iequals(name, "lra*"))
-    return make_lra(null_log_sink, std::move(predictor), obstacle_penalty,
+    return make_lra(null_log_sink,
+                    rejoin_limit,
+                    std::move(predictor), obstacle_penalty,
                     obstacle_threshold);
 
   if (iequals(name, "od"))

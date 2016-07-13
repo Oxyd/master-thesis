@@ -1,24 +1,33 @@
 #include "separate_paths_solver.hpp"
 
 #include "log_sinks.hpp"
+#include "lra.hpp"
 #include "predictor.hpp"
+#include "whca.hpp"
 
-separate_paths_solver::separate_paths_solver(
+template <typename Derived>
+separate_paths_solver<Derived>::separate_paths_solver(
   log_sink& log,
+  unsigned rejoin_limit,
   std::unique_ptr<predictor> predictor,
   unsigned obstacle_penalty,
   double obstacle_threshold
 )
   : log_(log)
+  , rejoin_limit_(rejoin_limit)
   , predictor_(std::move(predictor))
   , obstacle_penalty_(obstacle_penalty)
   , obstacle_threshold_(obstacle_threshold)
 { }
 
+template <typename Derived>
 void
-separate_paths_solver::step(
+separate_paths_solver<Derived>::step(
   world& w, std::default_random_engine& rng
 ) {
+  if (predictor_)
+    predictor_->update_obstacles(w);
+
   std::unordered_map<agent::id_type, position> agents;
   std::vector<agent::id_type> agent_order;
 
@@ -65,17 +74,33 @@ separate_paths_solver::step(
   }
 }
 
+template <typename Derived>
 std::vector<std::string>
-separate_paths_solver::stat_values() const {
+separate_paths_solver<Derived>::stat_names() const {
+  return {"Path not found", "Recalculations", "Path invalid",
+          "Rejoin nodes expanded", "Rejoin attempts", "Rejoin successes",
+          "Rejoin success rate"};
+}
+
+template <typename Derived>
+std::vector<std::string>
+separate_paths_solver<Derived>::stat_values() const {
   return {
     std::to_string(times_without_path_),
     std::to_string(recalculations_),
-    std::to_string(path_invalid_)
+    std::to_string(path_invalid_),
+    std::to_string(nodes_rejoin_),
+    std::to_string(rejoin_attempts_),
+    std::to_string(rejoin_successes_),
+    rejoin_attempts_ > 0
+      ? std::to_string((double) rejoin_successes_ / (double) rejoin_attempts_)
+      : "0"
   };
 }
 
+template <typename Derived>
 std::vector<position>
-separate_paths_solver::get_path(agent::id_type a) const {
+separate_paths_solver<Derived>::get_path(agent::id_type a) const {
   auto p_it = paths_.find(a);
   if (p_it != paths_.end())
     return p_it->second;
@@ -83,31 +108,61 @@ separate_paths_solver::get_path(agent::id_type a) const {
     return {};
 }
 
+template <typename Derived>
+std::unordered_map<position_time, double>
+separate_paths_solver<Derived>::get_obstacle_field() const {
+  if (predictor_)
+    return predictor_->field();
+  else
+    return {};
+}
+
+template <typename Derived>
 path<>
-separate_paths_solver::recalculate(position from, world const& w,
-                                   std::default_random_engine& rng,
-                                   boost::optional<path<> const&> old_path) {
+separate_paths_solver<Derived>::recalculate(
+  position from, world const& w, agent::id_type agent_id,
+  std::default_random_engine& rng, boost::optional<path<> const&> old_path
+) {
   log_ << "Recalculating for " << w.get_agent(from)->id()
        << '@' << from << '\n';
   ++recalculations_;
 
-  path<> new_path = find_path(from, w, rng, old_path);
+  on_path_invalid(agent_id);
+
+  path<> new_path;
+
+  if (rejoin_limit_ > 0 && old_path) {
+    ++rejoin_attempts_;
+
+    if (auto p = rejoin_path(from, w, *old_path))
+      if (path_valid(*p, w)) {
+        ++rejoin_successes_;
+        new_path = std::move(*p);
+      }
+  }
+
+  if (new_path.empty())
+    new_path = find_path(from, w, rng);
 
   if (new_path.empty())
     log_ << "Found no path for " << from << '\n';
+  else
+    on_path_found(agent_id, new_path, w);
 
   return new_path;
 }
 
+template <typename Derived>
 boost::optional<position>
-separate_paths_solver::next_step(position from, world const& w,
-                                 std::default_random_engine& rng,
-                                 boost::optional<path<> const&> old_path) {
+separate_paths_solver<Derived>::next_step(
+  position from, world const& w, std::default_random_engine& rng,
+  boost::optional<path<> const&> old_path
+) {
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
   if (paths_[a.id()].size() < 2)
-    paths_[a.id()] = recalculate(from, w, rng, old_path);
+    paths_[a.id()] = recalculate(from, w, a.id(), rng, old_path);
 
   if (paths_[a.id()].size() < 2)
     return {};
@@ -116,3 +171,55 @@ separate_paths_solver::next_step(position from, world const& w,
   paths_[a.id()].pop_back();
   return paths_[a.id()].back();
 }
+
+template <typename Derived>
+boost::optional<path<>>
+separate_paths_solver<Derived>::rejoin_path(position from, world const& w,
+                                            path<> const& old_path) {
+  if (old_path.empty())
+    return {};
+
+  boost::optional<position> to = boost::none;
+  std::unordered_map<position, path<>::const_reverse_iterator> target_positions;
+  for (auto point = old_path.rbegin(); point != old_path.rend(); ++point)
+    if (w.get(*point) == tile::free) {
+      if (!to)
+        to = *point;
+      target_positions.insert({*point, point});
+    }
+
+  if (!to)
+    return {};
+
+  assert(w.get_agent(from));
+  agent const& a = *w.get_agent(from);
+
+  auto as = derived()->make_rejoin_search(from, *to, w, a);
+  path<> join_path = as->find_path(
+    w,
+    [&] (position p) { return target_positions.count(p); },
+    rejoin_limit_
+  );
+
+  nodes_rejoin_ += as->nodes_expanded();
+
+  if (join_path.empty())
+    return {};
+
+  assert(target_positions.count(join_path.front()));
+  path<>::const_reverse_iterator rejoin_point =
+    target_positions[join_path.front()];
+
+  path<> result;
+
+  auto old_end = rejoin_point.base() - 1;
+  auto new_begin = join_path.begin();
+
+  result.insert(result.end(), old_path.begin(), old_end);
+  result.insert(result.end(), new_begin, join_path.end());
+
+  return result;
+}
+
+template class separate_paths_solver<whca>;
+template class separate_paths_solver<lra>;

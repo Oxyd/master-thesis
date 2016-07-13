@@ -31,10 +31,12 @@ make_greedy() {
 }
 
 std::unique_ptr<solver>
-make_lra(log_sink& log, std::unique_ptr<predictor> predictor,
+make_lra(log_sink& log,
+         unsigned rejoin_limit,
+         std::unique_ptr<predictor> predictor,
          unsigned obstacle_penalty, double obstacle_threshold) {
-  return std::make_unique<lra>(log, std::move(predictor), obstacle_penalty,
-                               obstacle_threshold);
+  return std::make_unique<lra>(log, rejoin_limit, std::move(predictor),
+                               obstacle_penalty, obstacle_threshold);
 }
 
 std::unique_ptr<solver>
