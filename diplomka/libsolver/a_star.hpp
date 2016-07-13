@@ -23,6 +23,11 @@ struct always_passable {
 struct manhattan_distance_heuristic {
   position destination;
 
+  explicit
+  manhattan_distance_heuristic(position destination)
+    : destination(destination)
+  { }
+
   double operator () (position from, world const&) const {
     return distance(from, destination);
   }

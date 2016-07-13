@@ -41,7 +41,7 @@ whca::make_rejoin_search(position from, position to, world const& w,
   -> std::unique_ptr<rejoin_search_type> {
   return std::make_unique<rejoin_search_type>(
     from, to, w,
-    manhattan_distance_heuristic{},
+    manhattan_distance_heuristic{to},
     predicted_cost(predictor_.get(), w.tick(), obstacle_penalty_),
     passable_if_not_predicted_obstacle(
       predictor_.get(),
