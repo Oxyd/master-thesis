@@ -123,10 +123,6 @@ separate_paths_solver<Derived>::recalculate(
   position from, world const& w, agent::id_type agent_id,
   std::default_random_engine& rng, boost::optional<path<> const&> old_path
 ) {
-  log_ << "Recalculating for " << w.get_agent(from)->id()
-       << '@' << from << '\n';
-  ++recalculations_;
-
   on_path_invalid(agent_id);
 
   path<> new_path;
@@ -141,8 +137,13 @@ separate_paths_solver<Derived>::recalculate(
       }
   }
 
-  if (new_path.empty())
+  if (new_path.empty()) {
+    log_ << "Recalculating for " << w.get_agent(from)->id()
+         << '@' << from << '\n';
+    ++recalculations_;
+
     new_path = find_path(from, w, rng);
+  }
 
   if (new_path.empty())
     log_ << "Found no path for " << from << '\n';
