@@ -73,6 +73,7 @@ world_scene::re_render() {
 
   agent_items_.clear();
   obstacle_items_.clear();
+  highlighted_tiles_.clear();
   clear();
 
   for (auto t : *world_->map())
@@ -144,6 +145,12 @@ world_scene::remove_all_highlights() {
 }
 
 void
+world_scene::show_goal_arrows(bool show) {
+  show_goal_arrows_ = show;
+  re_render();
+}
+
+void
 world_scene::mouseMoveEvent(QGraphicsSceneMouseEvent* event) {
   int x = event->scenePos().x() / tile_size;
   int y = event->scenePos().y() / tile_size;
@@ -180,7 +187,7 @@ world_scene::render_agent(position pos, agent const& agent) {
   items.push_back(circle);
 
   position const target = agent.target;
-  if (target != pos) {
+  if (target != pos && show_goal_arrows_) {
     QPointF const start{(pos.x + 0.5) * tile_size,
         (pos.y + 0.5) * tile_size};
     QPointF const end{(target.x + 0.5) * tile_size,

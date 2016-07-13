@@ -22,6 +22,7 @@ public:
   void highlight_tile(position, QColor);
   void dehighlight_tile(position);
   void remove_all_highlights();
+  void show_goal_arrows(bool);
 
 signals:
   void mouse_moved(int x, int y);
@@ -39,6 +40,7 @@ private:
   std::unordered_set<position> highlighted_agents_;
   std::unordered_map<position, QGraphicsItem*> highlighted_tiles_;
   boost::optional<std::tuple<int, int>> last_mouse_clicked_;
+  bool show_goal_arrows_ = true;
 
   void render_agent(position, agent const&);
   void render_obstacle(position);

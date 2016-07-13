@@ -41,6 +41,7 @@ private slots:
   void algorithm_changed();
   void window_changed(int);
   void visualisation_params_changed();
+  void show_targets_changed(bool);
 
 private:
   class gui_log_sink : public log_sink {

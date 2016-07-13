@@ -348,3 +348,9 @@ main_window::visualisation_params_changed() {
   if (ui_.obstacle_field_check->isChecked())
     highlight_obstacle_field();
 }
+
+void
+main_window::show_targets_changed(bool show) {
+  world_scene_.show_goal_arrows(show);
+  visualisation_params_changed();
+}

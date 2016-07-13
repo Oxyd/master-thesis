@@ -110,6 +110,16 @@
               </item>
              </layout>
             </item>
+            <item>
+             <widget class="QCheckBox" name="targets_check">
+              <property name="text">
+               <string>Targets</string>
+              </property>
+              <property name="checked">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
            </layout>
           </widget>
          </item>
@@ -946,6 +956,22 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>targets_check</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>show_targets_changed(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>95</x>
+     <y>153</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>284</x>
+     <y>779</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>open_map()</slot>
@@ -959,5 +985,6 @@
   <slot>algorithm_changed()</slot>
   <slot>window_changed(int)</slot>
   <slot>visualisation_params_changed()</slot>
+  <slot>show_targets_changed(bool)</slot>
  </slots>
 </ui>
