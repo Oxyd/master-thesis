@@ -132,9 +132,10 @@ main_window::edit() {
 
 void
 main_window::algorithm_changed() {
-  bool enable_window = ui_.algorithm_combo->currentText() == "WHCA*" ||
-                       ui_.algorithm_combo->currentText() == "OD";
-  bool enable_rejoin = ui_.algorithm_combo->currentText() == "WHCA*";
+  bool enable_window = ui_.algorithm_combo->currentText() == "WHCA*"
+                       || ui_.algorithm_combo->currentText() == "OD";
+  bool enable_rejoin = ui_.algorithm_combo->currentText() == "WHCA*"
+                       || ui_.algorithm_combo->currentText() == "LRA*";
 
   if (enable_window) {
     ui_.window_label->setEnabled(true);
