@@ -181,19 +181,16 @@ recursive_predictor::predict_obstacle(position_time where) {
 
     } else {
       bool have_neighbours = true;
-      double result = 0.0;
-      double next = 1.0;
+      double complementary_prob = 1.0;
 
-      double const stay_probability = estimator_.estimate(movement::stay);
+      double stay_probability = estimator_.estimate(movement::stay);
 
       auto previous = obstacles_.find({pt.x, pt.y, pt.time - 1});
       if (previous == obstacles_.end()) {
         stack.push({pt.x, pt.y, pt.time - 1});
         have_neighbours = false;
-      } else {
-        result = previous->second * stay_probability;
-        next = 1 - result;
-      }
+      } else
+        complementary_prob = 1 - previous->second * stay_probability;
 
       for (direction d : all_directions) {
         position p = translate({pt.x, pt.y}, d);
@@ -217,14 +214,14 @@ recursive_predictor::predict_obstacle(position_time where) {
             direction_to(p, {pt.x, pt.y})
           ));
 
-        result += next * probability;
-        next *= 1 - probability;
+        complementary_prob *= 1 - probability;
       }
 
       if (have_neighbours) {
-        assert(result <= 1.0);
+        assert(complementary_prob >= 0.0);
+        assert(complementary_prob <= 1.0);
 
-        obstacles_[pt] = result;
+        obstacles_[pt] = 1 - complementary_prob;
         stack.pop();
       }
     }
