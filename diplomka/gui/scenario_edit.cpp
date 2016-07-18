@@ -17,8 +17,7 @@ scenario_edit::scenario_edit(QWidget* parent)
   ui_.setupUi(this);
   bottom_bar_controller_.attach_to_ui(ui_.zoom_slider,
                                       ui_.zoom_text,
-                                      ui_.size_label,
-                                      ui_.mouse_coord_label,
+                                      ui_.text_label,
                                       ui_.world_view,
                                       scene_);
 

@@ -15,6 +15,8 @@ class log_sink;
 bool
 solved(world const& w);
 
+using obstacle_field_type = std::unordered_map<position_time, double>;
+
 class solver {
 public:
   virtual
@@ -25,7 +27,7 @@ public:
   virtual std::vector<std::string> stat_names() const { return {}; }
   virtual std::vector<std::string> stat_values() const { return {}; };
   virtual std::vector<position> get_path(agent::id_type) const { return {}; }
-  virtual std::unordered_map<position_time, double> get_obstacle_field() const {
+  virtual obstacle_field_type get_obstacle_field() const {
     return {};
   }
   virtual void window(unsigned /*new_window*/) {}
