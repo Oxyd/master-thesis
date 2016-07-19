@@ -388,14 +388,10 @@ matrix_predictor::field() const {
   std::unordered_map<position_time, double> result;
 
   for (std::size_t t = 0; t < states_.size(); ++t)
-    for (auto i = 0; i < states_[t].size(); ++i) {
-      if (std::abs(states_[t](i)) < 1e-6)
-        continue;
-
+    for (auto i = 0; i < states_[t].size(); ++i)
       result[{i % width_,
               i / width_,
               last_update_time_ + (tick_t) t}] = states_[t](i);
-    }
 
   return result;
 }
