@@ -73,6 +73,13 @@ movement_estimator::update(world const& w) {
   }
 
   store_positions(w);
+
+#ifndef NDEBUG
+  double sum = 0.0;
+  for (movement m = movement::north; m <= movement::stay; ++(size_t&) m)
+    sum += estimate(m);
+  assert(std::abs(sum - 1.0) < 1e-6);
+#endif
 }
 
 double
@@ -287,12 +294,12 @@ make_transition_matrix(map const& m, movement_estimator const& estimator) {
       }
 
       double const stay_probability = estimator.estimate(movement::stay);
+      double leftover = 1.0 - stay_probability;
 
       if (neighbours.empty()) {
         transitions.emplace_back(linear(from), linear(from), 1.0);
         continue;
-      } else
-        transitions.emplace_back(linear(from), linear(from), stay_probability);
+      }
 
       for (position to : neighbours) {
         double const transition_probability =
@@ -302,16 +309,27 @@ make_transition_matrix(map const& m, movement_estimator const& estimator) {
 
         transitions.emplace_back(linear(to), linear(from),
                                  transition_probability);
+
+        leftover -= transition_probability;
       }
+
+      // It is possible that not all neighbours are traversable, and that we
+      // therefore have some leftover probability. We'll account this leftover
+      // to the stay probability as well, in order to make sure our transitions
+      // sum up to 1.0.
+      transitions.emplace_back(linear(from), linear(from),
+                               stay_probability + leftover);
     }
 
   transition_matrix_type result(map_size, map_size);
   result.setFromTriplets(transitions.begin(), transitions.end());
 
 #ifndef NDEBUG
-  for (auto i = 0; i < map_size; ++i)
-    assert(std::abs(result.col(i).sum() - 1.0) < 1e-6 ||
-           std::abs(result.col(i).sum() - 0.0) < 1e-6);
+  for (auto i = 0; i < map_size; ++i) {
+    double sum = result.col(i).sum();
+    assert(std::abs(sum - 1.0) < 1e-6
+           || std::abs(sum - 0.0) < 1e-6);
+  }
 #endif
 
   return result;
