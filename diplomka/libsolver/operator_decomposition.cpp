@@ -147,15 +147,18 @@ operator_decomposition::combined_heuristic_distance::operator () (
 
 double
 operator_decomposition::predicted_step_cost::operator () (
-  agents_state const& state,
+  agents_state const& from,
+  agents_state const& to,
   tick_t time
 ) const {
-  if (!predictor_)
+  if (!predictor_
+      || from.agents[from.next_agent].position
+         == to.agents[from.next_agent].position)
     return 1.0;
 
   return
     1.0
-    + predictor_->predict_obstacle({state.agents[state.next_agent].position,
+    + predictor_->predict_obstacle({to.agents[from.next_agent].position,
                                     start_time_ + time})
     * obstacle_penalty_;
 }

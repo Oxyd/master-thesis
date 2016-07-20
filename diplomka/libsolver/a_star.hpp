@@ -36,7 +36,7 @@ struct manhattan_distance_heuristic {
 struct unitary_step_cost {
   template <typename T>
   double
-  operator () (T, unsigned) const { return 1.0; }
+  operator () (T, T, unsigned) const { return 1.0; }
 };
 
 template <typename StateT = position>
@@ -287,7 +287,7 @@ private:
         if (!passable_(neighbour, current->pos, w, current->steps_distance + 1))
           continue;
 
-        double step_cost = step_cost_(neighbour_coord,
+        double step_cost = step_cost_(current_coord, neighbour_coord,
                                       current->steps_distance + 1);
         auto n = open_.find(neighbour_coord);
         if (n != open_.end()) {

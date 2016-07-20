@@ -122,8 +122,10 @@ whca::passable_if_not_predicted_obstacle::operator () (
 ) {
   return
     not_reserved_(where, from, w, distance) &&
-    (!predictor_ ||
-     predictor_->predict_obstacle({where, w.tick() + distance}) <= threshold_);
+    (!predictor_
+     || where == from
+     || predictor_->predict_obstacle({where, w.tick() + distance})
+        <= threshold_);
 }
 
 path<>

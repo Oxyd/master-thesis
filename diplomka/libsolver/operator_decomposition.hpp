@@ -115,7 +115,8 @@ private:
     { }
 
     double
-    operator () (agents_state const& state, tick_t time) const;
+    operator () (agents_state const& from, agents_state const& to,
+                 tick_t time) const;
 
   private:
     predictor* predictor_;

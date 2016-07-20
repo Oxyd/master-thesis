@@ -399,23 +399,25 @@ matrix_predictor::field() const {
 }
 
 double
-predicted_cost::operator () (position_time pt, unsigned) const {
-  if (!predictor_)
+predicted_cost::operator () (position_time from, position_time to,
+                             unsigned) const {
+  if (!predictor_ || from.position() == to.position())
     return 1.0;
 
   return
     1.0
-    + predictor_->predict_obstacle({pt.x, pt.y, start_tick_ + pt.time})
+    + predictor_->predict_obstacle({to.x, to.y, start_tick_ + to.time})
     * obstacle_penalty_;
 }
 
 double
-predicted_cost::operator () (position p, unsigned distance) const {
-  if (!predictor_)
+predicted_cost::operator () (position from, position to,
+                             unsigned distance) const {
+  if (!predictor_ || from == to)
     return 1.0;
 
   return
     1.0
-    + predictor_->predict_obstacle({p.x, p.y, start_tick_ + distance})
+    + predictor_->predict_obstacle({to.x, to.y, start_tick_ + distance})
     * obstacle_penalty_;
 }

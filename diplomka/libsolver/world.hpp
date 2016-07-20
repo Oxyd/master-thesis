@@ -104,15 +104,17 @@ distance(position, position);
 using tick_t = unsigned;
 
 struct position_time {
-  position::coord_type x, y;
+  ::position::coord_type x, y;
   tick_t time;
 
-  position_time(position::coord_type x, position::coord_type y,
+  position_time(::position::coord_type x, ::position::coord_type y,
                 tick_t time)
     : x(x), y(y), time(time) { }
 
-  position_time(position p, tick_t time)
+  position_time(::position p, tick_t time)
     : x(p.x), y(p.y), time(time) { }
+
+  ::position position() const { return {x, y}; }
 };
 
 inline bool

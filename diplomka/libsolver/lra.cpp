@@ -55,11 +55,12 @@ lra::agitated_distance::operator () (position from, world const&) const {
 
 bool
 lra::passable_if_not_predicted_obstacle::operator () (
-  position where,position from, world const& w, unsigned distance
+  position where, position from, world const& w, unsigned distance
 ) const {
   return
     not_neighbour_(where, from, w, distance)
     && (!predictor_
+        || where == from
         || (predictor_->predict_obstacle({where, w.tick() + distance})
             <= threshold_));
 }

@@ -27,10 +27,10 @@ struct predicted_cost {
   { }
 
   double
-  operator () (position_time pt, unsigned) const;
+  operator () (position_time from, position_time to, unsigned) const;
 
   double
-  operator () (position p, unsigned distance) const;
+  operator () (position from, position to, unsigned distance) const;
 
 private:
   predictor* predictor_;
