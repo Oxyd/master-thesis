@@ -270,7 +270,9 @@ private:
 }
 
 static transition_matrix_type
-make_transition_matrix(map const& m, movement_estimator const& estimator) {
+make_transition_matrix(world const& w, movement_estimator const& estimator) {
+  map const& m = *w.map();
+
   map::coord_type map_size = m.width() * m.height();
   auto linear = [&] (position p) { return p.y * m.width() + p.x; };
 
@@ -280,7 +282,7 @@ make_transition_matrix(map const& m, movement_estimator const& estimator) {
   for (position::coord_type from_y = 0; from_y < m.height(); ++from_y)
     for (position::coord_type from_x = 0; from_x < m.width(); ++from_x) {
       position from{from_x, from_y};
-      if (m.get(from) == tile::wall)
+      if (w.get(from) == tile::wall || w.get(from) == tile::agent)
         continue;
 
       std::vector<position> neighbours;
@@ -344,7 +346,7 @@ make_matrix_predictor(world const& w, unsigned cutoff,
 matrix_predictor::matrix_predictor(world const& w, unsigned cutoff,
                                    tick_t update_frequency)
   : estimator_(w)
-  , transition_(make_transition_matrix(*w.map(), estimator_))
+  , transition_(make_transition_matrix(w, estimator_))
   , width_(w.map()->width())
   , cutoff_(cutoff)
   , matrix_update_frequency_(update_frequency)
@@ -359,7 +361,7 @@ matrix_predictor::update_obstacles(world const& w) {
   states_.clear();
 
   if (w.tick() % matrix_update_frequency_ == 0)
-    transition_ = make_transition_matrix(*w.map(), estimator_);
+    transition_ = make_transition_matrix(w, estimator_);
 
   obstacle_state_vector_type known_state(w.map()->width() * w.map()->height());
   known_state.fill(0.0);
