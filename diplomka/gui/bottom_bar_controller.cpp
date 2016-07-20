@@ -40,6 +40,8 @@ bottom_bar_controller::set_obstacle_field(obstacle_field_type const& of,
                                           tick_t time) {
   obstacle_field_ = of;
   obstacle_field_time_ = time;
+
+  update_text();
 }
 
 void
