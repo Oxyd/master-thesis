@@ -109,6 +109,11 @@ def connected(map):
 
   return True
 
+def passable_tiles(m):
+  '''Return the number of passable tiles on the given map.'''
+
+  return sum(map(lambda p: m[p[0], p[1]], m))
+
 def main(dir):
   maps_dir = Path(dir)
   for m in (f for f in maps_dir.iterdir() if f.suffix == '.map'):
@@ -117,7 +122,8 @@ def main(dir):
     map = Map(m.open())
     info = {'width': map.width,
             'height': map.height,
-            'connected': connected(map)}
+            'connected': connected(map),
+            'passable_tiles': passable_tiles(map)}
 
     print(info)
 
