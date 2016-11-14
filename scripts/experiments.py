@@ -5,6 +5,8 @@ import argparse
 import json
 import subprocess
 import sys
+import threading
+import queue
 
 def make_scenario(map_info, map_path):
   '''Create a scenario for the given map.'''
@@ -38,7 +40,7 @@ def make_relative(path, relative_to):
     i += 1
 
   result = Path()
-  for i in range(i, len(relative_to)): result /= '..'
+  for _ in range(i, len(relative_to)): result /= '..'
 
   return result.joinpath(*path[i :])
 
@@ -53,6 +55,43 @@ def substitute_scenario(solver_args, scenario_path):
 
   return list(map(subst, solver_args))
 
+jobs = queue.Queue()
+timeout = None
+
+def worker():
+  '''Worker thread that will run experiments off the job queue.'''
+
+  while True:
+    item = jobs.get()
+    if item is None: break
+
+    (name, args, result_path, info) = item
+
+    print('{} ...'.format(name))
+
+    try:
+      result = subprocess.run(args,
+                              stdout=subprocess.PIPE,
+                              universal_newlines=True,
+                              timeout=timeout)
+      result_data = json.loads(result.stdout)
+      completed = True
+
+      print('... {} done'.format(name))
+    except subprocess.TimeoutExpired:
+      print('... {} timed out '.format(name))
+
+      result_data = {}
+      completed = False
+
+    result_path.open(mode='w').write(json.dumps(
+      {'map_info': info, 'result': result_data, 'completed': completed},
+      indent=2
+    ))
+
+    jobs.task_done()
+
+
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('maps', help='Path to maps to run experiments on')
@@ -63,6 +102,8 @@ def main():
                       + 'the scenario path')
   parser.add_argument('--timeout', type=int,
                       help='Time, in seconds, to run the solver for')
+  parser.add_argument('--threads', type=int, default=1,
+                      help='How many threads to use for running the experiments')
 
   args = parser.parse_args()
 
@@ -70,6 +111,7 @@ def main():
   scenarios = Path(args.scenarios)
   solver_args = args.solver
 
+  global timeout
   if 'timeout' in args:
     timeout = args.timeout
   else:
@@ -89,8 +131,6 @@ def main():
       print('{} not connected; skipping'.format(f.stem))
       continue
 
-    print(f.stem)
-
     scenario_path = scenarios / (f.stem + '.json')
     scenario_path.open(mode='w').write(json.dumps(
       make_scenario(info, make_relative(map_path, scenarios)),
@@ -98,24 +138,21 @@ def main():
     ))
 
     result_path = scenarios / (f.stem + '.result.json')
-    try:
-      result = subprocess.run(substitute_scenario(solver_args,
-                                                  scenario_path.resolve()),
-                              stdout=subprocess.PIPE,
-                              universal_newlines=True,
-                              timeout=timeout)
-      result_data = json.loads(result.stdout)
-      completed = True
-    except subprocess.TimeoutExpired:
-      print('{} timed out '.format(f.stem))
 
-      result_data = {}
-      completed = False
+    jobs.put((f.stem,
+              substitute_scenario(solver_args, scenario_path.resolve()),
+              result_path,
+              info))
 
-    result_path.open(mode='w').write(json.dumps(
-      {'map_info': info, 'result': result_data, 'completed': completed},
-      indent=2
-    ))
+  print('Starting worker threads')
+
+  threads = [threading.Thread(target=worker) for _ in range(args.threads)]
+  for t in threads: t.start()
+
+  jobs.join()
+
+  for _ in range(args.threads): jobs.put(None)
+  for t in threads: t.join()
 
 if __name__ == '__main__':
   main()
