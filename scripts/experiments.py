@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from pathlib import Path
+import argparse
 import json
 import subprocess
 import sys
@@ -53,15 +54,26 @@ def substitute_scenario(solver_args, scenario_path):
   return list(map(subst, solver_args))
 
 def main():
-  if len(sys.argv) < 3:
-    print('Usage: {} <maps> <scenarios-to-create> <solver invokation>'.format(
-      sys.argv[0]
-    ))
-    raise SystemExit(1)
+  parser = argparse.ArgumentParser()
+  parser.add_argument('maps', help='Path to maps to run experiments on')
+  parser.add_argument('scenarios',
+                      help='Where to put resulting scenarios')
+  parser.add_argument('solver', nargs=argparse.REMAINDER, metavar='solver args',
+                      help='Solver invokation command line. {} is replaced by '
+                      + 'the scenario path')
+  parser.add_argument('--timeout', type=int,
+                      help='Time, in seconds, to run the solver for')
 
-  maps = Path(sys.argv[1])
-  scenarios = Path(sys.argv[2])
-  solver_args = sys.argv[3 :]
+  args = parser.parse_args()
+
+  maps = Path(args.maps)
+  scenarios = Path(args.scenarios)
+  solver_args = args.solver
+
+  if 'timeout' in args:
+    timeout = args.timeout
+  else:
+    timeout = None
 
   scenarios.mkdir(parents=True, exist_ok=True)
 
@@ -91,7 +103,7 @@ def main():
                                                   scenario_path.resolve()),
                               stdout=subprocess.PIPE,
                               universal_newlines=True,
-                              timeout=5)
+                              timeout=timeout)
       result_data = json.loads(result.stdout)
       completed = True
     except subprocess.TimeoutExpired:
