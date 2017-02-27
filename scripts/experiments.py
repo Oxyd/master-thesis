@@ -8,14 +8,30 @@ import sys
 import threading
 import queue
 
-def make_scenario(map_info, map_path):
+configs = {
+  '100-0.05': (100, 0.05),
+  '200-0.05': (200, 0.05),
+  '500-0.05': (500, 0.05),
+
+  '100-0.01': (100, 0.01),
+  '200-0.01': (200, 0.01),
+  '500-0.01': (500, 0.01),
+
+  '100-0.1': (100, 0.1),
+  '200-0.1': (200, 0.1),
+  '500-0.1': (500, 0.1)
+}
+
+def make_scenario(map_info, map_path, config):
   '''Create a scenario for the given map.'''
+
+  (agents_denum, obstacles_prob) = config
 
   return {
     'map': str(map_path),
     'obstacles': {
       'mode': 'random',
-      'tile_probability': 0.05,
+      'tile_probability': obstacles_prob,
       'obstacle_movement': {
         'move_probability': {
           'distribution': 'normal',
@@ -24,7 +40,7 @@ def make_scenario(map_info, map_path):
       }
     },
     'agent_settings': {
-      'random_agents': int(map_info['passable_tiles'] / 100)
+      'random_agents': max(1, int(map_info['passable_tiles'] / agents_denum))
     },
     'agents': []
   }
@@ -100,24 +116,24 @@ def main():
   parser.add_argument('solver', nargs=argparse.REMAINDER, metavar='solver args',
                       help='Solver invokation command line. {} is replaced by '
                       + 'the scenario path')
-  parser.add_argument('--timeout', type=int,
+  parser.add_argument('--timeout', type=float,
                       help='Time, in seconds, to run the solver for')
   parser.add_argument('--threads', type=int, default=1,
                       help='How many threads to use for running the experiments')
+  parser.add_argument('--dry', action='store_true')
 
   args = parser.parse_args()
 
   maps = Path(args.maps)
   scenarios = Path(args.scenarios)
   solver_args = args.solver
+  dry = args.dry
 
   global timeout
   if 'timeout' in args:
     timeout = args.timeout
   else:
     timeout = None
-
-  scenarios.mkdir(parents=True, exist_ok=True)
 
   for f in maps.glob('*.json'):
     map_path = f.parent / (f.stem + '.map')
@@ -131,18 +147,25 @@ def main():
       print('{} not connected; skipping'.format(f.stem))
       continue
 
-    scenario_path = scenarios / (f.stem + '.json')
-    scenario_path.open(mode='w').write(json.dumps(
-      make_scenario(info, make_relative(map_path, scenarios)),
-      indent=2
-    ))
+    for (conf_name, config) in configs.items():
+      scenario_dir = scenarios / conf_name
+      scenario_dir.mkdir(parents=True, exist_ok=True)
 
-    result_path = scenarios / (f.stem + '.result.json')
+      scenario_path = scenario_dir / (f.stem + '.json')
+      scenario_path.open(mode='w').write(json.dumps(
+        make_scenario(info, make_relative(map_path, scenario_dir), config),
+        indent=2
+      ))
 
-    jobs.put((f.stem,
-              substitute_scenario(solver_args, scenario_path.resolve()),
-              result_path,
-              info))
+      result_path = scenario_dir / (f.stem + '.result.json')
+
+      jobs.put((f.stem + ' ' + conf_name,
+                substitute_scenario(solver_args, scenario_path.resolve()),
+                result_path,
+                info))
+
+  if dry:
+    return
 
   print('Starting worker threads')
 

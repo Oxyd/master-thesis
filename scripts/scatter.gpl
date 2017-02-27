@@ -1,0 +1,28 @@
+set term png size 600, 400
+
+set xlabel "Map size (width × height) "
+set ylabel "Average ticks"
+
+set colorsequence podo
+
+base_dir = sprintf("../experiments/%s", config)
+out_dir = sprintf("../plots/%s", config)
+
+set output out_dir."/size-ticks.png"
+
+plot [0:20000] [0:1000] \
+     base_dir."/lra-size-ticks.txt" smooth unique lw 2 title "LRA",\
+     base_dir."/whca-5-size-ticks.txt" smooth unique lw 2 title "window = 5",\
+     base_dir."/whca-10-size-ticks.txt" smooth unique lw 2 title "window = 10",\
+     base_dir."/whca-15-size-ticks.txt" smooth unique lw 2 title "window = 15",\
+     base_dir."/whca-20-size-ticks.txt" smooth unique lw 2 lc rgb "red" title "window = 20"
+
+set ylabel "Average time (ms)"
+
+set output out_dir."/size-time.png"
+plot [0:20000] [0:2000] \
+     base_dir."/lra-size-time.txt" smooth unique lw 2 title "LRA",\
+     base_dir."/whca-5-size-time.txt" smooth unique lw 2 title "WHCA* (5)",\
+     base_dir."/whca-10-size-time.txt" smooth unique lw 2 title "WHCA* (10)",\
+     base_dir."/whca-15-size-time.txt" smooth unique lw 2 title "WHCA* (15)",\
+     base_dir."/whca-20-size-time.txt" smooth unique lw 2 lc rgb "red" title "WHCA* (20)"
