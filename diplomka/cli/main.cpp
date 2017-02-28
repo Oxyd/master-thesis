@@ -135,8 +135,7 @@ main(int argc, char** argv) try {
 
   unsigned const limit = vm.count("limit") ? vm["limit"].as<unsigned>() : 0;
 
-  using clock_type = std::chrono::steady_clock;
-  auto start = clock_type::now();
+  auto start = std::clock();
 
   while (!solved(w)) {
     w.next_tick(rng);
@@ -146,14 +145,14 @@ main(int argc, char** argv) try {
       break;
   }
 
-  auto end = clock_type::now();
+  auto end = std::clock();
 
   namespace pt = boost::property_tree;
   pt::ptree results;
   results.add("ticks", w.tick());
   results.add(
     "time_ms",
-    std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count()
+    (end - start) / (CLOCKS_PER_SEC / 1000.0)
   );
   results.add("success", solved(w));
 
