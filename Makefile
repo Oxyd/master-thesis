@@ -1,5 +1,7 @@
 CXXFLAGS += -Wall -Wextra -std=c++14 -pedantic
 
+mode ?= opt
+
 -include site-config.make
 
 eigen_include_dir ?= /usr/include/eigen3
@@ -7,9 +9,11 @@ qt_include_dir ?= /usr/include/qt5
 moc ?= moc-qt5
 uic ?= /usr/lib64/qt5/bin/uic
 
-mode ?= debug
-
 CXXFLAGS += -fPIC
+
+ifeq ($(mode),opt)
+	CXXFLAGS += -O3
+endif
 
 ifeq ($(mode),debug)
 	CXXFLAGS += -ggdb3 -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC
