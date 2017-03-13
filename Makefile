@@ -86,14 +86,14 @@ link = $(CXX) $(1) $(LDFLAGS) $(LDLIBS) -l$(libsolver_libname) -o $@
 
 $(cli_executable) : LDFLAGS += -L$(build_dir)
 $(cli_executable) : LDLIBS += $(cli_ldlibs)
-$(cli_executable) : $(cli_objects) $(libsolver_lib) | $(bin_dir)
+$(cli_executable) : $(cli_objects) $(libsolver_lib)
 	$(call link,$(cli_objects))
 
 $(gui_executable) : LDFLAGS += -L$(build_dir)
 $(gui_executable) : LDLIBS += $(gui_libs)
 $(gui_executable) : incdirs += $(gui_includes)
 $(gui_executable) : CXXFLAGS += $(gui_includes)
-$(gui_executable) : $(gui_objects) $(libsolver_lib) | $(bin_dir)
+$(gui_executable) : $(gui_objects) $(libsolver_lib)
 	$(call link,$(gui_objects))
 
 $(build_dir)/%.o : %.cpp
@@ -121,7 +121,7 @@ define depend_on_dir
 $(1) : | $(dir $(1))
 endef
 
-$(foreach out,$(outputs),$(eval $(call depend_on_dir,$(out))))
+$(foreach out,$(outputs) $(cli_executable) $(gui_executable),$(eval $(call depend_on_dir,$(out))))
 
 $(sort $(foreach out,$(outputs),$(dir $(out)))):
 	mkdir -p $@
