@@ -30,30 +30,29 @@ object_names = $(addprefix $(build_dir)/,$(1:.cpp=.o))
 depfile_names = $(addprefix $(build_dir)/,$(1:.cpp=.d))
 ui_header_names = $(foreach ui,$(1),$(build_dir)/$(dir $(ui))ui_$(basename $(notdir $(ui))).h)
 
-libsolver_dir = $(project_dir)/libsolver
-libsolver_sources = $(call find_sources,$(libsolver_dir))
-libsolver_objects = $(call object_names,$(libsolver_sources))
-libsolver_depfiles = $(call depfile_names,$(libsolver_sources))
+define make_subproj
+$(1)_dir = $(project_dir)/$(1)
+$(1)_sources = $$(call find_sources,$$($(1)_dir))
+$(1)_objects = $$(call object_names,$$($(1)_sources))
+$(1)_depfiles = $$(call depfile_names,$$($(1)_sources))
+endef
+
+$(eval $(call make_subproj,libsolver))
 libsolver_lib = $(build_dir)/libsolver.a
 libsolver_libname = solver
 libsolver_includes = -isystem$(eigen_include_dir)
 
-cli_dir = $(project_dir)/cli
-cli_sources = $(call find_sources,$(cli_dir))
-cli_objects = $(call object_names,$(cli_sources))
-cli_depfiles = $(call depfile_names,$(cli_sources))
+$(eval $(call make_subproj,cli))
 cli_executable = $(bin_dir)/cli
 cli_includes = -I$(libsolver_dir)
 cli_ldlibs = -lboost_program_options -lboost_filesystem -lboost_system
 
-gui_dir = $(project_dir)/gui
-gui_sources = $(call find_sources,$(gui_dir))
+$(eval $(call make_subproj,gui))
+gui_objects += $(call object_names,$(gui_moc_sources))
 gui_moc_headers = $(call find_headers,$(gui_dir))
 gui_moc_sources = $(gui_moc_headers:.hpp=.moc.cpp)
 gui_ui_sources = $(call find_uis,$(gui_dir))
 gui_generated_headers = $(call ui_header_names,$(gui_ui_sources))
-gui_objects = $(call object_names,$(gui_sources) $(gui_moc_sources))
-gui_depfiles = $(call depfile_names,$(gui_sources))
 gui_executable = $(bin_dir)/gui
 gui_qt_modules = Core Gui Widgets
 gui_includes = -I$(libsolver_dir) -I$(qt_include_dir) $(addprefix -I$(qt_include_dir)/Qt,$(gui_qt_modules))
