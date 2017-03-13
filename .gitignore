@@ -1,5 +1,4 @@
-/Makefile
-/gui/Makefile
 build
-debug
-release
+bin/
+experiments/
+plots/
