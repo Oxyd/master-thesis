@@ -34,7 +34,6 @@ libsolver_dir = $(project_dir)/libsolver
 libsolver_sources = $(call find_sources,$(libsolver_dir))
 libsolver_objects = $(call object_names,$(libsolver_sources))
 libsolver_depfiles = $(call depfile_names,$(libsolver_sources))
-libsolver_build_dirs = $(dir $(libsolver_objects))
 libsolver_lib = $(build_dir)/libsolver.a
 libsolver_libname = solver
 libsolver_includes = -isystem$(eigen_include_dir)
@@ -43,19 +42,18 @@ cli_dir = $(project_dir)/cli
 cli_sources = $(call find_sources,$(cli_dir))
 cli_objects = $(call object_names,$(cli_sources))
 cli_depfiles = $(call depfile_names,$(cli_sources))
-cli_build_dirs = $(dir $(cli_objects))
 cli_executable = $(bin_dir)/cli
 cli_includes = -I$(libsolver_dir)
 cli_ldlibs = -lboost_program_options -lboost_filesystem -lboost_system
 
 gui_dir = $(project_dir)/gui
 gui_sources = $(call find_sources,$(gui_dir))
-gui_moc_sources = $(call find_headers,$(gui_dir))
+gui_moc_headers = $(call find_headers,$(gui_dir))
+gui_moc_sources = $(gui_moc_headers:.hpp=.moc.cpp)
 gui_ui_sources = $(call find_uis,$(gui_dir))
 gui_generated_headers = $(call ui_header_names,$(gui_ui_sources))
-gui_objects = $(call object_names,$(gui_sources) $(gui_moc_sources:.hpp=.moc.cpp))
+gui_objects = $(call object_names,$(gui_sources) $(gui_moc_sources))
 gui_depfiles = $(call depfile_names,$(gui_sources))
-gui_build_dirs = $(dir $(gui_objects))
 gui_executable = $(bin_dir)/gui
 gui_qt_modules = Core Gui Widgets
 gui_includes = -I$(libsolver_dir) -I$(qt_include_dir) $(addprefix -I$(qt_include_dir)/Qt,$(gui_qt_modules))
@@ -64,21 +62,16 @@ gui_includes += -I$(gui_dir)
 gui_libs = $(addprefix -lQt5,$(gui_qt_modules))
 gui_libs += -lboost_filesystem -lboost_system
 
+outputs = $(libsolver_objects) $(libsolver_lib) $(libsolver_depfiles)
+outputs += $(cli_objects) $(cli_executable) $(cli_depfiles)
+outputs += $(gui_objects) $(gui_generated_headers) $(gui_executable) $(gui_depfiles)
+
 .PHONY: all
 all: cli gui
 
 .PHONY: clean
 clean:
-	rm -f $(libsolver_objects)
-	rm -f $(libsolver_lib)
-	rm -f $(libsolver_depfiles)
-	rm -f $(cli_objects)
-	rm -f $(cli_executable)
-	rm -f $(cli_depfiles)
-	rm -f $(gui_objects)
-	rm -f $(gui_generated_headers)
-	rm -f $(gui_executable)
-	rm -f $(gui_depfiles)
+	rm -f $(outputs)
 
 .PHONY: cli
 cli: $(cli_executable)
@@ -117,19 +110,21 @@ ui_%.h : %.ui
 	$(uic) $< -o $@
 
 $(libsolver_objects) : CXXFLAGS += $(libsolver_includes)
-$(libsolver_objects) : | $(libsolver_build_dirs)
 
 $(cli_objects) : CXXFLAGS += $(cli_includes)
 # Boost.ProgramOptions won't link if we compile our .cpp with debugging stdlib
 $(cli_objects) : CXXFLAGS := $(filter-out -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC,$(CXXFLAGS))
-$(cli_objects) : | $(cli_build_dirs)
 
 $(gui_objects) : CXXFLAGS += $(gui_includes)
-$(gui_objects) : | $(gui_build_dirs)
 $(gui_objects) : $(gui_generated_headers)
-$(gui_generated_headers) : | $(gui_build_dirs)
 
-$(sort $(libsolver_build_dirs) $(cli_build_dirs) $(gui_build_dirs) $(bin_dir)):
+define depend_on_dir
+$(1) : | $(dir $(1))
+endef
+
+$(foreach out,$(outputs),$(eval $(call depend_on_dir,$(out))))
+
+$(sort $(foreach out,$(outputs),$(dir $(out)))):
 	mkdir -p $@
 
 -include $(libsolver_depfiles)
