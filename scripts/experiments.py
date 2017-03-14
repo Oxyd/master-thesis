@@ -22,10 +22,11 @@ configs = {
   '500-0.1': (500, 0.1)
 }
 
-def make_scenario(map_info, map_path, config):
+def make_scenario(map_info, map_path, num_agents, obstacles_prob):
   '''Create a scenario for the given map.'''
 
-  (agents_denum, obstacles_prob) = config
+  tiles = int(map_info['passable_tiles'])
+  if tiles > 20000: return None
 
   return {
     'map': str(map_path),
@@ -40,7 +41,7 @@ def make_scenario(map_info, map_path, config):
       }
     },
     'agent_settings': {
-      'random_agents': max(1, int(map_info['passable_tiles'] / agents_denum))
+      'random_agents': min(int(num_agents), tiles)
     },
     'agents': []
   }
@@ -113,6 +114,9 @@ def main():
   parser.add_argument('maps', help='Path to maps to run experiments on')
   parser.add_argument('scenarios',
                       help='Where to put resulting scenarios')
+  parser.add_argument('agents', help='Number of agents to place')
+  parser.add_argument('obstacles',
+                      help='Percent of tiles to fill with obstacles')
   parser.add_argument('solver', nargs=argparse.REMAINDER, metavar='solver args',
                       help='Solver invokation command line. {} is replaced by '
                       + 'the scenario path')
@@ -125,6 +129,8 @@ def main():
   args = parser.parse_args()
 
   maps = Path(args.maps)
+  num_agents = args.agents
+  obstacle_prob = args.obstacles
   scenarios = Path(args.scenarios)
   solver_args = args.solver
   dry = args.dry
@@ -147,22 +153,21 @@ def main():
       print('{} not connected; skipping'.format(f.stem))
       continue
 
-    for (conf_name, config) in configs.items():
-      scenario_dir = scenarios / conf_name
-      scenario_dir.mkdir(parents=True, exist_ok=True)
+    conf_name = '{}-agents-{}-obst'.format(num_agents, obstacle_prob)
+    scenario_dir = scenarios / conf_name
+    scenario_dir.mkdir(parents=True, exist_ok=True)
+    scenario = make_scenario(info, make_relative(map_path, scenario_dir),
+                             num_agents, obstacle_prob)
+    if scenario is None: continue
 
-      scenario_path = scenario_dir / (f.stem + '.json')
-      scenario_path.open(mode='w').write(json.dumps(
-        make_scenario(info, make_relative(map_path, scenario_dir), config),
-        indent=2
-      ))
+    scenario_path = scenario_dir / (f.stem + '.json')
+    scenario_path.open(mode='w').write(json.dumps(scenario, indent=2))
+    result_path = scenario_dir / (f.stem + '.result.json')
 
-      result_path = scenario_dir / (f.stem + '.result.json')
-
-      jobs.put((f.stem + ' ' + conf_name,
-                substitute_scenario(solver_args, scenario_path.resolve()),
-                result_path,
-                info))
+    jobs.put((f.stem + ' ' + conf_name,
+              substitute_scenario(solver_args, scenario_path.resolve()),
+              result_path,
+              info))
 
   if dry:
     return

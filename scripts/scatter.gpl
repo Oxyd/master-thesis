@@ -10,7 +10,7 @@ out_dir = sprintf("../plots/%s", config)
 
 set output out_dir."/size-ticks.png"
 
-plot [0:20000] [0:1000] \
+plot \
      base_dir."/lra-size-ticks.txt" smooth unique lw 2 title "LRA",\
      base_dir."/whca-5-size-ticks.txt" smooth unique lw 2 title "window = 5",\
      base_dir."/whca-10-size-ticks.txt" smooth unique lw 2 title "window = 10",\
@@ -20,7 +20,7 @@ plot [0:20000] [0:1000] \
 set ylabel "Average time (ms)"
 
 set output out_dir."/size-time.png"
-plot [0:20000] [0:2000] \
+plot \
      base_dir."/lra-size-time.txt" smooth unique lw 2 title "LRA",\
      base_dir."/whca-5-size-time.txt" smooth unique lw 2 title "WHCA* (5)",\
      base_dir."/whca-10-size-time.txt" smooth unique lw 2 title "WHCA* (10)",\

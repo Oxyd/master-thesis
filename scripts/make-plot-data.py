@@ -6,8 +6,6 @@ import subprocess
 input_dir = Path('../tmp/')
 output_dir = Path('../experiments')
 
-window_sizes = [5, 10, 15, 20]
-
 def scatter(in_, out):
   subprocess.run(['./collect-scatter.py', 'map_size', 'ticks',
                   str(in_), str(out) + '-size-ticks.txt'])
