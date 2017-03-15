@@ -1,6 +1,7 @@
 CXXFLAGS += -Wall -Wextra -std=c++14 -pedantic
 
 mode ?= opt
+os ?= linux
 
 -include site-config.make
 
@@ -8,6 +9,9 @@ eigen_include_dir ?= /usr/include/eigen3
 qt_include_dir ?= /usr/include/qt5
 moc ?= moc-qt5
 uic ?= /usr/lib64/qt5/bin/uic
+boost_system_lib ?= boost_system
+boost_filesystem_lib ?= boost_filesystem
+boost_program_options_lib ?= boost_program_options
 
 CXXFLAGS += -fPIC
 
@@ -45,7 +49,7 @@ libsolver_includes = -isystem$(eigen_include_dir)
 $(eval $(call make_subproj,cli))
 cli_executable = $(bin_dir)/cli
 cli_includes = -I$(libsolver_dir)
-cli_ldlibs = -lboost_program_options -lboost_filesystem -lboost_system
+cli_ldlibs = -l$(boost_program_options_lib) -l$(boost_filesystem_lib) -l$(boost_system_lib)
 
 $(eval $(call make_subproj,gui))
 gui_objects += $(call object_names,$(gui_moc_sources))
@@ -59,18 +63,36 @@ gui_includes = -I$(libsolver_dir) -I$(qt_include_dir) $(addprefix -I$(qt_include
 gui_includes += $(sort $(addprefix -I,$(dir $(gui_generated_headers))))
 gui_includes += -I$(gui_dir)
 gui_libs = $(addprefix -lQt5,$(gui_qt_modules))
-gui_libs += -lboost_filesystem -lboost_system
+gui_libs += -l$(boost_filesystem_lib) -l$(boost_system_lib)
 
 outputs = $(libsolver_objects) $(libsolver_lib) $(libsolver_depfiles)
 outputs += $(cli_objects) $(cli_executable) $(cli_depfiles)
 outputs += $(gui_objects) $(gui_generated_headers) $(gui_executable) $(gui_depfiles)
+
+ifneq ($(OS),Windows_NT)
+	delete ?= rm -f $1
+	make_dir ?= mkdir -p $1
+else
+	slashes = $(subst /,\,$1)
+define do_delete
+	if exist "$1" del "$1"
+
+endef
+
+define do_make_dir
+	if not exist "$1" mkdir "$1"
+
+endef
+	delete ?= $(foreach file,$1,$(call do_delete,$(call slashes,$(file))))
+	make_dir ?= $(call do_make_dir,$(call slashes,$1))
+endif
 
 .PHONY: all
 all: cli gui
 
 .PHONY: clean
 clean:
-	rm -f $(outputs)
+	$(call delete,$(outputs))
 
 .PHONY: cli
 cli: $(cli_executable)
@@ -79,10 +101,10 @@ cli: $(cli_executable)
 gui: $(gui_executable)
 
 $(libsolver_lib) : $(libsolver_objects)
-	rm -f $(libsolver_lib)
+	$(call delete,$(libsolver_lib))
 	$(AR) cqs $@ $^
 
-link = $(CXX) $(1) $(LDFLAGS) $(LDLIBS) -l$(libsolver_libname) -o $@
+link = $(CXX) $(1) $(LDFLAGS) -l$(libsolver_libname) $(LDLIBS) -o $@
 
 $(cli_executable) : LDFLAGS += -L$(build_dir)
 $(cli_executable) : LDLIBS += $(cli_ldlibs)
@@ -124,7 +146,7 @@ endef
 $(foreach out,$(outputs) $(cli_executable) $(gui_executable),$(eval $(call depend_on_dir,$(out))))
 
 $(sort $(foreach out,$(outputs),$(dir $(out)))):
-	mkdir -p $@
+	$(call make_dir,$@)
 
 -include $(libsolver_depfiles)
 -include $(cli_depfiles)
