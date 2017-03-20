@@ -1,7 +1,6 @@
 CXXFLAGS += -Wall -Wextra -std=c++14 -pedantic
 
 mode ?= opt
-os ?= linux
 
 -include site-config.make
 
@@ -12,6 +11,8 @@ uic ?= /usr/lib64/qt5/bin/uic
 boost_system_lib ?= boost_system
 boost_filesystem_lib ?= boost_filesystem
 boost_program_options_lib ?= boost_program_options
+
+gui_ldflags ?=
 
 CXXFLAGS += -fPIC
 
@@ -69,23 +70,10 @@ outputs = $(libsolver_objects) $(libsolver_lib) $(libsolver_depfiles)
 outputs += $(cli_objects) $(cli_executable) $(cli_depfiles)
 outputs += $(gui_objects) $(gui_generated_headers) $(gui_executable) $(gui_depfiles)
 
-ifneq ($(OS),Windows_NT)
-	delete ?= rm -f $1
-	make_dir ?= mkdir -p $1
-else
-	slashes = $(subst /,\,$1)
-define do_delete
-	if exist "$1" del "$1"
+delete ?= rm -f $1
+make_dir ?= mkdir -p $1
 
-endef
-
-define do_make_dir
-	if not exist "$1" mkdir "$1"
-
-endef
-	delete ?= $(foreach file,$1,$(call do_delete,$(call slashes,$(file))))
-	make_dir ?= $(call do_make_dir,$(call slashes,$1))
-endif
+post_build ?=
 
 .PHONY: all
 all: cli gui
@@ -110,13 +98,16 @@ $(cli_executable) : LDFLAGS += -L$(build_dir)
 $(cli_executable) : LDLIBS += $(cli_ldlibs)
 $(cli_executable) : $(cli_objects) $(libsolver_lib)
 	$(call link,$(cli_objects))
+	$(call post_build,$(cli_executable))
 
 $(gui_executable) : LDFLAGS += -L$(build_dir)
+$(gui_executable) : LDFLAGS += $(gui_ldflags)
 $(gui_executable) : LDLIBS += $(gui_libs)
 $(gui_executable) : incdirs += $(gui_includes)
 $(gui_executable) : CXXFLAGS += $(gui_includes)
 $(gui_executable) : $(gui_objects) $(libsolver_lib)
 	$(call link,$(gui_objects))
+	$(call post_build,$(gui_executable))
 
 $(build_dir)/%.o : %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@ -MMD -MP
