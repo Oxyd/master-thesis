@@ -16,7 +16,7 @@ boost_program_options_lib ?= boost_program_options
 CXXFLAGS += -fPIC
 
 ifeq ($(mode),opt)
-	CXXFLAGS += -O3
+	CXXFLAGS += -O3 -DNDEBUG
 endif
 
 ifeq ($(mode),debug)
