@@ -8,19 +8,29 @@ import sys
 import threading
 import queue
 
-configs = {
-  '100-0.05': (100, 0.05),
-  '200-0.05': (200, 0.05),
-  '500-0.05': (500, 0.05),
+impls = [
+  ('lra', ['--algorithm', 'lra']),
+  ('whca-5', ['--algorithm', 'whca', '--window', '5']),
+  ('whca-10', ['--algorithm', 'whca', '--window', '10']),
+  ('whca-15', ['--algorithm', 'whca', '--window', '15']),
+  ('whca-20', ['--algorithm', 'whca', '--window', '20'])
+]
 
-  '100-0.01': (100, 0.01),
-  '200-0.01': (200, 0.01),
-  '500-0.01': (500, 0.01),
+timeout = 5
+threads = 8
 
-  '100-0.1': (100, 0.1),
-  '200-0.1': (200, 0.1),
-  '500-0.1': (500, 0.1)
-}
+configs = [
+  # Num agents | Obstacle probability
+  (5, 0.01),
+  (5, 0.1),
+  (50, 0.01),
+  (50, 0.1)
+]
+
+solver_path = Path('../bin/opt/cli')
+maps_path = Path('../da-maps')
+tmp_path = Path('../tmp')
+
 
 def make_scenario(map_info, map_path, num_agents, obstacles_prob):
   '''Create a scenario for the given map.'''
@@ -73,7 +83,11 @@ def substitute_scenario(solver_args, scenario_path):
   return list(map(subst, solver_args))
 
 jobs = queue.Queue()
-timeout = None
+
+def reset_jobs():
+  global jobs
+  jobs = queue.Queue()
+
 
 def worker():
   '''Worker thread that will run experiments off the job queue.'''
@@ -109,37 +123,13 @@ def worker():
     jobs.task_done()
 
 
-def main():
-  parser = argparse.ArgumentParser()
-  parser.add_argument('maps', help='Path to maps to run experiments on')
-  parser.add_argument('scenarios',
-                      help='Where to put resulting scenarios')
-  parser.add_argument('agents', help='Number of agents to place')
-  parser.add_argument('obstacles',
-                      help='Percent of tiles to fill with obstacles')
-  parser.add_argument('solver', nargs=argparse.REMAINDER, metavar='solver args',
-                      help='Solver invokation command line. {} is replaced by '
-                      + 'the scenario path')
-  parser.add_argument('--timeout', type=float,
-                      help='Time, in seconds, to run the solver for')
-  parser.add_argument('--threads', type=int, default=1,
-                      help='How many threads to use for running the experiments')
-  parser.add_argument('--dry', action='store_true')
+def do_experiments(maps, num_agents, obstacle_prob, scenarios, solver_args,
+                   dry):
+  '''Run the experiments for one implementation and one configuration on all
+  available scenarios.
+  '''
 
-  args = parser.parse_args()
-
-  maps = Path(args.maps)
-  num_agents = args.agents
-  obstacle_prob = args.obstacles
-  scenarios = Path(args.scenarios)
-  solver_args = args.solver
-  dry = args.dry
-
-  global timeout
-  if 'timeout' in args:
-    timeout = args.timeout
-  else:
-    timeout = None
+  reset_jobs()
 
   for f in maps.glob('*.json'):
     map_path = f.parent / (f.stem + '.map')
@@ -165,7 +155,9 @@ def main():
     result_path = scenario_dir / (f.stem + '.result.json')
 
     jobs.put((f.stem + ' ' + conf_name,
-              substitute_scenario(solver_args, scenario_path.resolve()),
+              [str(solver_path.resolve()),
+               '--scenario', str(scenario_path.resolve())]
+              + solver_args,
               result_path,
               info))
 
@@ -174,13 +166,55 @@ def main():
 
   print('Starting worker threads')
 
-  threads = [threading.Thread(target=worker) for _ in range(args.threads)]
-  for t in threads: t.start()
+  workers = [threading.Thread(target=worker) for _ in range(threads)]
+  for w in workers: w.start()
 
   jobs.join()
 
-  for _ in range(args.threads): jobs.put(None)
-  for t in threads: t.join()
+  for _ in range(threads): jobs.put(None)
+  for w in workers: w.join()
+
+
+def main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--dry', action='store_true')
+  args = parser.parse_args()
+
+  for name, impl_args in impls:
+    print('=== {} ==='.format(name))
+
+    for agents, obstacles in configs:
+      do_experiments(maps_path, agents, obstacles, tmp_path / name,
+                     impl_args, args.dry)
+
+def not_main():
+  parser = argparse.ArgumentParser()
+  parser.add_argument('maps', help='Path to maps to run experiments on')
+  parser.add_argument('scenarios',
+                      help='Where to put resulting scenarios')
+  parser.add_argument('agents', help='Number of agents to place')
+  parser.add_argument('obstacles',
+                      help='Percent of tiles to fill with obstacles')
+  parser.add_argument('solver', nargs=argparse.REMAINDER, metavar='solver args',
+                      help='Solver invokation command line. {} is replaced by '
+                      + 'the scenario path')
+  parser.add_argument('--timeout', type=float,
+                      help='Time, in seconds, to run the solver for')
+  parser.add_argument('--threads', type=int, default=1,
+                      help='How many threads to use for running the experiments')
+  parser.add_argument('--dry', action='store_true')
+
+  args = parser.parse_args()
+
+  maps = Path(args.maps)
+  num_agents = args.agents
+  obstacle_prob = args.obstacles
+  scenarios = Path(args.scenarios)
+  solver_args = args.solver
+  dry = args.dry
+
+  do_experiments(maps, num_agents, obstacle_prob, scenarios, solver_args, dry)
+
 
 if __name__ == '__main__':
   main()
