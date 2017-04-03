@@ -5,8 +5,8 @@ set ylabel "Average ticks"
 
 set colorsequence podo
 
-base_dir = sprintf("../experiments/%s", config)
-out_dir = sprintf("../plots/%s", config)
+base_dir = sprintf("../experiments/%s/%s", set, config)
+out_dir = sprintf("../plots/%s/%s", set, config)
 
 set output out_dir."/size-ticks.png"
 

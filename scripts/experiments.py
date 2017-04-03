@@ -131,18 +131,7 @@ def do_experiments(maps, num_agents, obstacle_prob, scenarios, solver_args,
 
   reset_jobs()
 
-  for f in maps.glob('*.json'):
-    map_path = f.parent / (f.stem + '.map')
-    if not map_path.exists():
-      print('No matching map file for {}'.format(f.name))
-      continue
-
-    info = json.load(f.open())
-
-    if not info['connected']:
-      print('{} not connected; skipping'.format(f.stem))
-      continue
-
+  for (map_path, info) in maps:
     conf_name = '{}-agents-{}-obst'.format(num_agents, obstacle_prob)
     scenario_dir = scenarios / conf_name
     scenario_dir.mkdir(parents=True, exist_ok=True)
@@ -150,11 +139,11 @@ def do_experiments(maps, num_agents, obstacle_prob, scenarios, solver_args,
                              num_agents, obstacle_prob)
     if scenario is None: continue
 
-    scenario_path = scenario_dir / (f.stem + '.json')
+    scenario_path = scenario_dir / (map_path.stem + '.json')
     scenario_path.open(mode='w').write(json.dumps(scenario, indent=2))
-    result_path = scenario_dir / (f.stem + '.result.json')
+    result_path = scenario_dir / (map_path.stem + '.result.json')
 
-    jobs.put((f.stem + ' ' + conf_name,
+    jobs.put((map_path.stem + ' ' + conf_name,
               [str(solver_path.resolve()),
                '--scenario', str(scenario_path.resolve())]
               + solver_args,
@@ -180,41 +169,27 @@ def main():
   parser.add_argument('--dry', action='store_true')
   args = parser.parse_args()
 
+  all_maps = []
+  for f in maps_path.glob('*.json'):
+    map_path = f.parent / (f.stem + '.map')
+    if not map_path.exists():
+      print('No matching map file for {}'.format(f.name))
+      continue
+
+    info = json.load(f.open())
+
+    if not info['connected']:
+      print('{} not connected; skipping'.format(f.stem))
+      continue
+
+    all_maps.append((map_path, info))
+
   for name, impl_args in impls:
     print('=== {} ==='.format(name))
 
     for agents, obstacles in configs:
-      do_experiments(maps_path, agents, obstacles, tmp_path / name,
+      do_experiments(all_maps, agents, obstacles, tmp_path / 'all' / name,
                      impl_args, args.dry)
-
-def not_main():
-  parser = argparse.ArgumentParser()
-  parser.add_argument('maps', help='Path to maps to run experiments on')
-  parser.add_argument('scenarios',
-                      help='Where to put resulting scenarios')
-  parser.add_argument('agents', help='Number of agents to place')
-  parser.add_argument('obstacles',
-                      help='Percent of tiles to fill with obstacles')
-  parser.add_argument('solver', nargs=argparse.REMAINDER, metavar='solver args',
-                      help='Solver invokation command line. {} is replaced by '
-                      + 'the scenario path')
-  parser.add_argument('--timeout', type=float,
-                      help='Time, in seconds, to run the solver for')
-  parser.add_argument('--threads', type=int, default=1,
-                      help='How many threads to use for running the experiments')
-  parser.add_argument('--dry', action='store_true')
-
-  args = parser.parse_args()
-
-  maps = Path(args.maps)
-  num_agents = args.agents
-  obstacle_prob = args.obstacles
-  scenarios = Path(args.scenarios)
-  solver_args = args.solver
-  dry = args.dry
-
-  do_experiments(maps, num_agents, obstacle_prob, scenarios, solver_args, dry)
-
 
 if __name__ == '__main__':
   main()
