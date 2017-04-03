@@ -166,6 +166,8 @@ def do_experiments(maps, num_agents, obstacle_prob, scenarios, solver_args,
 
 def main():
   parser = argparse.ArgumentParser()
+  parser.add_argument('--set', type=str, default='all',
+                      help='Set name to run. Defaults to "all"')
   parser.add_argument('--dry', action='store_true')
   args = parser.parse_args()
 
@@ -184,12 +186,30 @@ def main():
 
     all_maps.append((map_path, info))
 
-  for name, impl_args in impls:
-    print('=== {} ==='.format(name))
+  sets = {
+    'full': all_maps,
+    'first': [all_maps[0]],
+    'none': []
+  }
+  all_sets = ['full']
 
-    for agents, obstacles in configs:
-      do_experiments(all_maps, agents, obstacles, tmp_path / 'all' / name,
-                     impl_args, args.dry)
+  sets_to_run = []
+  if args.set == 'all':
+    sets_to_run = all_sets
+  else:
+    if args.set not in sets:
+      print('Unknown set {}'.format(args.set))
+      return
+
+    sets_to_run = [args.set]
+
+  for set_name in sets_to_run:
+    for name, impl_args in impls:
+      print('=== {} ==='.format(name))
+
+      for agents, obstacles in configs:
+        do_experiments(sets[set_name], agents, obstacles,
+                       tmp_path / set_name / name, impl_args, args.dry)
 
 if __name__ == '__main__':
   main()
