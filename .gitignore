@@ -3,3 +3,4 @@ bin/
 experiments/
 plots/
 site-config.make
+/gnuplot
