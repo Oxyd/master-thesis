@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from pathlib import Path
+import json
 import re
 import subprocess
 
@@ -8,7 +9,7 @@ experiments_dir = Path('../experiments')
 plots_dir = Path('../plots')
 tmp_dir = Path('../gnuplot')
 
-def plot_header(set_dir, config_dir, out_name):
+def plot_header(subdir, out_name):
   return '''\
 set term png size 600, 400
 set colorsequence podo
@@ -16,8 +17,8 @@ base_dir = "{}/"
 out_dir = "{}/"
 set output out_dir."{}"
 '''.format(
-  Path('../experiments/' + set_dir.name + '/' + config_dir.name).resolve(),
-  Path('../plots/' + set_dir.name + '/' + config_dir.name).resolve(),
+  (Path('../experiments') / subdir).resolve(),
+  (Path('../plots') / subdir).resolve(),
   out_name
 )
 
@@ -44,17 +45,57 @@ set ylabel "{}"
   )
 
 
-def scatter(set_dir, config_dir):
-  return (('scatter-size-ticks',
-           plot_header(set_dir, config_dir, 'scatter-size-ticks.png')
-           + scatter_plots(set_dir, config_dir, 'ticks', 'Average ticks')),
-          ('scatter-size-time',
-           plot_header(set_dir, config_dir, 'scatter-size-time.png')
-           + scatter_plots(set_dir, config_dir, 'time', 'Average time (ms)')))
+def scatter(set_dir):
+  scripts = []
 
+  for config_dir in (d for d in set_dir.iterdir() if d.is_dir()):
+    print('  > config = {}'.format(config_dir.name))
+
+    (plots_dir / set_dir.name / config_dir.name).mkdir(parents=True,
+                                                       exist_ok=True)
+
+    scripts.append(
+      ('scatter-size-ticks',
+       plot_header('{}/{}'.format(set_dir.name, config_dir.name),
+                   'scatter-size-ticks.png')
+       + scatter_plots(set_dir, config_dir, 'ticks', 'Average ticks'))
+    )
+    scripts.append(
+      ('scatter-size-time',
+       plot_header('{}/{}'.format(set_dir.name, config_dir.name),
+                   'scatter-size-time.png')
+       + scatter_plots(set_dir, config_dir, 'time', 'Average time (ms)'))
+    )
+
+  return scripts
+
+
+def avg_time(set_dir):
+  (plots_dir / set_dir.name).mkdir(parents=True, exist_ok=True)
+
+  with (set_dir / 'data-meta.json').open() as meta_in:
+    meta = json.load(meta_in)
+    algorithms = meta['algorithms']
+
+    return [
+      ('avg-time',
+       plot_header(set_dir.name, 'avg-time.png')
+       + 'set style data histogram\n'
+       + 'set auto x\n'
+       + 'set style fill solid border -1\n'
+       + 'set key left top\n'
+       + 'plot base_dir."data.txt" using 2:xtic(1) title "{}",\\\n'.format(
+         algorithms[0]
+       )
+       + ',\\\n'.join('  "" using {} title "{}"'.format(i + 2, algorithms[i])
+                   for i in range(1, len(algorithms)))
+       + '\n'
+      )
+    ]
 
 set_plots = {
-  'all': scatter
+  'full': scatter,
+  'small': avg_time
 }
 
 def run(script):
@@ -74,13 +115,9 @@ def main():
       print('set {} does not have plot configuration'.format(set_dir.name))
       continue
 
-    for config in (d for d in set_dir.iterdir() if d.is_dir()):
-      print('set = {}, config = {}'.format(set_dir.name, config.name))
-
-      (plots_dir / set_dir.name / config.name).mkdir(parents=True,
-                                                     exist_ok=True)
-      for script in set_plots[set_dir.name](set_dir, config):
-        run(script)
+    print('set = {}'.format(set_dir.name))
+    for script in set_plots[set_dir.name](set_dir):
+      run(script)
 
 
 if __name__ == '__main__':

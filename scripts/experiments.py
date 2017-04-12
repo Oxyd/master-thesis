@@ -19,13 +19,32 @@ impls = [
 timeout = 5
 threads = 8
 
-configs = [
+all_configs = [
   # Num agents | Obstacle probability
   (5, 0.01),
   (5, 0.1),
   (50, 0.01),
   (50, 0.1)
 ]
+
+small_configs = [
+  (1, 0.01),
+  (5, 0.01),
+  (10, 0.01),
+  (15, 0.01),
+  (20, 0.01),
+  (30, 0.01),
+  (40, 0.01),
+  (50, 0.01),
+  (100, 0.01),
+  (200, 0.01)
+]
+
+set_configs = {
+  'full': all_configs,
+  'first': all_configs,
+  'small': small_configs
+}
 
 solver_path = Path('../bin/opt/cli')
 maps_path = Path('../da-maps')
@@ -172,6 +191,8 @@ def main():
   args = parser.parse_args()
 
   all_maps = []
+  small_maps = []
+
   for f in maps_path.glob('*.json'):
     map_path = f.parent / (f.stem + '.map')
     if not map_path.exists():
@@ -186,10 +207,14 @@ def main():
 
     all_maps.append((map_path, info))
 
+    if 5000 <= info['passable_tiles'] < 6000:
+      small_maps.append((map_path, info))
+
   sets = {
     'full': all_maps,
     'first': [all_maps[0]],
-    'none': []
+    'none': [],
+    'small': small_maps
   }
   all_sets = ['full']
 
@@ -204,10 +229,16 @@ def main():
     sets_to_run = [args.set]
 
   for set_name in sets_to_run:
+    if set_name not in set_configs:
+      print('No config for set {}'.format(set_name))
+      continue
+
+    print('====== {} ======'.format(set_name))
+
     for name, impl_args in impls:
       print('=== {} ==='.format(name))
 
-      for agents, obstacles in configs:
+      for agents, obstacles in set_configs[set_name]:
         do_experiments(sets[set_name], agents, obstacles,
                        tmp_path / set_name / name, impl_args, args.dry)
 
