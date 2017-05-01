@@ -57,7 +57,13 @@ def avg_time(set_dir):
     if agents not in data: data[agents] = {}
     data[agents][run] = avg
 
+  run_pretty_names = {}
+
   for run_dir in (d for d in set_dir.iterdir() if d.is_dir()):
+    with (run_dir / 'meta.json').open() as meta:
+      info = json.load(meta)
+      run_pretty_names[run_dir.name] = info['name']
+
     for config_dir in (d for d in run_dir.iterdir() if d.is_dir()):
       m = re.match(r'''(\d+)-agents-0\.01-obst''', config_dir.name)
       if m is None:
@@ -91,7 +97,7 @@ def avg_time(set_dir):
 
   out_info_path = (output_dir / set_dir.name / 'data-meta.json')
   with out_info_path.open(mode='w') as out:
-    json.dump({'algorithms': list(runs)}, out)
+    json.dump({'algorithms': list(run_pretty_names[r] for r in runs)}, out)
 
 
 set_plots = {

@@ -9,11 +9,11 @@ import threading
 import queue
 
 impls = [
-  ('lra', ['--algorithm', 'lra']),
-  ('whca-5', ['--algorithm', 'whca', '--window', '5']),
-  ('whca-10', ['--algorithm', 'whca', '--window', '10']),
-  ('whca-15', ['--algorithm', 'whca', '--window', '15']),
-  ('whca-20', ['--algorithm', 'whca', '--window', '20'])
+  ('lra', 'LRA*', ['--algorithm', 'lra']),
+  ('whca-5', 'WHCA* (5)', ['--algorithm', 'whca', '--window', '5']),
+  ('whca-10', 'WHCA* (10)', ['--algorithm', 'whca', '--window', '10']),
+  ('whca-15', 'WHCA* (15)', ['--algorithm', 'whca', '--window', '15']),
+  ('whca-20', 'WHCA* (20)', ['--algorithm', 'whca', '--window', '20'])
 ]
 
 timeout = 5
@@ -235,12 +235,15 @@ def main():
 
     print('====== {} ======'.format(set_name))
 
-    for name, impl_args in impls:
-      print('=== {} ==='.format(name))
+    for name, pretty_name, impl_args in impls:
+      print('=== {} ==='.format(pretty_name))
 
       for agents, obstacles in set_configs[set_name]:
         do_experiments(sets[set_name], agents, obstacles,
                        tmp_path / set_name / name, impl_args, args.dry)
+
+        with (tmp_path / set_name / name / 'meta.json').open(mode='w') as out:
+          json.dump({'name': pretty_name}, out)
 
 if __name__ == '__main__':
   main()
