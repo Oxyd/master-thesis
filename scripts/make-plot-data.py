@@ -52,10 +52,11 @@ def natural_key(string_):
 def avg_time(set_dir):
   '''Make histogram plot data for comparing algorithms on a small set of runs.'''
 
-  data = {} # num_agents -> run -> avg time
-  def add(agents, run, avg):
-    if agents not in data: data[agents] = {}
-    data[agents][run] = avg
+  data = {} # num_obstacles -> num_agents -> run -> avg time
+  def add(obstacles, agents, run, avg):
+    if obstacles not in data: data[obstacles] = {}
+    if agents not in data[obstacles]: data[obstacles][agents] = {}
+    data[obstacles][agents][run] = avg
 
   run_pretty_names = {}
 
@@ -65,8 +66,8 @@ def avg_time(set_dir):
       run_pretty_names[run_dir.name] = info['name']
 
     for config_dir in (d for d in run_dir.iterdir() if d.is_dir()):
-      m = re.match(r'''(\d+)-agents-0\.01-obst''', config_dir.name)
-      if m is None:
+      match = re.match(r'''(\d+)-agents-([0-9.]+)-obst''', config_dir.name)
+      if match is None:
         raise RuntimeError('Invalid config name: {}'.format(config_dir.name))
 
       total_time = 0
@@ -79,25 +80,30 @@ def avg_time(set_dir):
           total_time += float(result['result']['time_ms'])
           scenarios += 1
 
-      add(int(m.group(1)), run_dir.name, total_time / scenarios)
+      if scenarios > 0:
+        avg = total_time / scenarios
+      else:
+        avg = 0
+      add(float(match.group(2)), int(match.group(1)), run_dir.name, avg)
 
-  out_path = (output_dir / set_dir.name / 'data.txt')
-  out_path.parent.mkdir(parents=True, exist_ok=True)
+  for obstacles in data:
+    out_path = output_dir / set_dir.name / (str(obstacles) + '.txt')
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
-  runs = None
+    runs = None
 
-  with out_path.open(mode='w') as out:
-    for agents in sorted(data):
-      if runs is None:
-        runs = sorted(data[agents], key=natural_key)
+    with out_path.open(mode='w') as out:
+      for agents in sorted(data[obstacles]):
+        if runs is None:
+          runs = sorted(data[obstacles][agents], key=natural_key)
 
-      line = '"{}" '.format(agents)
-      line += ' '.join(str(data[agents][run]) for run in runs)
-      out.write(line + '\n')
+        line = '"{}" '.format(agents)
+        line += ' '.join(str(data[obstacles][agents][run]) for run in runs)
+        out.write(line + '\n')
 
-  out_info_path = (output_dir / set_dir.name / 'data-meta.json')
-  with out_info_path.open(mode='w') as out:
-    json.dump({'algorithms': list(run_pretty_names[r] for r in runs)}, out)
+    out_info_path = output_dir / set_dir.name / (str(obstacles) + '-meta.json')
+    with out_info_path.open(mode='w') as out:
+      json.dump({'algorithms': list(run_pretty_names[r] for r in runs)}, out)
 
 
 set_plots = {

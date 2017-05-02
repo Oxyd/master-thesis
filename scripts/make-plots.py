@@ -72,26 +72,38 @@ def scatter(set_dir):
 
 def avg_time(set_dir):
   (plots_dir / set_dir.name).mkdir(parents=True, exist_ok=True)
+  result = []
 
-  with (set_dir / 'data-meta.json').open() as meta_in:
-    meta = json.load(meta_in)
-    algorithms = meta['algorithms']
+  for meta_path in set_dir.glob('*-meta.json'):
+    with meta_path.open() as meta_in:
+      meta = json.load(meta_in)
+      algorithms = meta['algorithms']
 
-    return [
-      ('avg-time',
-       plot_header(set_dir.name, 'avg-time.png')
-       + 'set style data histogram\n'
-       + 'set auto x\n'
-       + 'set style fill solid border -1\n'
-       + 'set key left top\n'
-       + 'plot base_dir."data.txt" using 2:xtic(1) title "{}",\\\n'.format(
-         algorithms[0]
-       )
-       + ',\\\n'.join('  "" using {} title "{}"'.format(i + 2, algorithms[i])
-                   for i in range(1, len(algorithms)))
-       + '\n'
+      match = re.match(r'''([0-9.]+)-meta.json''', meta_path.name)
+      if not match:
+        raise RuntimeError('Invalid meta file name: {}'.format(meta_path.name))
+
+      name = match.group(1)
+      data_path = set_dir / (name + '.txt')
+
+      result.append(
+        (name,
+         plot_header(set_dir.name, name + '.png')
+         + 'set style data histogram\n'
+         + 'set auto x\n'
+         + 'set style fill solid border -1\n'
+         + 'set key left top\n'
+         + 'set logscale y\n'
+         + 'plot base_dir."{}" using 2:xtic(1) title "{}",\\\n'.format(
+           data_path.name, algorithms[0]
+         )
+         + ',\\\n'.join('  "" using {} title "{}"'.format(i + 2, algorithms[i])
+                     for i in range(1, len(algorithms)))
+         + '\n'
+        )
       )
-    ]
+
+  return result
 
 set_plots = {
   'full': scatter,
