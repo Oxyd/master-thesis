@@ -16,20 +16,19 @@ impls = [
   ('whca-20', 'WHCA* (20)', ['--algorithm', 'whca', '--window', '20'])
 ]
 
-timeout = 5
 threads = 8
 
 all_configs = [
-  # Num agents | Obstacle probability
-  (5, 0.01),
-  (5, 0.1),
-  (50, 0.01),
-  (50, 0.1)
+  # Timeout | Num agents | Obstacle probability
+  (5, 5, 0.01),
+  (5, 5, 0.1),
+  (5, 50, 0.01),
+  (5, 50, 0.1)
 ]
 
 small_configs = [
-  (agents, obstacles)
-  for obstacles in (0.01, 0.1)
+  (10, agents, obstacles)
+  for obstacles in (0.01, 0.05, 0.1, 0.2)
   for agents in (1, 5, 10, 15, 20, 30, 40, 50, 100, 200)
 ]
 
@@ -108,7 +107,7 @@ def worker():
     item = jobs.get()
     if item is None: break
 
-    (name, args, result_path, info) = item
+    (name, args, result_path, info, timeout) = item
 
     print('{} ...'.format(name))
 
@@ -136,7 +135,7 @@ def worker():
 
 
 def do_experiments(maps, num_agents, obstacle_prob, scenarios, solver_args,
-                   dry):
+                   timeout, dry):
   '''Run the experiments for one implementation and one configuration on all
   available scenarios.
   '''
@@ -159,8 +158,7 @@ def do_experiments(maps, num_agents, obstacle_prob, scenarios, solver_args,
               [str(solver_path.resolve()),
                '--scenario', str(scenario_path.resolve())]
               + solver_args,
-              result_path,
-              info))
+              result_path, info, timeout))
 
   if dry:
     return
@@ -231,9 +229,9 @@ def main():
     for name, pretty_name, impl_args in impls:
       print('=== {} ==='.format(pretty_name))
 
-      for agents, obstacles in set_configs[set_name]:
+      for timeout, agents, obstacles in set_configs[set_name]:
         do_experiments(sets[set_name], agents, obstacles,
-                       tmp_path / set_name / name, impl_args, args.dry)
+                       tmp_path / set_name / name, impl_args, timeout, args.dry)
 
         with (tmp_path / set_name / name / 'meta.json').open(mode='w') as out:
           json.dump({'name': pretty_name}, out)
