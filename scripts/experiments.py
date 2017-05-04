@@ -8,15 +8,35 @@ import sys
 import threading
 import queue
 
-impls = [
-  ('lra', 'LRA*', ['--algorithm', 'lra']),
-  ('whca-5', 'WHCA* (5)', ['--algorithm', 'whca', '--window', '5']),
-  ('whca-10', 'WHCA* (10)', ['--algorithm', 'whca', '--window', '10']),
-  ('whca-15', 'WHCA* (15)', ['--algorithm', 'whca', '--window', '15']),
-  ('whca-20', 'WHCA* (20)', ['--algorithm', 'whca', '--window', '20'])
-]
-
 threads = 8
+
+def impls(extra_args, suffix='', heuristic_name=''):
+  return [
+    ('lra' + suffix, 'LRA*', heuristic_name,
+     ['--algorithm', 'lra'] + extra_args),
+    ('whca-5' + suffix, 'WHCA* (5)', heuristic_name,
+     ['--algorithm', 'whca', '--window', '5'] + extra_args),
+    ('whca-10' + suffix, 'WHCA* (10)', heuristic_name,
+     ['--algorithm', 'whca', '--window', '10'] + extra_args),
+    ('whca-15' + suffix, 'WHCA* (15)', heuristic_name,
+     ['--algorithm', 'whca', '--window', '15'] + extra_args),
+    ('whca-20' + suffix, 'WHCA* (20)', heuristic_name,
+     ['--algorithm', 'whca', '--window', '20'] + extra_args)
+  ]
+
+set_impls = {
+  'full': impls([]),
+  'first': impls([]),
+  'algos_small': impls([]),
+  'rejoin_small':
+    impls([], heuristic_name='No rejoin')
+    + [i
+       for imps in (impls(['--rejoin', str(n)],
+                          '-rejoin-{}'.format(n),
+                          '{} steps'.format(n))
+                    for n in (1, 2, 5, 10, 20))
+       for i in imps]
+}
 
 all_configs = [
   # Timeout | Num agents | Obstacle probability
@@ -35,7 +55,8 @@ small_configs = [
 set_configs = {
   'full': all_configs,
   'first': all_configs,
-  'small': small_configs
+  'algos_small': small_configs,
+  'rejoin_small': [(10, 10, 0.1)]
 }
 
 solver_path = Path('../bin/opt/cli')
@@ -205,9 +226,10 @@ def main():
     'full': all_maps,
     'first': [all_maps[0]],
     'none': [],
-    'small': small_maps
+    'algos_small': small_maps,
+    'rejoin_small': small_maps
   }
-  all_sets = ['full']
+  all_sets = ['full', 'algos_small', 'rejoin_small']
 
   sets_to_run = []
   if args.set == 'all':
@@ -224,17 +246,25 @@ def main():
       print('No config for set {}'.format(set_name))
       continue
 
+    if set_name not in set_impls:
+      print('No implementation for set {}'.format(set_name))
+      continue
+
     print('====== {} ======'.format(set_name))
 
-    for name, pretty_name, impl_args in impls:
-      print('=== {} ==='.format(pretty_name))
+    for name, pretty_name, heuristic_name, impl_args in set_impls[set_name]:
+      if len(heuristic_name) > 0:
+        print('=== {} ({}) ==='.format(pretty_name, heuristic_name))
+      else:
+        print('=== {} ==='.format(pretty_name))
 
       for timeout, agents, obstacles in set_configs[set_name]:
         do_experiments(sets[set_name], agents, obstacles,
                        tmp_path / set_name / name, impl_args, timeout, args.dry)
 
         with (tmp_path / set_name / name / 'meta.json').open(mode='w') as out:
-          json.dump({'name': pretty_name}, out)
+          json.dump({'name': pretty_name,
+                     'heuristic_name': heuristic_name}, out)
 
 if __name__ == '__main__':
   main()

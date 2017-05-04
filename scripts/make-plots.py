@@ -70,16 +70,16 @@ def scatter(set_dir):
   return scripts
 
 
-def avg_time(set_dir):
+def avg_time(set_dir, key, extra=''):
   (plots_dir / set_dir.name).mkdir(parents=True, exist_ok=True)
   result = []
 
   for meta_path in set_dir.glob('*-meta.json'):
     with meta_path.open() as meta_in:
       meta = json.load(meta_in)
-      algorithms = meta['algorithms']
+      columns = meta[key]
 
-      match = re.match(r'''([0-9.]+)-meta.json''', meta_path.name)
+      match = re.match(r'''(.+)-meta.json''', meta_path.name)
       if not match:
         raise RuntimeError('Invalid meta file name: {}'.format(meta_path.name))
 
@@ -94,11 +94,12 @@ def avg_time(set_dir):
          + 'set style fill solid border -1\n'
          + 'set key left top\n'
          + 'set logscale y\n'
+         + extra
          + 'plot base_dir."{}" using 2:xtic(1) title "{}",\\\n'.format(
-           data_path.name, algorithms[0]
+           data_path.name, columns[0]
          )
-         + ',\\\n'.join('  "" using {} title "{}"'.format(i + 2, algorithms[i])
-                     for i in range(1, len(algorithms)))
+         + ',\\\n'.join('  "" using {} title "{}"'.format(i + 2, columns[i])
+                     for i in range(1, len(columns)))
          + '\n'
         )
       )
@@ -107,7 +108,9 @@ def avg_time(set_dir):
 
 set_plots = {
   'full': scatter,
-  'small': avg_time
+  'algos_small': lambda d: avg_time(d, 'algorithms'),
+  'rejoin_small': lambda d: avg_time(d, 'heuristics',
+                                     'set xtics rotate by -45\n')
 }
 
 def run(script):

@@ -46,10 +46,12 @@ def scatter(set_dir):
 
 def natural_key(string_):
   """See http://www.codinghorror.com/blog/archives/001018.html"""
-  return [int(s) if s.isdigit() else s for s in re.split(r'(\d+)', string_)]
+  has_no = string_.startswith('No') or string_.startswith('no')
+  return (not has_no, [int(s) if s.isdigit() else s
+                       for s in re.split(r'(\d+)', string_)])
 
 
-def avg_time(set_dir):
+def algo_compare(set_dir):
   '''Make histogram plot data for comparing algorithms on a small set of runs.'''
 
   data = {} # num_obstacles -> num_agents -> run -> avg time
@@ -106,9 +108,68 @@ def avg_time(set_dir):
       json.dump({'algorithms': list(run_pretty_names[r] for r in runs)}, out)
 
 
+def heuristic_compare(set_dir):
+  '''Make histogram plot data for comparing the effect different heuristics.'''
+
+  data = {} # Algorithm name -> heuristic name -> avg time
+  def add(algo, heuristic, avg):
+    if algo not in data: data[algo] = {}
+    data[algo][heuristic] = avg
+
+  heuristics = []
+
+  for run_dir in (d for d in set_dir.iterdir() if d.is_dir()):
+    with (run_dir / 'meta.json').open() as meta:
+      info = json.load(meta)
+      algo_name = info['name']
+      heuristic_name = info['heuristic_name']
+
+      if heuristic_name not in heuristics:
+        heuristics.append(heuristic_name)
+
+    configs = [d for d in run_dir.iterdir() if d.is_dir()]
+    if len(configs) != 1:
+      raise RuntimeError('Expected exactly 1 config for heuristic compare')
+
+    config_dir = configs[0]
+
+    total_time = 0
+    scenarios = 0
+    for result_path in config_dir.glob('*.result.json'):
+      with result_path.open() as f:
+        result = json.load(f)
+        if not result['completed']: continue
+
+        total_time += float(result['result']['time_ms'])
+        scenarios += 1
+
+    if scenarios > 0:
+      avg = total_time / scenarios
+    else:
+      avg = 0
+
+    add(algo_name, heuristic_name, avg)
+
+  heuristics.sort(key=natural_key)
+  algo_names = sorted(data.keys(), key=natural_key)
+
+  out_path = output_dir / set_dir.name / (set_dir.name + '.txt')
+  out_path.parent.mkdir(parents=True, exist_ok=True)
+  with out_path.open(mode='w') as out:
+    for algo_name in algo_names:
+      line = '"{}" '.format(algo_name)
+      line += ' '.join(str(data[algo_name][h]) for h in heuristics)
+      out.write(line + '\n')
+
+  out_info_path = output_dir / set_dir.name / (set_dir.name + '-meta.json')
+  with out_info_path.open(mode='w') as out:
+    json.dump({'heuristics': list(heuristics)}, out)
+
+
 set_plots = {
   'full': scatter,
-  'small': avg_time
+  'algos_small': algo_compare,
+  'rejoin_small': heuristic_compare
 }
 
 for set_dir in (d for d in input_dir.iterdir() if d.is_dir()):
