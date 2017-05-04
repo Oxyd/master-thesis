@@ -70,7 +70,7 @@ def scatter(set_dir):
   return scripts
 
 
-def avg_time(set_dir, key, extra=''):
+def avg_histogram(set_dir, key, extra=[]):
   (plots_dir / set_dir.name).mkdir(parents=True, exist_ok=True)
   result = []
 
@@ -93,8 +93,7 @@ def avg_time(set_dir, key, extra=''):
          + 'set auto x\n'
          + 'set style fill solid border -1\n'
          + 'set key left top\n'
-         + 'set logscale y\n'
-         + extra
+         + '\n'.join(extra) + '\n'
          + 'plot base_dir."{}" using 2:xtic(1) title "{}",\\\n'.format(
            data_path.name, columns[0]
          )
@@ -108,9 +107,9 @@ def avg_time(set_dir, key, extra=''):
 
 set_plots = {
   'full': scatter,
-  'algos_small': lambda d: avg_time(d, 'algorithms'),
-  'rejoin_small': lambda d: avg_time(d, 'heuristics',
-                                     'set xtics rotate by -45\n')
+  'algos_small': lambda d: avg_histogram(d, 'algorithms', ['set logscale y']),
+  'rejoin_small': lambda d: avg_histogram(d, 'heuristics',
+                                          ['set xtics rotate by -45\n'])
 }
 
 def run(script):

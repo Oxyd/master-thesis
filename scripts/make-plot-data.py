@@ -108,10 +108,20 @@ def algo_compare(set_dir):
       json.dump({'algorithms': list(run_pretty_names[r] for r in runs)}, out)
 
 
-def heuristic_compare(set_dir):
+def get_path(d, path):
+  '''get_path(d, (a, b, c)) -> d[a][b][c]'''
+
+  x = d
+  for e in path:
+    x = x[e]
+
+  return x
+
+
+def heuristic_compare(set_dir, out_name, key):
   '''Make histogram plot data for comparing the effect different heuristics.'''
 
-  data = {} # Algorithm name -> heuristic name -> avg time
+  data = {} # Algorithm name -> heuristic name -> avg
   def add(algo, heuristic, avg):
     if algo not in data: data[algo] = {}
     data[algo][heuristic] = avg
@@ -133,18 +143,18 @@ def heuristic_compare(set_dir):
 
     config_dir = configs[0]
 
-    total_time = 0
+    total = 0
     scenarios = 0
     for result_path in config_dir.glob('*.result.json'):
       with result_path.open() as f:
         result = json.load(f)
         if not result['completed']: continue
 
-        total_time += float(result['result']['time_ms'])
+        total += float(get_path(result, key))
         scenarios += 1
 
     if scenarios > 0:
-      avg = total_time / scenarios
+      avg = total / scenarios
     else:
       avg = 0
 
@@ -153,7 +163,7 @@ def heuristic_compare(set_dir):
   heuristics.sort(key=natural_key)
   algo_names = sorted(data.keys(), key=natural_key)
 
-  out_path = output_dir / set_dir.name / (set_dir.name + '.txt')
+  out_path = output_dir / set_dir.name / (out_name + '.txt')
   out_path.parent.mkdir(parents=True, exist_ok=True)
   with out_path.open(mode='w') as out:
     for algo_name in algo_names:
@@ -161,15 +171,21 @@ def heuristic_compare(set_dir):
       line += ' '.join(str(data[algo_name][h]) for h in heuristics)
       out.write(line + '\n')
 
-  out_info_path = output_dir / set_dir.name / (set_dir.name + '-meta.json')
+  out_info_path = output_dir / set_dir.name / (out_name + '-meta.json')
   with out_info_path.open(mode='w') as out:
     json.dump({'heuristics': list(heuristics)}, out)
+
+
+def rejoin_small(set_dir):
+  heuristic_compare(set_dir, 'time', ('result', 'time_ms'))
+  heuristic_compare(set_dir, 'rejoin_success',
+                    ('result', 'algorithm_statistics', 'Rejoin success rate'))
 
 
 set_plots = {
   'full': scatter,
   'algos_small': algo_compare,
-  'rejoin_small': heuristic_compare
+  'rejoin_small': lambda s: rejoin_small(s)
 }
 
 for set_dir in (d for d in input_dir.iterdir() if d.is_dir()):
