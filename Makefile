@@ -21,7 +21,7 @@ ifeq ($(mode),opt)
 endif
 
 ifeq ($(mode),debug)
-	CXXFLAGS += -ggdb3 -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC
+	CXXFLAGS += -ggdb3
 endif
 
 project_dir = diplomka

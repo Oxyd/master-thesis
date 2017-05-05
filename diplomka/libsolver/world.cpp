@@ -195,7 +195,7 @@ world::world(const std::shared_ptr<::map const>& m,
   : map_(m)
   , obstacles_(std::move(obstacles))
   , tick_(tick)
-  , obstacle_settings_(settings)
+  , obstacle_settings_(std::move(settings))
   , agent_settings_(agents)
 { }
 
@@ -513,9 +513,9 @@ load_world_partial(std::string const& filename) try {
   if (tree.count("agent_settings"))
     as = parse_agent_settings(tree.get_child("agent_settings"));
 
-  world world(load_map(map_path.string()),
-              parse_obstacle_settings(tree.get_child("obstacles")),
-              as);
+  std::shared_ptr<map> m = load_map(map_path.string());
+  obstacle_settings os = parse_obstacle_settings(tree.get_child("obstacles"));
+  world world(std::move(m), std::move(os), as);
 
   for (auto const& a : tree.get_child("agents")) {
     position const pos = read_pos(a.second.get_child("position"));
