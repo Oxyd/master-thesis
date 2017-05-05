@@ -35,6 +35,24 @@ set_impls = {
                           '-rejoin-{}'.format(n),
                           '{} steps'.format(n))
                     for n in (1, 2, 5, 10, 20))
+       for i in imps],
+  'predict_recursive_depth':
+    impls([], heuristic_name='No predictor')
+    + [i
+       for imps in (impls(['--avoid', 'recursive',
+                           '--predictor-cutoff', str(n)],
+                          suffix='-predict-{}'.format(n),
+                          heuristic_name='Predict {} steps'.format(n))
+                    for n in range(1, 8))
+       for i in imps],
+  'predict_matrix_depth':
+    impls([], heuristic_name='No predictor')
+    + [i
+       for imps in (impls(['--avoid', 'matrix',
+                           '--predictor-cutoff', str(n)],
+                          suffix='-predict-{}'.format(n),
+                          heuristic_name='Predict {} steps'.format(n))
+                    for n in range(1, 8))
        for i in imps]
 }
 
@@ -56,7 +74,9 @@ set_configs = {
   'full': all_configs,
   'first': all_configs,
   'algos_small': small_configs,
-  'rejoin_small': [(10, 10, 0.1)]
+  'rejoin_small': [(10, 10, 0.1)],
+  'predict_recursive_depth': [(10, 10, 0.1)],
+  'predict_matrix_depth': [(10, 10, 0.1)]
 }
 
 solver_path = Path('../bin/opt/cli')
@@ -147,6 +167,15 @@ def worker():
       result_data = {}
       completed = False
 
+    except json.decoder.JSONDecodeError as e:
+      print('Invalid output: {}'.format(e), file=sys.stderr)
+      print('Command: {}'.format(' '.join('"{}"'.format(a) for a in args)),
+            file=sys.stderr)
+      print('Output:', file=sys.stderr)
+      print(file=sys.stderr)
+      print(result.stdout, file=sys.stderr)
+      sys.exit(1)
+
     result_path.open(mode='w').write(json.dumps(
       {'map_info': info, 'result': result_data, 'completed': completed},
       indent=2
@@ -227,9 +256,12 @@ def main():
     'first': [all_maps[0]],
     'none': [],
     'algos_small': small_maps,
-    'rejoin_small': small_maps
+    'rejoin_small': small_maps,
+    'predict_recursive_depth': small_maps,
+    'predict_matrix_depth': small_maps
   }
-  all_sets = ['full', 'algos_small', 'rejoin_small']
+  all_sets = ['full', 'algos_small', 'rejoin_small', 'predict_recursive_depth',
+              'predict_matrix_depth']
 
   sets_to_run = []
   if args.set == 'all':

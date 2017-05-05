@@ -109,7 +109,15 @@ set_plots = {
   'full': scatter,
   'algos_small': lambda d: avg_histogram(d, 'algorithms', ['set logscale y']),
   'rejoin_small': lambda d: avg_histogram(d, 'heuristics',
-                                          ['set xtics rotate by -45\n'])
+                                          ['set xtics rotate by -45\n']),
+  'predict_recursive_depth': lambda d: avg_histogram(
+    d, 'heuristics',
+    ['set xtics rotate by -45\n']
+  ),
+  'predict_matrix_depth': lambda d: avg_histogram(
+    d, 'heuristics',
+    ['set xtics rotate by -45\n']
+  )
 }
 
 def run(script):

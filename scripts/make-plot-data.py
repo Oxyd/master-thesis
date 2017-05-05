@@ -182,10 +182,17 @@ def rejoin_small(set_dir):
                     ('result', 'algorithm_statistics', 'Rejoin success rate'))
 
 
+def predict(set_dir):
+  heuristic_compare(set_dir, 'time', ('result', 'time_ms'))
+  heuristic_compare(set_dir, 'ticks', ('result', 'ticks'))
+
+
 set_plots = {
   'full': scatter,
   'algos_small': algo_compare,
-  'rejoin_small': lambda s: rejoin_small(s)
+  'rejoin_small': lambda s: rejoin_small(s),
+  'predict_recursive_depth': predict,
+  'predict_matrix_depth': predict
 }
 
 for set_dir in (d for d in input_dir.iterdir() if d.is_dir()):
