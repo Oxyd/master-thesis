@@ -27,7 +27,7 @@ make_predictor(std::string const& name,
   if (iequals(name, "recursive"))
     return make_recursive_predictor(world, cutoff);
   else if (iequals(name, "matrix"))
-    return make_matrix_predictor(world, cutoff, window);
+    return make_matrix_predictor(world, cutoff, window > 0 ? window : 5);
   else
     throw std::runtime_error{std::string{"Unknown obstacle predictor: "} + name};
 }

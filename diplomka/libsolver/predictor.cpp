@@ -350,7 +350,9 @@ matrix_predictor::matrix_predictor(world const& w, unsigned cutoff,
   , width_(w.map()->width())
   , cutoff_(cutoff)
   , matrix_update_frequency_(update_frequency)
-{}
+{
+  assert(matrix_update_frequency_ > 0);
+}
 
 void
 matrix_predictor::update_obstacles(world const& w) {
