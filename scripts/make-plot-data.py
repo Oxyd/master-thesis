@@ -131,34 +131,38 @@ def heuristic_compare(set_dir, out_name, key):
   for run_dir in (d for d in set_dir.iterdir() if d.is_dir()):
     with (run_dir / 'meta.json').open() as meta:
       info = json.load(meta)
-      algo_name = info['name']
-      heuristic_name = info['heuristic_name']
+      heuristic_name = info['name']
 
       if heuristic_name not in heuristics:
         heuristics.append(heuristic_name)
 
-    configs = [d for d in run_dir.iterdir() if d.is_dir()]
-    if len(configs) != 1:
-      raise RuntimeError('Expected exactly 1 config for heuristic compare')
+    for algo_dir in (d for d in run_dir.iterdir() if d.is_dir()):
+      with (algo_dir / 'meta.json').open() as meta:
+        info = json.load(meta)
+        algo_name = info['name']
 
-    config_dir = configs[0]
+      configs = [d for d in algo_dir.iterdir() if d.is_dir()]
+      if len(configs) != 1:
+        raise RuntimeError('Expected exactly 1 config for heuristic compare')
 
-    total = 0
-    scenarios = 0
-    for result_path in config_dir.glob('*.result.json'):
-      with result_path.open() as f:
-        result = json.load(f)
-        if not result['completed']: continue
+      config_dir = configs[0]
 
-        total += float(get_path(result, key))
-        scenarios += 1
+      total = 0
+      scenarios = 0
+      for result_path in config_dir.glob('*.result.json'):
+        with result_path.open() as f:
+          result = json.load(f)
+          if not result['completed']: continue
 
-    if scenarios > 0:
-      avg = total / scenarios
-    else:
-      avg = 0
+          total += float(get_path(result, key))
+          scenarios += 1
 
-    add(algo_name, heuristic_name, avg)
+      if scenarios > 0:
+        avg = total / scenarios
+      else:
+        avg = 0
+
+      add(algo_name, heuristic_name, avg)
 
   heuristics.sort(key=natural_key)
   algo_names = sorted(data.keys(), key=natural_key)
@@ -190,9 +194,7 @@ def predict(set_dir):
 set_plots = {
   'full': scatter,
   'algos_small': algo_compare,
-  'rejoin_small': lambda s: rejoin_small(s),
-  'predict_recursive_depth': predict,
-  'predict_matrix_depth': predict
+  'rejoin_small': lambda s: rejoin_small(s)
 }
 
 for set_dir in (d for d in input_dir.iterdir() if d.is_dir()):

@@ -1,5 +1,5 @@
 #!/bin/sh
 
-rm -r ../plots/*
-rm -r ../experiments/*
-rm -r ../tmp/*
+rm -rf ../plots/*
+rm -rf ../experiments/*
+rm -rf ../tmp/*

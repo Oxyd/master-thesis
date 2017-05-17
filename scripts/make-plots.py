@@ -117,6 +117,22 @@ set_plots = {
   'predict_matrix_depth': lambda d: avg_histogram(
     d, 'heuristics',
     ['set xtics rotate by -45\n']
+  ),
+  'predict_recursive_depth_0.01': lambda d: avg_histogram(
+    d, 'heuristics',
+    ['set xtics rotate by -45\n']
+  ),
+  'predict_matrix_depth_0.01': lambda d: avg_histogram(
+    d, 'heuristics',
+    ['set xtics rotate by -45\n']
+  ),
+    'predict_recursive_depth_0.2': lambda d: avg_histogram(
+    d, 'heuristics',
+    ['set xtics rotate by -45\n']
+  ),
+  'predict_matrix_depth_0.2': lambda d: avg_histogram(
+    d, 'heuristics',
+    ['set xtics rotate by -45\n']
   )
 }
 

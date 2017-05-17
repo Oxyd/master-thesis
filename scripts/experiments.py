@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from collections import namedtuple
 from pathlib import Path
 import argparse
 import json
@@ -10,49 +11,34 @@ import queue
 
 threads = 8
 
-def impls(extra_args, suffix='', heuristic_name=''):
-  return [
-    ('lra' + suffix, 'LRA*', heuristic_name,
-     ['--algorithm', 'lra'] + extra_args),
-    ('whca-5' + suffix, 'WHCA* (5)', heuristic_name,
-     ['--algorithm', 'whca', '--window', '5'] + extra_args),
-    ('whca-10' + suffix, 'WHCA* (10)', heuristic_name,
-     ['--algorithm', 'whca', '--window', '10'] + extra_args),
-    ('whca-15' + suffix, 'WHCA* (15)', heuristic_name,
-     ['--algorithm', 'whca', '--window', '15'] + extra_args),
-    ('whca-20' + suffix, 'WHCA* (20)', heuristic_name,
-     ['--algorithm', 'whca', '--window', '20'] + extra_args)
+Implementation = namedtuple(
+  'Implementation',
+  ['hierarchy', # List of tuples (name, pretty name)
+   'args']      # List of strings that will be passed to the binary
+)
+
+def impls(extra_args, hierarchy):
+  whca_impls = [
+    Implementation(hierarchy
+                   + [('whca-{}'.format(n), 'WHCA* ({})'.format(n))],
+                   ['--algorithm', 'whca', '--window', '{}'.format(n)]
+                   + extra_args)
+    for n in (5, 10, 15, 20)
   ]
 
+  return [Implementation(hierarchy + [('lra', 'LRA*')],
+                         ['--algorithm', 'lra'] + extra_args)] + whca_impls
+
 set_impls = {
-  'full': impls([]),
-  'first': impls([]),
-  'algos_small': impls([]),
+  'full': impls([], []),
+  'first': impls([], []),
+  'algos_small': impls([], []),
   'rejoin_small':
-    impls([], heuristic_name='No rejoin')
+    impls([], [('none', 'No rejoin')])
     + [i
        for imps in (impls(['--rejoin', str(n)],
-                          '-rejoin-{}'.format(n),
-                          '{} steps'.format(n))
+                          [('rejoin-{}'.format(n), '{} steps'.format(n))])
                     for n in (1, 2, 5, 10, 20))
-       for i in imps],
-  'predict_recursive_depth':
-    impls([], heuristic_name='No predictor')
-    + [i
-       for imps in (impls(['--avoid', 'recursive',
-                           '--predictor-cutoff', str(n)],
-                          suffix='-predict-{}'.format(n),
-                          heuristic_name='Predict {} steps'.format(n))
-                    for n in range(1, 8))
-       for i in imps],
-  'predict_matrix_depth':
-    impls([], heuristic_name='No predictor')
-    + [i
-       for imps in (impls(['--avoid', 'matrix',
-                           '--predictor-cutoff', str(n)],
-                          suffix='-predict-{}'.format(n),
-                          heuristic_name='Predict {} steps'.format(n))
-                    for n in range(1, 8))
        for i in imps]
 }
 
@@ -74,9 +60,7 @@ set_configs = {
   'full': all_configs,
   'first': all_configs,
   'algos_small': small_configs,
-  'rejoin_small': [(10, 10, 0.1)],
-  'predict_recursive_depth': [(10, 10, 0.1)],
-  'predict_matrix_depth': [(10, 10, 0.1)]
+  'rejoin_small': [(10, 10, 0.1)]
 }
 
 solver_path = Path('../bin/opt/cli')
@@ -256,12 +240,9 @@ def main():
     'first': [all_maps[0]],
     'none': [],
     'algos_small': small_maps,
-    'rejoin_small': small_maps,
-    'predict_recursive_depth': small_maps,
-    'predict_matrix_depth': small_maps
+    'rejoin_small': small_maps
   }
-  all_sets = ['full', 'algos_small', 'rejoin_small', 'predict_recursive_depth',
-              'predict_matrix_depth']
+  all_sets = ['full', 'algos_small', 'rejoin_small']
 
   sets_to_run = []
   if args.set == 'all':
@@ -284,19 +265,24 @@ def main():
 
     print('====== {} ======'.format(set_name))
 
-    for name, pretty_name, heuristic_name, impl_args in set_impls[set_name]:
-      if len(heuristic_name) > 0:
-        print('=== {} ({}) ==='.format(pretty_name, heuristic_name))
-      else:
-        print('=== {} ==='.format(pretty_name))
+    for impl in set_impls[set_name]:
+      print('=== {} ==='.format(
+        ' / '.join(pretty_name for (_, pretty_name) in impl.hierarchy)
+      ))
+      name = '/'.join(name for (name, _) in impl.hierarchy)
+
+      parent = tmp_path / set_name
+      for name, pretty_name in impl.hierarchy:
+        (parent / name).mkdir(parents=True, exist_ok=True)
+
+        with (parent / name / 'meta.json').open(mode='w') as out:
+          json.dump({'name': pretty_name}, out)
+
+        parent = parent / name
 
       for timeout, agents, obstacles in set_configs[set_name]:
         do_experiments(sets[set_name], agents, obstacles,
-                       tmp_path / set_name / name, impl_args, timeout, args.dry)
-
-        with (tmp_path / set_name / name / 'meta.json').open(mode='w') as out:
-          json.dump({'name': pretty_name,
-                     'heuristic_name': heuristic_name}, out)
+                       parent, impl.args, timeout, args.dry)
 
 if __name__ == '__main__':
   main()
