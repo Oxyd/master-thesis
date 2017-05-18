@@ -94,7 +94,7 @@ main(int argc, char** argv) try {
     ("limit,l", po::value<unsigned>(), "Tick limit")
     ("output,o", po::value<std::string>(), "Output file")
     ("window,w", po::value<unsigned>(), "WHCA* window size")
-    ("rejoin,r", po::value<unsigned>()->implicit_value(10),
+    ("rejoin,r", po::value<unsigned>(),
      "Allow path rejoining, for at most N steps")
     ("avoid,v", po::value<std::string>()->value_name("PREDICTOR"),
      "Avoid predicted obstacles")
