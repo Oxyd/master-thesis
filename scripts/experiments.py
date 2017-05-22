@@ -55,6 +55,22 @@ set_impls = {
            for penalty in (1, 2, 3, 4, 5, 10)
            for predictor in ('recursive', 'matrix')
        )
+       for i in imps],
+  'predict_threshold':
+    impls([], [('recursive', 'recursive'), ('none', 'No predictor')])
+    + impls([], [('matrix', 'matrix'), ('none', 'No predictor')])
+    + [i
+       for imps in (
+           impls(
+             ['--avoid', predictor,
+              '--obstacle-penalty', '3',
+              '--obstacle-threshold', str(threshold)],
+             [(predictor, predictor),
+              ('avoid-{}'.format(threshold), 'Threshold {}'.format(threshold))]
+           )
+           for threshold in (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
+           for predictor in ('recursive', 'matrix')
+       )
        for i in imps]
 }
 
@@ -77,7 +93,8 @@ set_configs = {
   'first': all_configs,
   'algos_small': small_configs,
   'rejoin_small': [(10, 10, 0.1)],
-  'predict_penalty': [(10, 10, 0.1)]
+  'predict_penalty': [(10, 10, 0.1)],
+  'predict_threshold': [(10, 10, 0.1)]
 }
 
 solver_path = Path('../bin/opt/cli')
@@ -258,7 +275,8 @@ def main():
     'none': [],
     'algos_small': small_maps,
     'rejoin_small': small_maps,
-    'predict_penalty': small_maps
+    'predict_penalty': small_maps,
+    'predict_threshold': small_maps
   }
   all_sets = ['full', 'algos_small', 'rejoin_small']
 

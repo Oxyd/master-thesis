@@ -199,7 +199,8 @@ set_plots = {
   'full': scatter,
   'algos_small': algo_compare,
   'rejoin_small': lambda s: rejoin_small(s),
-  'predict_penalty': lambda s: predict_algos(s)
+  'predict_penalty': lambda s: predict_algos(s),
+  'predict_threshold': lambda s: predict_algos(s)
 }
 
 for set_dir in (d for d in input_dir.iterdir() if d.is_dir()):
