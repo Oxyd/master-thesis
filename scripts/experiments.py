@@ -39,6 +39,22 @@ set_impls = {
        for imps in (impls(['--rejoin', str(n)],
                           [('rejoin-{}'.format(n), '{} steps'.format(n))])
                     for n in (1, 2, 5, 10, 20))
+       for i in imps],
+  'predict_penalty':
+    impls([], [('recursive', 'recursive'), ('none', 'No predictor')])
+    + impls([], [('matrix', 'matrix'), ('none', 'No predictor')])
+    + [i
+       for imps in (
+           impls(
+             ['--avoid', predictor,
+              '--obstacle-penalty', str(penalty),
+              '--obstacle-threshold', '1.0'],
+             [(predictor, predictor),
+              ('avoid-{}'.format(penalty), 'Penalty {}'.format(penalty))]
+           )
+           for penalty in (1, 2, 3, 4, 5, 10)
+           for predictor in ('recursive', 'matrix')
+       )
        for i in imps]
 }
 
@@ -53,14 +69,15 @@ all_configs = [
 small_configs = [
   (10, agents, obstacles)
   for obstacles in (0.01, 0.05, 0.1, 0.2)
-  for agents in (1, 5, 10, 15, 20, 30, 40, 50, 100, 200)
+  for agents in (1, 5, 10, 15, 20, 30)
 ]
 
 set_configs = {
   'full': all_configs,
   'first': all_configs,
   'algos_small': small_configs,
-  'rejoin_small': [(10, 10, 0.1)]
+  'rejoin_small': [(10, 10, 0.1)],
+  'predict_penalty': [(10, 10, 0.1)]
 }
 
 solver_path = Path('../bin/opt/cli')
@@ -240,7 +257,8 @@ def main():
     'first': [all_maps[0]],
     'none': [],
     'algos_small': small_maps,
-    'rejoin_small': small_maps
+    'rejoin_small': small_maps,
+    'predict_penalty': small_maps
   }
   all_sets = ['full', 'algos_small', 'rejoin_small']
 

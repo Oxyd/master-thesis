@@ -70,11 +70,20 @@ def scatter(set_dir):
   return scripts
 
 
-def avg_histogram(set_dir, key, extra=[]):
-  (plots_dir / set_dir.name).mkdir(parents=True, exist_ok=True)
+def avg_histogram(set_dir, key, extra=[], hierarchy=None):
+  if hierarchy is None: hierarchy = Path(set_dir.name)
+
+  (plots_dir / hierarchy).mkdir(parents=True, exist_ok=True)
   result = []
 
-  for meta_path in set_dir.glob('*-meta.json'):
+  meta_paths = list(set_dir.glob('*-meta.json'))
+  if len(meta_paths) == 0:
+    for d in set_dir.iterdir():
+      result.extend(avg_histogram(d, key, extra, hierarchy / d.name))
+
+    return result
+
+  for meta_path in meta_paths:
     with meta_path.open() as meta_in:
       meta = json.load(meta_in)
       columns = meta[key]
@@ -88,7 +97,7 @@ def avg_histogram(set_dir, key, extra=[]):
 
       result.append(
         (name,
-         plot_header(set_dir.name, name + '.png')
+         plot_header(hierarchy, name + '.png')
          + 'set style data histogram\n'
          + 'set auto x\n'
          + 'set style fill solid border -1\n'
@@ -110,6 +119,9 @@ set_plots = {
   'algos_small': lambda d: avg_histogram(d, 'algorithms', ['set logscale y']),
   'rejoin_small': lambda d: avg_histogram(d, 'heuristics',
                                           ['set xtics rotate by -45\n']),
+  'predict_penalty': lambda d: avg_histogram(
+    d, 'heuristics', ['set xtics rotate by -45\n']
+  ),
   'predict_recursive_depth': lambda d: avg_histogram(
     d, 'heuristics',
     ['set xtics rotate by -45\n']

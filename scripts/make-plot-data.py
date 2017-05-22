@@ -118,7 +118,7 @@ def get_path(d, path):
   return x
 
 
-def heuristic_compare(set_dir, out_name, key):
+def heuristic_compare(set_dir, out_path, key):
   '''Make histogram plot data for comparing the effect different heuristics.'''
 
   data = {} # Algorithm name -> heuristic name -> avg
@@ -167,7 +167,6 @@ def heuristic_compare(set_dir, out_name, key):
   heuristics.sort(key=natural_key)
   algo_names = sorted(data.keys(), key=natural_key)
 
-  out_path = output_dir / set_dir.name / (out_name + '.txt')
   out_path.parent.mkdir(parents=True, exist_ok=True)
   with out_path.open(mode='w') as out:
     for algo_name in algo_names:
@@ -175,26 +174,32 @@ def heuristic_compare(set_dir, out_name, key):
       line += ' '.join(str(data[algo_name][h]) for h in heuristics)
       out.write(line + '\n')
 
-  out_info_path = output_dir / set_dir.name / (out_name + '-meta.json')
+  out_info_path = out_path.parent / (out_path.stem + '-meta.json')
   with out_info_path.open(mode='w') as out:
     json.dump({'heuristics': list(heuristics)}, out)
 
 
 def rejoin_small(set_dir):
-  heuristic_compare(set_dir, 'time', ('result', 'time_ms'))
-  heuristic_compare(set_dir, 'rejoin_success',
+  heuristic_compare(set_dir, output_dir / set_dir.name / 'time.txt',
+                    ('result', 'time_ms'))
+  heuristic_compare(set_dir, output_dir / set_dir.name / 'rejoin_success.txt',
                     ('result', 'algorithm_statistics', 'Rejoin success rate'))
 
 
-def predict(set_dir):
-  heuristic_compare(set_dir, 'time', ('result', 'time_ms'))
-  heuristic_compare(set_dir, 'ticks', ('result', 'ticks'))
+def predict(set_dir, out_dir):
+  heuristic_compare(set_dir, out_dir / 'time.txt', ('result', 'time_ms'))
+  heuristic_compare(set_dir, out_dir / 'ticks.txt', ('result', 'ticks'))
 
+
+def predict_algos(set_dir):
+  for algo_dir in set_dir.iterdir():
+    predict(algo_dir, output_dir / set_dir.name / algo_dir.name)
 
 set_plots = {
   'full': scatter,
   'algos_small': algo_compare,
-  'rejoin_small': lambda s: rejoin_small(s)
+  'rejoin_small': lambda s: rejoin_small(s),
+  'predict_penalty': lambda s: predict_algos(s)
 }
 
 for set_dir in (d for d in input_dir.iterdir() if d.is_dir()):
