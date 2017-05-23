@@ -29,49 +29,74 @@ def impls(extra_args, hierarchy):
   return [Implementation(hierarchy + [('lra', 'LRA*')],
                          ['--algorithm', 'lra'] + extra_args)] + whca_impls
 
+def product(f, *args):
+  def do(bound, unbound):
+    if len(unbound) == 0:
+      return impls(*f(*bound))
+
+    l = []
+    for value in unbound[0]:
+      l.extend(do(bound + [value], unbound[ 1:]))
+
+    return l
+
+  return do([], args)
+
+
+def join(*args):
+  result = []
+
+  for l in args:
+    result.extend(l)
+
+  return result
+
+
 set_impls = {
   'full': impls([], []),
   'first': impls([], []),
   'algos_small': impls([], []),
   'rejoin_small':
-    impls([], [('none', 'No rejoin')])
-    + [i
-       for imps in (impls(['--rejoin', str(n)],
-                          [('rejoin-{}'.format(n), '{} steps'.format(n))])
-                    for n in (1, 2, 5, 10, 20))
-       for i in imps],
+    join(
+      impls([], [('none', 'No rejoin')]),
+      product(
+        lambda n: (['--rejoin', str(n)],
+                   [('rejoin-{}'.format(n), '{} steps'.format(n))]),
+        (1, 2, 5, 10, 20)
+      )
+    ),
   'predict_penalty':
-    impls([], [('recursive', 'recursive'), ('none', 'No predictor')])
-    + impls([], [('matrix', 'matrix'), ('none', 'No predictor')])
-    + [i
-       for imps in (
-           impls(
-             ['--avoid', predictor,
-              '--obstacle-penalty', str(penalty),
-              '--obstacle-threshold', '1.0'],
-             [(predictor, predictor),
-              ('avoid-{}'.format(penalty), 'Penalty {}'.format(penalty))]
-           )
-           for penalty in (1, 2, 3, 4, 5, 10)
-           for predictor in ('recursive', 'matrix')
-       )
-       for i in imps],
+    join(
+      impls([], [('recursive', 'recursive'), ('none', 'No predictor')]),
+      impls([], [('matrix', 'matrix'), ('none', 'No predictor')]),
+      product(
+        lambda penalty, predictor: (
+          ['--avoid', predictor,
+           '--obstacle-penalty', str(penalty),
+           '--obstacle-threshold', '1.0'],
+          [(predictor, predictor),
+           ('avoid-{}'.format(penalty), 'Penalty {}'.format(penalty))]
+        ),
+        (1, 2, 3, 4, 5, 10),
+        ('recursive', 'matrix')
+      )
+    ),
   'predict_threshold':
-    impls([], [('recursive', 'recursive'), ('none', 'No predictor')])
-    + impls([], [('matrix', 'matrix'), ('none', 'No predictor')])
-    + [i
-       for imps in (
-           impls(
-             ['--avoid', predictor,
-              '--obstacle-penalty', '3',
-              '--obstacle-threshold', str(threshold)],
-             [(predictor, predictor),
-              ('avoid-{}'.format(threshold), 'Threshold {}'.format(threshold))]
-           )
-           for threshold in (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
-           for predictor in ('recursive', 'matrix')
-       )
-       for i in imps]
+    join(
+      impls([], [('recursive', 'recursive'), ('none', 'No predictor')]),
+      impls([], [('matrix', 'matrix'), ('none', 'No predictor')]),
+      product(
+        lambda threshold, predictor: (
+          ['--avoid', predictor,
+           '--obstacle-penalty', '3',
+           '--obstacle-threshold', str(threshold)],
+          [(predictor, predictor),
+           ('avoid-{}'.format(threshold), 'Threshold {}'.format(threshold))]
+        ),
+        (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
+        ('recursive', 'matrix')
+      )
+    )
 }
 
 all_configs = [
