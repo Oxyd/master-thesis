@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from collections import namedtuple
 from pathlib import Path
 import json
 import re
@@ -51,61 +52,119 @@ def natural_key(string_):
                        for s in re.split(r'(\d+)', string_)])
 
 
-def algo_compare(set_dir):
-  '''Make histogram plot data for comparing algorithms on a small set of runs.'''
+SetData = namedtuple(
+  'SetData',
+  ['runs', # List of ((a1, a2, ..., an), [d]), where ai are attribute names, d
+           # is a list of dicts with loaded JSON data for the set of attributes
+   'attr_names'] # Pretty name for each attribute
+)
 
-  data = {} # num_obstacles -> num_agents -> run -> avg time
-  def add(obstacles, agents, run, avg):
-    if obstacles not in data: data[obstacles] = {}
-    if agents not in data[obstacles]: data[obstacles][agents] = {}
-    data[obstacles][agents][run] = avg
+def gather_data(set_dir):
+  '''Go through the set directory, reading all run information and building a
+  flat representation of it.'''
 
-  run_pretty_names = {}
+  names = {}
 
-  for run_dir in (d for d in set_dir.iterdir() if d.is_dir()):
-    with (run_dir / 'meta.json').open() as meta:
-      info = json.load(meta)
-      run_pretty_names[run_dir.name] = info['name']
+  def do(d, attrs):
+    meta_path = d / 'meta.json'
+    if meta_path.exists():
+      with meta_path.open() as f:
+        meta = json.load(f)
+        if d.name in names:
+          assert names[d.name] == meta['name']
+        else:
+          names[d.name] = meta['name']
 
-    for config_dir in (d for d in run_dir.iterdir() if d.is_dir()):
-      match = re.match(r'''(\d+)-agents-([0-9.]+)-obst''', config_dir.name)
-      if match is None:
-        raise RuntimeError('Invalid config name: {}'.format(config_dir.name))
+      attrs = attrs + (d.name,)
 
-      total_time = 0
-      scenarios = 0
-      for result_path in config_dir.glob('*.result.json'):
-        with result_path.open() as f:
-          result = json.load(f)
-          if not result['completed']: continue
+    subdirs = list(s for s in d.iterdir() if s.is_dir())
+    if len(subdirs) > 0:
+      # This is an attribute dir and we need to recurse further
 
-          total_time += float(result['result']['time_ms'])
-          scenarios += 1
+      result = []
+      for subd in subdirs:
+        result.extend(do(subd, attrs))
 
-      if scenarios > 0:
-        avg = total_time / scenarios
-      else:
-        avg = 0
-      add(float(match.group(2)), int(match.group(1)), run_dir.name, avg)
+      return result
 
-  for obstacles in data:
-    out_path = output_dir / set_dir.name / (str(obstacles) + '.txt')
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+      # This is the final directory, we have the experiment data here.
 
-    runs = None
+      data = []
+      for experiment in d.glob('*.result.json'):
+        with experiment.open() as f:
+          data.append(json.load(f))
+
+      return [(attrs, data)]
+
+  return SetData(runs=do(set_dir, ()), attr_names=names)
+
+
+def find(key, runs):
+  '''Return the list of experiment data for the given key.'''
+
+  for k, d in runs:
+    if k == key:
+      return d
+
+  return None
+
+
+def algo_compare(data, out_dir):
+  '''Make histogram plot data for comparing algorithms on a small set of
+  runs.'''
+
+  # Expected hierarchy is (agents, obstacles, algorithm). We'll make a separate
+  # output file for each obstacle count, so we want to group by that first. Then
+  # we group by agents and compute the average time for the obstacles/agents
+  # combination -- that will give a single line in the output file.
+
+  agent_configs = list(set(run[0][0] for run in data.runs))
+  obstacle_configs = set(run[0][1] for run in data.runs)
+  algorithm_configs = list(set(run[0][2] for run in data.runs))
+
+  agent_configs.sort(key=natural_key)
+  algorithm_configs.sort(key=natural_key)
+
+  for obst in obstacle_configs:
+    num_obstacles = re.match(r'([0-9.]+)-obst', obst).group(1)
+    out_path = out_dir / (num_obstacles + '.txt')
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    out_info_path = out_dir / (num_obstacles + '-meta.json')
+    with out_info_path.open(mode='w') as out:
+      json.dump({'algorithms': list(data.attr_names[a]
+                                    for a in algorithm_configs)},
+                out)
 
     with out_path.open(mode='w') as out:
-      for agents in sorted(data[obstacles]):
-        if runs is None:
-          runs = sorted(data[obstacles][agents], key=natural_key)
+      for agents in agent_configs:
+        num_agents = re.match(r'(\d+)-agents', agents).group(1)
 
-        line = '"{}" '.format(agents)
-        line += ' '.join(str(data[obstacles][agents][run]) for run in runs)
+        line = '"{}" '.format(num_agents)
+
+        algorithm_results = []
+        for algo in algorithm_configs:
+          experiments = find((agents, obst, algo), data.runs)
+
+          total_time = 0
+          scenarios = 0
+          for e in experiments:
+            if not e['completed']: continue
+
+            total_time += float(e['result']['time_ms'])
+            scenarios += 1
+
+          if scenarios > 0:
+            avg = total_time / scenarios
+          else:
+            avg = 0
+
+          algorithm_results.append(str(avg))
+
+        line += ' '.join(algorithm_results)
         out.write(line + '\n')
-
-    out_info_path = output_dir / set_dir.name / (str(obstacles) + '-meta.json')
-    with out_info_path.open(mode='w') as out:
-      json.dump({'algorithms': list(run_pretty_names[r] for r in runs)}, out)
 
 
 def get_path(d, path):
@@ -118,94 +177,92 @@ def get_path(d, path):
   return x
 
 
-def heuristic_compare(set_dir, out_path, key):
-  '''Make histogram plot data for comparing the effect different heuristics.'''
+def heuristic_compare(data, out_path, key):
+  '''Make histogram plot data for comparing the effect of different
+  heuristics.'''
 
-  data = {} # Algorithm name -> heuristic name -> avg
-  def add(algo, heuristic, avg):
-    if algo not in data: data[algo] = {}
-    data[algo][heuristic] = avg
+  # Expected hierarchy is (heuristic, algorithm). We will produce one output
+  # file with one line for each algorithm. Each line contains a column for each
+  # heuristic with the average of the quantity given by `key'.
 
-  heuristics = []
-
-  for run_dir in (d for d in set_dir.iterdir() if d.is_dir()):
-    with (run_dir / 'meta.json').open() as meta:
-      info = json.load(meta)
-      heuristic_name = info['name']
-
-      if heuristic_name not in heuristics:
-        heuristics.append(heuristic_name)
-
-    for algo_dir in (d for d in run_dir.iterdir() if d.is_dir()):
-      with (algo_dir / 'meta.json').open() as meta:
-        info = json.load(meta)
-        algo_name = info['name']
-
-      configs = [d for d in algo_dir.iterdir() if d.is_dir()]
-      if len(configs) != 1:
-        raise RuntimeError('Expected exactly 1 config for heuristic compare')
-
-      config_dir = configs[0]
-
-      total = 0
-      scenarios = 0
-      for result_path in config_dir.glob('*.result.json'):
-        with result_path.open() as f:
-          result = json.load(f)
-          if not result['completed']: continue
-
-          total += float(get_path(result, key))
-          scenarios += 1
-
-      if scenarios > 0:
-        avg = total / scenarios
-      else:
-        avg = 0
-
-      add(algo_name, heuristic_name, avg)
+  heuristics = list(set(run[0][0] for run in data.runs))
+  algorithms = list(set(run[0][1] for run in data.runs))
 
   heuristics.sort(key=natural_key)
-  algo_names = sorted(data.keys(), key=natural_key)
+  algorithms.sort(key=natural_key)
 
   out_path.parent.mkdir(parents=True, exist_ok=True)
+
+  out_meta_path = out_path.parent / (out_path.stem + '-meta.json')
+  with out_meta_path.open(mode='w') as f:
+    json.dump({'heuristics': list(data.attr_names[h] for h in heuristics)}, f)
+
   with out_path.open(mode='w') as out:
-    for algo_name in algo_names:
-      line = '"{}" '.format(algo_name)
-      line += ' '.join(str(data[algo_name][h]) for h in heuristics)
+    for algo in algorithms:
+      line = '"{}" '.format(data.attr_names[algo])
+
+      heuristics_results = []
+      for heuristic in heuristics:
+        experiments = find((heuristic, algo), data.runs)
+
+        num = 0
+        total = 0.0
+        for e in experiments:
+          if not e['completed']: continue
+
+          total += float(get_path(e, key))
+          num += 1
+
+        if num > 0:
+          avg = total / num
+        else:
+          avg = 0
+
+        heuristics_results.append(str(avg))
+
+      line += ' '.join(heuristics_results)
       out.write(line + '\n')
 
-  out_info_path = out_path.parent / (out_path.stem + '-meta.json')
-  with out_info_path.open(mode='w') as out:
-    json.dump({'heuristics': list(heuristics)}, out)
 
-
-def rejoin_small(set_dir):
-  heuristic_compare(set_dir, output_dir / set_dir.name / 'time.txt',
+def rejoin_small(data, out_dir):
+  heuristic_compare(data, out_dir / 'time.txt',
                     ('result', 'time_ms'))
-  heuristic_compare(set_dir, output_dir / set_dir.name / 'rejoin_success.txt',
+  heuristic_compare(data, out_dir / 'rejoin_success.txt',
                     ('result', 'algorithm_statistics', 'Rejoin success rate'))
 
 
-def predict(set_dir, out_dir):
-  heuristic_compare(set_dir, out_dir / 'time.txt', ('result', 'time_ms'))
-  heuristic_compare(set_dir, out_dir / 'ticks.txt', ('result', 'ticks'))
+def predict(data, out_dir):
+  heuristic_compare(data, out_dir / 'time.txt', ('result', 'time_ms'))
+  heuristic_compare(data, out_dir / 'ticks.txt', ('result', 'ticks'))
 
 
-def predict_algos(set_dir):
-  for algo_dir in set_dir.iterdir():
-    predict(algo_dir, output_dir / set_dir.name / algo_dir.name)
+def predict_algos(data, out_path):
+  # Expected hierarchy is (predictor, setting, algorithm). We will produce an
+  # output for each predictor setting.
+
+  predictors = set(run[0][0] for run in data.runs)
+  for p in predictors:
+    subdata = SetData(
+      runs=[(run[0][1 :], run[1]) for run in data.runs if run[0][0] == p],
+      attr_names=data.attr_names
+    )
+    predict(subdata, out_path / p)
 
 set_plots = {
   'full': scatter,
   'algos_small': algo_compare,
-  'rejoin_small': lambda s: rejoin_small(s),
-  'predict_penalty': lambda s: predict_algos(s),
-  'predict_threshold': lambda s: predict_algos(s)
+  'rejoin_small': lambda data, path: rejoin_small(data, path),
+  'predict_penalty': lambda data, path: predict_algos(data, path),
+  'predict_threshold': lambda data, path: predict_algos(data, path)
 }
 
-for set_dir in (d for d in input_dir.iterdir() if d.is_dir()):
-  if set_dir.name not in set_plots:
-    print('set {} does not have plot data configuration'.format(set_dir.name))
-    continue
+def main():
+  for set_dir in (d for d in input_dir.iterdir() if d.is_dir()):
+    if set_dir.name not in set_plots:
+      print('set {} does not have plot data configuration'.format(set_dir.name))
+      continue
 
-  set_plots[set_dir.name](set_dir)
+    set_plots[set_dir.name](gather_data(set_dir), output_dir / set_dir.name)
+
+if __name__ == '__main__':
+  main()

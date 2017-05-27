@@ -11,28 +11,38 @@ import queue
 
 threads = 8
 
-Implementation = namedtuple(
-  'Implementation',
-  ['hierarchy', # List of tuples (name, pretty name)
-   'args']      # List of strings that will be passed to the binary
+Run = namedtuple(
+  'Run',
+  ['timeout', 'agents', 'obstacles',
+   'args',       # List of tuples (name, pretty name)
+   'hierarchy']  # List of strings that will be passed to the binary
 )
 
-def impls(extra_args, hierarchy):
-  whca_impls = [
-    Implementation(hierarchy
-                   + [('whca-{}'.format(n), 'WHCA* ({})'.format(n))],
-                   ['--algorithm', 'whca', '--window', '{}'.format(n)]
-                   + extra_args)
+def runs(args):
+  extra_args = args.get('args', [])
+  hierarchy = args.get('hierarchy', [])
+  timeout = args.get('timeout', 5)
+  agents = args.get('agents', 10)
+  obstacles = args.get('obstacles', 0.1)
+
+  whca_runs = [
+    Run(timeout=timeout, agents=agents, obstacles=obstacles,
+        hierarchy=hierarchy + [('whca-{}'.format(n), 'WHCA* ({})'.format(n))],
+        args=['--algorithm', 'whca', '--window', '{}'.format(n)] + extra_args)
     for n in (5, 10, 15, 20)
   ]
 
-  return [Implementation(hierarchy + [('lra', 'LRA*')],
-                         ['--algorithm', 'lra'] + extra_args)] + whca_impls
+  lra_run = Run(timeout=timeout, agents=agents, obstacles=obstacles,
+                hierarchy=hierarchy + [('lra', 'LRA*')],
+                args=['--algorithm', 'lra'] + extra_args)
+
+  return [lra_run] + whca_runs
+
 
 def product(f, *args):
   def do(bound, unbound):
     if len(unbound) == 0:
-      return impls(*f(*bound))
+      return runs(f(*bound))
 
     l = []
     for value in unbound[0]:
@@ -52,74 +62,74 @@ def join(*args):
   return result
 
 
-set_impls = {
-  'full': impls([], []),
-  'first': impls([], []),
-  'algos_small': impls([], []),
+set_runs = {
+  'algos_small':
+    product(
+      lambda agents, obstacles: {
+        'agents': agents, 'obstacles': obstacles,
+        'hierarchy': [('{}-agents'.format(agents), '{} agents'.format(agents)),
+                      ('{}-obst'.format(obstacles),
+                       '{} obstacles'.format(obstacles))],
+      },
+      (1, 5, 10, 15, 20, 30),
+      (0.01, 0.05, 0.1, 0.2)
+    ),
   'rejoin_small':
     join(
-      impls([], [('none', 'No rejoin')]),
+      runs({'hierarchy': [('none', 'No rejoin')]}),
       product(
-        lambda n: (['--rejoin', str(n)],
-                   [('rejoin-{}'.format(n), '{} steps'.format(n))]),
+        lambda n: {'args': ['--rejoin', str(n)],
+                   'hierarchy': [('rejoin-{}'.format(n), '{} steps'.format(n))],
+                   'timeout': 10},
         (1, 2, 5, 10, 20)
       )
     ),
   'predict_penalty':
     join(
-      impls([], [('recursive', 'recursive'), ('none', 'No predictor')]),
-      impls([], [('matrix', 'matrix'), ('none', 'No predictor')]),
       product(
-        lambda penalty, predictor: (
-          ['--avoid', predictor,
-           '--obstacle-penalty', str(penalty),
-           '--obstacle-threshold', '1.0'],
-          [(predictor, predictor),
-           ('avoid-{}'.format(penalty), 'Penalty {}'.format(penalty))]
-        ),
+        lambda predictor: {
+          'hierarchy': [(predictor, predictor), ('none', 'No predictor')]
+        },
+        ('recursive', 'matrix')
+      ),
+      product(
+        lambda penalty, predictor: {
+          'args': ['--avoid', predictor,
+                   '--obstacle-penalty', str(penalty),
+                   '--obstacle-threshold', '1.0'],
+          'hierarchy': [
+            (predictor, predictor),
+            ('avoid-{}'.format(penalty), 'Penalty {}'.format(penalty))
+          ],
+          'timeout': 10
+        },
         (1, 2, 3, 4, 5, 10),
         ('recursive', 'matrix')
       )
     ),
   'predict_threshold':
     join(
-      impls([], [('recursive', 'recursive'), ('none', 'No predictor')]),
-      impls([], [('matrix', 'matrix'), ('none', 'No predictor')]),
       product(
-        lambda threshold, predictor: (
-          ['--avoid', predictor,
-           '--obstacle-penalty', '3',
-           '--obstacle-threshold', str(threshold)],
-          [(predictor, predictor),
-           ('avoid-{}'.format(threshold), 'Threshold {}'.format(threshold))]
-        ),
+        lambda predictor: {
+          'hierarchy': [(predictor, predictor), ('none', 'No predictor')]
+        },
+        ('recursive', 'matrix')
+      ),
+      product(
+        lambda threshold, predictor: {
+          'args': ['--avoid', predictor,
+                   '--obstacle-penalty', '3',
+                   '--obstacle-threshold', str(threshold)],
+          'hierarchy': [
+            (predictor, predictor),
+            ('avoid-{}'.format(threshold), 'Threshold {}'.format(threshold))
+          ],
+          'timeout': 10
+        },
         (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
         ('recursive', 'matrix')
       )
     )
-}
-
-all_configs = [
-  # Timeout | Num agents | Obstacle probability
-  (5, 5, 0.01),
-  (5, 5, 0.1),
-  (5, 50, 0.01),
-  (5, 50, 0.1)
-]
-
-small_configs = [
-  (10, agents, obstacles)
-  for obstacles in (0.01, 0.05, 0.1, 0.2)
-  for agents in (1, 5, 10, 15, 20, 30)
-]
-
-set_configs = {
-  'full': all_configs,
-  'first': all_configs,
-  'algos_small': small_configs,
-  'rejoin_small': [(10, 10, 0.1)],
-  'predict_penalty': [(10, 10, 0.1)],
-  'predict_threshold': [(10, 10, 0.1)]
 }
 
 solver_path = Path('../bin/opt/cli')
@@ -236,18 +246,19 @@ def do_experiments(maps, num_agents, obstacle_prob, scenarios, solver_args,
   reset_jobs()
 
   for (map_path, info) in maps:
-    conf_name = '{}-agents-{}-obst'.format(num_agents, obstacle_prob)
-    scenario_dir = scenarios / conf_name
+    scenario_dir = scenarios
     scenario_dir.mkdir(parents=True, exist_ok=True)
     scenario = make_scenario(info, make_relative(map_path, scenario_dir),
                              num_agents, obstacle_prob)
     if scenario is None: continue
 
+    assert int(scenario['agent_settings']['random_agents']) == int(num_agents)
+
     scenario_path = scenario_dir / (map_path.stem + '.json')
     scenario_path.open(mode='w').write(json.dumps(scenario, indent=2))
     result_path = scenario_dir / (map_path.stem + '.result.json')
 
-    jobs.put((map_path.stem + ' ' + conf_name,
+    jobs.put((map_path.stem,
               [str(solver_path.resolve()),
                '--scenario', str(scenario_path.resolve())]
               + solver_args,
@@ -316,24 +327,20 @@ def main():
     sets_to_run = [args.set]
 
   for set_name in sets_to_run:
-    if set_name not in set_configs:
-      print('No config for set {}'.format(set_name))
-      continue
-
-    if set_name not in set_impls:
-      print('No implementation for set {}'.format(set_name))
+    if set_name not in set_runs:
+      print('No run for set {}'.format(set_name))
       continue
 
     print('====== {} ======'.format(set_name))
 
-    for impl in set_impls[set_name]:
+    for run in set_runs[set_name]:
       print('=== {} ==='.format(
-        ' / '.join(pretty_name for (_, pretty_name) in impl.hierarchy)
+        ' / '.join(pretty_name for (_, pretty_name) in run.hierarchy)
       ))
-      name = '/'.join(name for (name, _) in impl.hierarchy)
+      name = '/'.join(name for (name, _) in run.hierarchy)
 
       parent = tmp_path / set_name
-      for name, pretty_name in impl.hierarchy:
+      for name, pretty_name in run.hierarchy:
         (parent / name).mkdir(parents=True, exist_ok=True)
 
         with (parent / name / 'meta.json').open(mode='w') as out:
@@ -341,9 +348,8 @@ def main():
 
         parent = parent / name
 
-      for timeout, agents, obstacles in set_configs[set_name]:
-        do_experiments(sets[set_name], agents, obstacles,
-                       parent, impl.args, timeout, args.dry)
+      do_experiments(sets[set_name], run.agents, run.obstacles,
+                     parent, run.args, run.timeout, args.dry)
 
 if __name__ == '__main__':
   main()
