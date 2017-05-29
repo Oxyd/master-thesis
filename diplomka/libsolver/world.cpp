@@ -221,7 +221,7 @@ move_random(obstacle o, position pos, world& w, std::default_random_engine& rng)
   position p = choices[i(rng)];
 
   w.remove_obstacle(pos);
-  o.next_move = w.tick() + std::max(tick_t{1}, (tick_t) o.move_distrib(rng));
+  o.next_move = w.tick() + std::max(1, (int) o.move_distrib(rng));
   w.put_obstacle(p, o);
 }
 
