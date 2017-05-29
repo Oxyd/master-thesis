@@ -101,13 +101,18 @@ def gather_data(set_dir):
 
 
 def find(key, runs):
-  '''Return the list of experiment data for the given key.'''
+  '''Return the list of experiment data for the given key. Key may contain
+  None's in it, which act as a wildcard.
+  '''
+
+  result = []
 
   for k, d in runs:
-    if k == key:
-      return d
+    assert len(k) == len(key)
+    if all(key[i] is None or key[i] == k[i] for i in range(len(key))):
+      result.extend(d)
 
-  return None
+  return result
 
 
 def algo_compare(data, out_dir):
@@ -177,16 +182,16 @@ def get_path(d, path):
   return x
 
 
-def heuristic_compare(data, out_path, key):
+def heuristic_compare(data, out_path, key, has_seed=False):
   '''Make histogram plot data for comparing the effect of different
   heuristics.'''
 
-  # Expected hierarchy is (heuristic, algorithm). We will produce one output
-  # file with one line for each algorithm. Each line contains a column for each
-  # heuristic with the average of the quantity given by `key'.
+  # Expected hierarchy is (heuristic, seed?, algorithm). We will produce one
+  # output file with one line for each algorithm. Each line contains a column
+  # for each heuristic with the average of the quantity given by `key'.
 
   heuristics = list(set(run[0][0] for run in data.runs))
-  algorithms = list(set(run[0][1] for run in data.runs))
+  algorithms = list(set(run[0][2 if has_seed else 1] for run in data.runs))
 
   heuristics.sort(key=natural_key)
   algorithms.sort(key=natural_key)
@@ -203,7 +208,9 @@ def heuristic_compare(data, out_path, key):
 
       heuristics_results = []
       for heuristic in heuristics:
-        experiments = find((heuristic, algo), data.runs)
+        if has_seed: experiments_key = (heuristic, None, algo)
+        else:        experiments_key = (heuristic, algo)
+        experiments = find(experiments_key, data.runs)
 
         num = 0
         total = 0.0
@@ -231,14 +238,14 @@ def rejoin_small(data, out_dir):
                     ('result', 'algorithm_statistics', 'Rejoin success rate'))
 
 
-def predict(data, out_dir):
-  heuristic_compare(data, out_dir / 'time.txt', ('result', 'time_ms'))
-  heuristic_compare(data, out_dir / 'ticks.txt', ('result', 'ticks'))
+def predict(data, out_dir, has_seed=False):
+  heuristic_compare(data, out_dir / 'time.txt', ('result', 'time_ms'), has_seed)
+  heuristic_compare(data, out_dir / 'ticks.txt', ('result', 'ticks'), has_seed)
 
 
-def predict_algos(data, out_path):
-  # Expected hierarchy is (predictor, setting, algorithm). We will produce an
-  # output for each predictor setting.
+def predict_algos(data, out_path, has_seed=False):
+  # Expected hierarchy is (predictor, setting, seed?, algorithm). We will
+  # produce an output for each predictor setting.
 
   predictors = set(run[0][0] for run in data.runs)
   for p in predictors:
@@ -246,14 +253,15 @@ def predict_algos(data, out_path):
       runs=[(run[0][1 :], run[1]) for run in data.runs if run[0][0] == p],
       attr_names=data.attr_names
     )
-    predict(subdata, out_path / p)
+    predict(subdata, out_path / p, has_seed)
 
 set_plots = {
   'full': scatter,
   'algos_small': algo_compare,
   'rejoin_small': lambda data, path: rejoin_small(data, path),
-  'predict_penalty': lambda data, path: predict_algos(data, path),
-  'predict_threshold': lambda data, path: predict_algos(data, path)
+  'predict_penalty': lambda data, path: predict_algos(data, path, True),
+  'predict_threshold': lambda data, path: predict_algos(data, path),
+  'predict_distrib': lambda data, path: predict_algos(data, path, True)
 }
 
 def main():
@@ -262,6 +270,7 @@ def main():
       print('set {} does not have plot data configuration'.format(set_dir.name))
       continue
 
+    print('> {}'.format(set_dir.name))
     set_plots[set_dir.name](gather_data(set_dir), output_dir / set_dir.name)
 
 if __name__ == '__main__':

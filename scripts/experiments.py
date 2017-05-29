@@ -4,18 +4,24 @@ from collections import namedtuple
 from pathlib import Path
 import argparse
 import json
+import queue
+import random
 import subprocess
 import sys
 import threading
-import queue
 
 threads = 8
 
+def seeds(num):
+  r = random.Random(0)
+  return tuple(r.randint(0, 2**32 - 1) for _ in range(num))
+
+
 Run = namedtuple(
   'Run',
-  ['timeout', 'agents', 'obstacles',
-   'args',       # List of tuples (name, pretty name)
-   'hierarchy']  # List of strings that will be passed to the binary
+  ['timeout', 'agents', 'obstacles', 'obstacle_move_freq_distr',
+   'args',       # List of strings that will be passed to the binary
+   'hierarchy']  # List of tuples (name, pretty name)
 )
 
 def runs(args):
@@ -24,15 +30,18 @@ def runs(args):
   timeout = args.get('timeout', 5)
   agents = args.get('agents', 10)
   obstacles = args.get('obstacles', 0.1)
+  obstacle_move_freq_distr = args.get('obstacle_move_freq_distr', (5, 1))
 
   whca_runs = [
     Run(timeout=timeout, agents=agents, obstacles=obstacles,
+        obstacle_move_freq_distr=obstacle_move_freq_distr,
         hierarchy=hierarchy + [('whca-{}'.format(n), 'WHCA* ({})'.format(n))],
         args=['--algorithm', 'whca', '--window', '{}'.format(n)] + extra_args)
     for n in (5, 10, 15, 20)
   ]
 
   lra_run = Run(timeout=timeout, agents=agents, obstacles=obstacles,
+                obstacle_move_freq_distr=obstacle_move_freq_distr,
                 hierarchy=hierarchy + [('lra', 'LRA*')],
                 args=['--algorithm', 'lra'] + extra_args)
 
@@ -81,30 +90,35 @@ set_runs = {
         lambda n: {'args': ['--rejoin', str(n)],
                    'hierarchy': [('rejoin-{}'.format(n), '{} steps'.format(n))],
                    'timeout': 10},
-        (1, 2, 5, 10, 20)
+        (5, 10, 20)
       )
     ),
   'predict_penalty':
     join(
       product(
-        lambda predictor: {
-          'hierarchy': [(predictor, predictor), ('none', 'No predictor')]
+        lambda predictor, seed: {
+          'args': ['--seed', str(seed)],
+          'hierarchy': [(predictor, predictor), ('none', 'No predictor'),
+                        ('seed-{}'.format(seed), 'Seed {}'.format(seed))]
         },
-        ('recursive', 'matrix')
+        ('recursive', 'matrix'),
+        seeds(3)
       ),
       product(
-        lambda penalty, predictor: {
+        lambda penalty, predictor, seed: {
           'args': ['--avoid', predictor,
                    '--obstacle-penalty', str(penalty),
-                   '--obstacle-threshold', '1.0'],
+                   '--obstacle-threshold', '1.0',
+                   '--seed', str(seed)],
           'hierarchy': [
             (predictor, predictor),
-            ('avoid-{}'.format(penalty), 'Penalty {}'.format(penalty))
-          ],
-          'timeout': 10
+            ('avoid-{}'.format(penalty), 'Penalty {}'.format(penalty)),
+            ('seed-{}'.format(seed), 'Seed {}'.format(seed))
+          ]
         },
         (1, 2, 3, 4, 5, 10),
-        ('recursive', 'matrix')
+        ('recursive', 'matrix'),
+        seeds(3)
       )
     ),
   'predict_threshold':
@@ -123,12 +137,29 @@ set_runs = {
           'hierarchy': [
             (predictor, predictor),
             ('avoid-{}'.format(threshold), 'Threshold {}'.format(threshold))
-          ],
-          'timeout': 10
+          ]
         },
-        (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
+        (0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
         ('recursive', 'matrix')
       )
+    ),
+  'predict_distrib':
+    product(
+      lambda mean, predictor, seed: {
+        'args': ['--avoid', predictor,
+                 '--obstacle-penalty', '4',
+                 '--obstacle-threshold', '0.7',
+                 '--seed', str(seed)],
+        'hierarchy': [
+          (predictor, predictor),
+          ('mean-{}'.format(mean), 'Mean {}'.format(mean)),
+          ('seed-{}'.format(seed), 'Seed {}'.format(seed))
+        ],
+        'obstacle_move_freq_distr': (mean, 1)
+      },
+      range(1, 10),
+      ('recursive', 'matrix'),
+      seeds(3)
     )
 }
 
@@ -137,7 +168,7 @@ maps_path = Path('../da-maps')
 tmp_path = Path('../tmp')
 
 
-def make_scenario(map_info, map_path, num_agents, obstacles_prob):
+def make_scenario(map_info, map_path, run):
   '''Create a scenario for the given map.'''
 
   tiles = int(map_info['passable_tiles'])
@@ -147,16 +178,16 @@ def make_scenario(map_info, map_path, num_agents, obstacles_prob):
     'map': str(map_path),
     'obstacles': {
       'mode': 'random',
-      'tile_probability': obstacles_prob,
+      'tile_probability': run.obstacles,
       'obstacle_movement': {
         'move_probability': {
           'distribution': 'normal',
-          'parameters': [5, 1]
+          'parameters': list(run.obstacle_move_freq_distr)
         }
       }
     },
     'agent_settings': {
-      'random_agents': min(int(num_agents), tiles)
+      'random_agents': min(int(run.agents), tiles)
     },
     'agents': []
   }
@@ -237,8 +268,7 @@ def worker():
     jobs.task_done()
 
 
-def do_experiments(maps, num_agents, obstacle_prob, scenarios, solver_args,
-                   timeout, dry):
+def do_experiments(maps, run, scenarios, dry):
   '''Run the experiments for one implementation and one configuration on all
   available scenarios.
   '''
@@ -248,11 +278,8 @@ def do_experiments(maps, num_agents, obstacle_prob, scenarios, solver_args,
   for (map_path, info) in maps:
     scenario_dir = scenarios
     scenario_dir.mkdir(parents=True, exist_ok=True)
-    scenario = make_scenario(info, make_relative(map_path, scenario_dir),
-                             num_agents, obstacle_prob)
+    scenario = make_scenario(info, make_relative(map_path, scenario_dir), run)
     if scenario is None: continue
-
-    assert int(scenario['agent_settings']['random_agents']) == int(num_agents)
 
     scenario_path = scenario_dir / (map_path.stem + '.json')
     scenario_path.open(mode='w').write(json.dumps(scenario, indent=2))
@@ -261,8 +288,8 @@ def do_experiments(maps, num_agents, obstacle_prob, scenarios, solver_args,
     jobs.put((map_path.stem,
               [str(solver_path.resolve()),
                '--scenario', str(scenario_path.resolve())]
-              + solver_args,
-              result_path, info, timeout))
+              + run.args,
+              result_path, info, run.timeout))
 
   if dry:
     return
@@ -312,7 +339,8 @@ def main():
     'algos_small': small_maps,
     'rejoin_small': small_maps,
     'predict_penalty': small_maps,
-    'predict_threshold': small_maps
+    'predict_threshold': small_maps,
+    'predict_distrib': small_maps
   }
   all_sets = ['full', 'algos_small', 'rejoin_small']
 
@@ -348,8 +376,7 @@ def main():
 
         parent = parent / name
 
-      do_experiments(sets[set_name], run.agents, run.obstacles,
-                     parent, run.args, run.timeout, args.dry)
+      do_experiments(sets[set_name], run, parent, args.dry)
 
 if __name__ == '__main__':
   main()
