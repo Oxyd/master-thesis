@@ -294,7 +294,13 @@ struct obstacle_settings {
 };
 
 struct agent_settings {
+  enum class random_spawn_mode {
+    uniform,
+    pack
+  };
+
   unsigned random_agent_number = 0;
+  random_spawn_mode spawn_mode = random_spawn_mode::uniform;
 };
 
 class world {

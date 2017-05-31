@@ -29,6 +29,9 @@ scenario_edit::scenario_edit(QWidget* parent)
 
   ui_.mode_combo->addItem("Random");
   ui_.mode_combo->addItem("Spawn-to-Goal");
+
+  ui_.agents_spawn_combo->addItem("Uniform");
+  ui_.agents_spawn_combo->addItem("Pack");
 }
 
 void
@@ -83,6 +86,11 @@ scenario_edit::save_scenario() {
 
   agent_settings& agents = world_->agent_settings();
   agents.random_agent_number = ui_.random_agents_spin->value();
+
+  if (ui_.agents_spawn_combo->currentText() == "Uniform")
+    agents.spawn_mode = agent_settings::random_spawn_mode::uniform;
+  else if (ui_.agents_spawn_combo->currentText() == "Pack")
+    agents.spawn_mode = agent_settings::random_spawn_mode::pack;
 
   save_world(*world_, filename.toStdString());
 

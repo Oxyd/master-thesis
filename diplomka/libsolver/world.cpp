@@ -11,6 +11,7 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <queue>
 #include <sstream>
 #include <string>
 #include <unordered_set>
@@ -464,12 +465,22 @@ static agent_settings
 parse_agent_settings(boost::property_tree::ptree const& p) {
   agent_settings result;
   result.random_agent_number = p.get<unsigned>("random_agents");
+
+  if (auto mode = p.get_child_optional("spawn_mode")) {
+    if (mode->get_value<std::string>() == "uniform")
+      result.spawn_mode = agent_settings::random_spawn_mode::uniform;
+    else if (mode->get_value<std::string>() == "pack")
+      result.spawn_mode = agent_settings::random_spawn_mode::pack;
+    else
+      throw bad_world_format{"Invalid agent spawn mode"};
+  }
+
   return result;
 }
 
 static void
-make_agents(world& w, agent_settings settings,
-            std::default_random_engine& rng) {
+place_uniform_agents(world& w, agent_settings settings,
+                     std::default_random_engine& rng) {
   auto rand_pos = [&] (auto bad_pos) {
     using uniform_coord = std::uniform_int_distribution<position::coord_type>;
     uniform_coord x(0, w.map()->width() - 1);
@@ -494,6 +505,89 @@ make_agents(world& w, agent_settings settings,
 
     w.put_agent(pos, a);
     goals.insert(goal);
+  }
+}
+
+static void
+place_pack_agents(world& w, agent_settings settings,
+                  std::default_random_engine& rng) {
+  std::vector<position> agent_candidates;
+  std::vector<position> goal_candidates;
+
+  for (position::coord_type y = 0; y < w.map()->height(); ++y)
+    for (position::coord_type x = 0; x < w.map()->width(); ++x) {
+      if (w.get({x, y}) == tile::free)
+        agent_candidates.emplace_back(position{x, y});
+
+      if (w.get({x, y}) != tile::wall)
+        goal_candidates.emplace_back(position{x, y});
+    }
+
+  if (agent_candidates.size() < settings.random_agent_number
+      || goal_candidates.size() < settings.random_agent_number)
+    throw bad_world_format{"Not enough free spaces for random agents"};
+
+  std::uniform_int_distribution<std::size_t> agent_index_distrib(
+    0, agent_candidates.size() - 1
+  );
+  std::uniform_int_distribution<std::size_t> goal_index_distrib(
+    0, goal_candidates.size() - 1
+  );
+
+  position agent_start = agent_candidates[agent_index_distrib(rng)];
+
+  position goal_start;
+  do
+    goal_start = goal_candidates[goal_index_distrib(rng)];
+  while (distance(agent_start, goal_start) <= 2 * settings.random_agent_number);
+
+  unsigned to_place = settings.random_agent_number;
+  std::queue<position> agent_queue{{agent_start}};
+  std::queue<position> goal_queue{{goal_start}};
+  while (to_place > 0) {
+    if (agent_queue.empty())
+      throw bad_world_format{"Can't place random agent"};
+
+    position agent_pos = agent_queue.front();
+    agent_queue.pop();
+
+    if (w.get(agent_pos) == tile::agent)
+      continue;
+
+    assert(w.get(agent_pos) == tile::free);
+
+    if (goal_queue.empty())
+      throw bad_world_format{"Can't select random agent's goal"};
+
+    position agent_goal = goal_queue.front();
+    goal_queue.pop();
+
+    w.put_agent(agent_pos, w.create_agent(agent_goal));
+    --to_place;
+
+    for (direction d : all_directions) {
+      position new_agent_pos = translate(agent_pos, d);
+      if (w.get(new_agent_pos) == tile::free)
+        agent_queue.push(new_agent_pos);
+
+      position new_goal_pos = translate(agent_goal, d);
+      if (w.get(new_goal_pos) != tile::wall)
+        goal_queue.push(new_goal_pos);
+    }
+  }
+}
+
+static void
+make_agents(world& w, agent_settings settings,
+            std::default_random_engine& rng) {
+  switch (settings.spawn_mode) {
+  case agent_settings::random_spawn_mode::uniform:
+    place_uniform_agents(w, settings, rng);
+    break;
+
+  case agent_settings::random_spawn_mode::pack:
+    place_pack_agents(w, settings, rng);
+    break;
   }
 }
 
@@ -656,6 +750,19 @@ save_world(world const& world, std::string const& filename) {
   pt::ptree rand_agent_num;
   rand_agent_num.put("", world.agent_settings().random_agent_number);
   agent_settings.add_child("random_agents", rand_agent_num);
+
+  pt::ptree rand_agent_mode;
+  switch (world.agent_settings().spawn_mode) {
+  case agent_settings::random_spawn_mode::uniform:
+    rand_agent_mode.put("", "uniform");
+    break;
+
+  case agent_settings::random_spawn_mode::pack:
+    rand_agent_mode.put("", "pack");
+    break;
+  }
+
+  agent_settings.add_child("spawn_mode", rand_agent_mode);
 
   tree.add_child("agent_settings", agent_settings);
 
