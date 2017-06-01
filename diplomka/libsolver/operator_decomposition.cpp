@@ -425,7 +425,8 @@ operator_decomposition::replan_groups(world const& w) {
           state != group->plan.rbegin()
             ? boost::optional<position>{std::prev(state)->agents[i].position}
             : boost::none,
-          time
+          time,
+          std::next(state) == group->plan.rend()
         );
         assert(!conflicting_group || group != *conflicting_group);
 
@@ -655,7 +656,8 @@ operator_decomposition::unreserve(group_id group) {
 auto
 operator_decomposition::find_conflict(position to,
                                       boost::optional<position> from,
-                                      tick_t time) const
+                                      tick_t time,
+                                      bool permanent) const
   -> boost::optional<group_id>
 {
   boost::optional<group_id> conflicting_group;
@@ -676,7 +678,7 @@ operator_decomposition::find_conflict(position to,
     auto permanent_conflict =
       permanent_reservation_table_.find(to);
     if (permanent_conflict != permanent_reservation_table_.end() &&
-        permanent_conflict->second.from_time <= time)
+        (permanent || permanent_conflict->second.from_time <= time))
       conflicting_group = permanent_conflict->second.group;
   }
 

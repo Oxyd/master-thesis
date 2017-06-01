@@ -181,7 +181,8 @@ private:
   unreserve(group_id);
 
   boost::optional<group_id>
-  find_conflict(position to, boost::optional<position> from, tick_t time) const;
+  find_conflict(position to, boost::optional<position> from, tick_t time,
+                bool permanent) const;
 
   boost::optional<group_id>
   find_permanent_conflict(position, tick_t since) const;
