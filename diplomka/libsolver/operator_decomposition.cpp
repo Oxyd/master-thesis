@@ -468,33 +468,11 @@ struct post_move_open_set {
                                   partial_state_equal>;
 };
 
-template <typename H>
-void
-dump(std::unordered_map<agents_state, H> const& open) {
-  std::unordered_map<agents_state, unsigned, partial_state_hash, partial_state_equal> stuff;
-  for (auto const& state_handle : open)
-    ++stuff[state_handle.first];
-
-  std::cerr << "states: " << stuff.size() << '\n';
-
-  std::map<unsigned, unsigned> histogram;
-  for (auto const& state_count : stuff)
-    ++histogram[state_count.second];
-
-  for (auto const& x : histogram)
-    std::cerr << x.first << " " << x.second << '\n';
-}
-
 path<agents_state>
 operator_decomposition::replan_group(world const& w,
                                      group const& group) {
   max_group_size_ = std::max(max_group_size_,
                              (unsigned) group.starting_positions.size());
-
-  std::cerr << "replan group: ";
-  for (position p : group.starting_positions)
-    std::cerr << p << " ";
-  std::cerr << '\n';
 
   agents_state current_state;
   agents_state goal_state;
