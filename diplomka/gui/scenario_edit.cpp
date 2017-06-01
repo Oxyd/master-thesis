@@ -233,6 +233,7 @@ scenario_edit::attach(world w, QString const& filename) {
 
   agent_settings const& agents = world_->agent_settings();
   ui_.random_agents_spin->setValue(agents.random_agent_number);
+  ui_.agents_spawn_combo->setCurrentIndex(static_cast<int>(agents.spawn_mode));
 
   setWindowTitle(QString(QString("Edit Scenario: %1").arg(filename)));
 
