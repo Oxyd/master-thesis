@@ -99,6 +99,11 @@ struct always_close {
   get(Coord const&) { return true; }
 };
 
+template <typename Coord, typename Handle>
+struct coord_open_set {
+  using type = std::unordered_map<Coord, Handle>;
+};
+
 constexpr unsigned
 infinity = std::numeric_limits<unsigned>::max();
 
@@ -111,7 +116,9 @@ template <
   typename Coordinate = space_coordinate<State>,
   template <typename, typename> class DistanceStorage =
     position_distance_storage,
-  typename ShouldClosePred = always_close<typename Coordinate::type>
+  typename ShouldClosePred = always_close<typename Coordinate::type>,
+  template <typename, typename> class OpenSetType =
+    coord_open_set
 >
 class a_star {
 public:
@@ -225,12 +232,15 @@ private:
 
   using coordinate_type = typename Coordinate::type;
 
+  using open_set_type =
+    typename OpenSetType<coordinate_type, handle_type>::type;
+
   State from_;
   State to_;
   heap_type heap_;
   unsigned expanded_ = 0;
   pool_type node_pool_;
-  std::unordered_map<coordinate_type, handle_type> open_;
+  open_set_type open_;
   std::unordered_set<coordinate_type> closed_;
   DistanceStorage<State, node*> distance_storage_;
   Passable passable_;

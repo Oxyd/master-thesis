@@ -199,6 +199,90 @@ struct hash<agents_state> {
 
 } // namespace std
 
+struct partial_record_hash {
+  using argument_type = agent_state_record;
+  using result_type = std::size_t;
+
+  result_type
+  operator () (argument_type agent) const {
+    std::size_t result = 0;
+    hash_combine(result, agent.position);
+    hash_combine(result, agent.id);
+    return result;
+  }
+};
+
+struct partial_record_equal {
+  bool
+  operator () (agent_state_record lhs, agent_state_record rhs) const {
+    return lhs.position == rhs.position && lhs.id == rhs.id;
+  }
+};
+
+struct partial_state_hash {
+  using argument_type = agents_state;
+  using result_type = std::size_t;
+
+  result_type
+  operator () (argument_type const& state) const {
+    std::size_t result = 0;
+    for (agent_state_record agent : state.agents)
+      hash_combine(result, partial_record_hash{}(agent));
+
+    hash_combine(result, state.next_agent);
+
+    return result;
+  }
+};
+
+struct partial_state_equal {
+  bool
+  operator () (agents_state const& lhs, agents_state const& rhs) const {
+    if (lhs.agents.size() != rhs.agents.size()) return false;
+
+    if (lhs.next_agent != rhs.next_agent)
+      return false;
+
+    for (std::size_t i = 0; i < lhs.agents.size(); ++i) {
+      if (!partial_record_equal{}(lhs.agents[i], rhs.agents[i]))
+        return false;
+
+      if (lhs.agents[i].position == rhs.agents[i].position &&
+          lhs.agents[i].action != rhs.agents[i].action) {
+        // They would've had to be in the same place in the full state, which is
+        // not possible.
+        assert(lhs.agents[i].action != agent_action::unassigned);
+        assert(rhs.agents[i].action != agent_action::unassigned);
+
+
+        // If there are any agents in the vicinity of the pre-move positions,
+        // then we'll call the states distinct because the different pre-move
+        // positions may affect the valid moves for these unassigned agents.
+
+        position lhs_pre_move =
+          translate(lhs.agents[i].position,
+                    inverse(agent_action_to_direction(lhs.agents[i].action)));
+        position rhs_pre_move =
+          translate(rhs.agents[i].position,
+                    inverse(agent_action_to_direction(rhs.agents[i].action)));
+
+        for (std::size_t j = i + 1; j < lhs.agents.size(); ++j) {
+          if (lhs.agents[j].action != agent_action::unassigned) {
+            assert(rhs.agents[j].action != agent_action::unassigned);
+            continue;
+          }
+
+          if (neighbours(lhs.agents[j].position, lhs_pre_move)
+              || neighbours(rhs.agents[j].position, rhs_pre_move))
+            return false;
+        }
+      }
+    }
+
+    return true;
+  }
+};
+
 static joint_action
 make_action(agents_state const& from, agents_state const& to) {
   assert(from.agents.size() == to.agents.size());
@@ -376,6 +460,29 @@ struct close_full {
     return state.next_agent == 0;
   }
 };
+
+template <typename Coord, typename Handle>
+struct post_move_open_set {
+  using type = std::unordered_map<Coord, Handle, partial_state_hash,
+                                  partial_state_equal>;
+};
+
+template <typename H>
+void
+dump(std::unordered_map<agents_state, H> const& open) {
+  std::unordered_map<agents_state, unsigned, partial_state_hash, partial_state_equal> stuff;
+  for (auto const& state_handle : open)
+    ++stuff[state_handle.first];
+
+  std::cerr << "states: " << stuff.size() << '\n';
+
+  std::map<unsigned, unsigned> histogram;
+  for (auto const& state_count : stuff)
+    ++histogram[state_count.second];
+
+  for (auto const& x : histogram)
+    std::cerr << x.first << " " << x.second << '\n';
+}
 
 path<agents_state>
 operator_decomposition::replan_group(world const& w,
