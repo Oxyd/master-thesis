@@ -93,6 +93,12 @@ struct position_successors {
   }
 };
 
+template <typename Coord>
+struct always_close {
+  static bool
+  get(Coord const&) { return true; }
+};
+
 constexpr unsigned
 infinity = std::numeric_limits<unsigned>::max();
 
@@ -104,7 +110,8 @@ template <
   typename StepCost = unitary_step_cost,
   typename Coordinate = space_coordinate<State>,
   template <typename, typename> class DistanceStorage =
-    position_distance_storage
+    position_distance_storage,
+  typename ShouldClosePred = always_close<typename Coordinate::type>
 >
 class a_star {
 public:
@@ -262,7 +269,9 @@ private:
 
       heap_.pop();
       open_.erase(current_coord);
-      closed_.insert({current_coord});
+
+      if (ShouldClosePred::get(current_coord))
+        closed_.insert({current_coord});
 
       distance_storage_.store(current->pos, current);
 

@@ -370,11 +370,23 @@ operator_decomposition::replan_groups(world const& w) {
   return false;
 }
 
+struct close_full {
+  static bool
+  get(agents_state const& state) {
+    return state.next_agent == 0;
+  }
+};
+
 path<agents_state>
 operator_decomposition::replan_group(world const& w,
                                      group const& group) {
   max_group_size_ = std::max(max_group_size_,
                              (unsigned) group.starting_positions.size());
+
+  std::cerr << "replan group: ";
+  for (position p : group.starting_positions)
+    std::cerr << p << " ";
+  std::cerr << '\n';
 
   agents_state current_state;
   agents_state goal_state;
@@ -394,7 +406,8 @@ operator_decomposition::replan_group(world const& w,
     combined_heuristic_distance,
     predicted_step_cost,
     space_coordinate<agents_state>,
-    no_distance_storage
+    no_distance_storage,
+    close_full
   >;
   search_type search(
     current_state,
