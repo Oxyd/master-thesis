@@ -98,7 +98,7 @@ main(int argc, char** argv) try {
      "Allow path rejoining, for at most N steps")
     ("avoid,v", po::value<std::string>()->value_name("PREDICTOR"),
      "Avoid predicted obstacles")
-    ("obstacle-penalty", po::value<unsigned>()->default_value(100),
+    ("obstacle-penalty", po::value<unsigned>()->default_value(5),
      "Penalty for a predicted obstacle")
     ("obstacle-threshold", po::value<double>()->default_value(0.5),
      "Predicted obstacles with probabilities higher than this will be "
