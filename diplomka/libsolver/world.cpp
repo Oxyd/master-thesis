@@ -344,6 +344,17 @@ world::get_agent(position p) {
     return {};
 }
 
+agent const&
+world::get_agent(agent::id_type id) const {
+  for (auto const& pos_agent : agents_)
+    if (std::get<1>(pos_agent).id() == id)
+      return std::get<1>(pos_agent);
+
+  assert(!"Invalid ID");
+  static agent invalid{{}, {}};
+  return invalid;
+}
+
 agent
 world::create_agent(position goal) {
   return agent{goal, next_agent_id_++};

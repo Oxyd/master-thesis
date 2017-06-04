@@ -325,6 +325,9 @@ public:
   boost::optional<agent const&>
   get_agent(position p) const;
 
+  agent const&
+  get_agent(agent::id_type) const;
+
   agent
   create_agent(position goal);
 

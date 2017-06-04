@@ -136,6 +136,9 @@ operator_decomposition::combined_heuristic_distance::operator () (
 ) const {
   unsigned result = 0;
   for (agent_state_record const& agent : state.agents) {
+    if (w.get(w.get_agent(agent.id).target) == tile::obstacle)
+      continue;
+
     auto h_search = h_searches_.find(agent.id);
     assert(h_search != h_searches_.end());
 
