@@ -117,6 +117,7 @@ def avg_histogram(set_dir, key, extra=[], hierarchy=None):
 set_plots = {
   'full': scatter,
   'algos_small': lambda d: avg_histogram(d, 'algorithms', ['set logscale y']),
+  'pack_algos': lambda d: avg_histogram(d, 'algorithms', ['set logscale y']),
   'rejoin_small': lambda d: avg_histogram(d, 'heuristics',
                                           ['set xtics rotate by -45\n']),
   'predict_penalty': lambda d: avg_histogram(

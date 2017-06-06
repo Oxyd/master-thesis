@@ -20,6 +20,7 @@ def seeds(num):
 Run = namedtuple(
   'Run',
   ['timeout', 'agents', 'obstacles', 'obstacle_move_freq_distr',
+   'agents_spawn_mode',
    'args',       # List of strings that will be passed to the binary
    'hierarchy']  # List of tuples (name, pretty name)
 )
@@ -27,25 +28,46 @@ Run = namedtuple(
 def runs(args):
   extra_args = args.get('args', [])
   hierarchy = args.get('hierarchy', [])
-  timeout = args.get('timeout', 5)
+  timeout = args.get('timeout', 1)
   agents = args.get('agents', 10)
   obstacles = args.get('obstacles', 0.1)
   obstacle_move_freq_distr = args.get('obstacle_move_freq_distr', (5, 1))
+  agents_spawn_mode = args.get('agents_spawn_mode', 'uniform')
+
+  do_od = args.get('do_od', False)
+  do_full_od = args.get('do_full_od', False)
+
+  def run(hierarchy, args):
+    return Run(timeout=timeout, agents=agents, obstacles=obstacles,
+               obstacle_move_freq_distr=obstacle_move_freq_distr,
+               agents_spawn_mode=agents_spawn_mode,
+               hierarchy=hierarchy, args=args)
 
   whca_runs = [
-    Run(timeout=timeout, agents=agents, obstacles=obstacles,
-        obstacle_move_freq_distr=obstacle_move_freq_distr,
-        hierarchy=hierarchy + [('whca-{}'.format(n), 'WHCA* ({})'.format(n))],
+    run(hierarchy=hierarchy + [('whca-{}'.format(n), 'WHCA* ({})'.format(n))],
         args=['--algorithm', 'whca', '--window', '{}'.format(n)] + extra_args)
     for n in (5, 10, 15, 20)
   ]
 
-  lra_run = Run(timeout=timeout, agents=agents, obstacles=obstacles,
-                obstacle_move_freq_distr=obstacle_move_freq_distr,
-                hierarchy=hierarchy + [('lra', 'LRA*')],
+  if do_od:
+    od_runs = [
+      run(hierarchy=hierarchy + [('od-{}'.format(n), 'OD/ID ({})'.format(n))],
+          args=['--algorithm', 'od', '--window', '{}'.format(n)] + extra_args)
+      for n in (5, 10)
+    ]
+
+    if do_full_od:
+      od_runs += [
+        run(hierarchy=hierarchy + [('od-0', 'OD/ID (∞)')],
+            args=['--algorithm', 'od'] + extra_args)
+      ]
+  else:
+    od_runs = []
+
+  lra_run = run(hierarchy=hierarchy + [('lra', 'LRA*')],
                 args=['--algorithm', 'lra'] + extra_args)
 
-  return [lra_run] + whca_runs
+  return [lra_run] + whca_runs + od_runs
 
 
 def product(f, *args):
@@ -79,18 +101,45 @@ set_runs = {
         'hierarchy': [('{}-agents'.format(agents), '{} agents'.format(agents)),
                       ('{}-obst'.format(obstacles),
                        '{} obstacles'.format(obstacles))],
+        'do_od': True,
+        'do_full_od': True
       },
-      (1, 5, 10, 15, 20, 30),
+      (1, 5, 10, 15, 20),
+      (0.01, 0.05, 0.1, 0.2)
+    ),
+  'pack_algos':
+    product(
+      lambda agents, obstacles: {
+        'agents': agents, 'obstacles': obstacles,
+        'hierarchy': [('{}-agents'.format(agents), '{} agents'.format(agents)),
+                      ('{}-obst'.format(obstacles),
+                       '{} obstacles'.format(obstacles))],
+        'agents_spawn_mode': 'pack',
+        'do_od': True,
+        'do_full_od': True
+      },
+      (1, 5, 10, 15, 20),
       (0.01, 0.05, 0.1, 0.2)
     ),
   'rejoin_small':
     join(
-      runs({'hierarchy': [('none', 'No rejoin')]}),
       product(
-        lambda n: {'args': ['--rejoin', str(n)],
-                   'hierarchy': [('rejoin-{}'.format(n), '{} steps'.format(n))],
-                   'timeout': 10},
-        (5, 10, 20)
+        lambda seed: {
+          'args': ['--seed', str(seed)],
+          'hierarchy': [('none', 'No rejoin'),
+                        ('seed-{}'.format(seed), 'Seed {}'.format(seed))]
+        },
+        seeds(3)
+      ),
+      product(
+        lambda n, seed: {
+          'args': ['--rejoin', str(n),
+                   '--seed', str(seed)],
+          'hierarchy': [('rejoin-{}'.format(n), '{} steps'.format(n)),
+                        ('seed-{}'.format(seed), 'Seed {}'.format(seed))]
+        },
+        (5, 10, 20),
+        seeds(3)
       )
     ),
   'predict_penalty':
@@ -99,7 +148,8 @@ set_runs = {
         lambda predictor, seed: {
           'args': ['--seed', str(seed)],
           'hierarchy': [(predictor, predictor), ('none', 'No predictor'),
-                        ('seed-{}'.format(seed), 'Seed {}'.format(seed))]
+                        ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
+          'do_od': True
         },
         ('recursive', 'matrix'),
         seeds(3)
@@ -114,7 +164,8 @@ set_runs = {
             (predictor, predictor),
             ('avoid-{}'.format(penalty), 'Penalty {}'.format(penalty)),
             ('seed-{}'.format(seed), 'Seed {}'.format(seed))
-          ]
+          ],
+          'do_od': True
         },
         (1, 2, 3, 4, 5, 10),
         ('recursive', 'matrix'),
@@ -124,23 +175,29 @@ set_runs = {
   'predict_threshold':
     join(
       product(
-        lambda predictor: {
-          'hierarchy': [(predictor, predictor), ('none', 'No predictor')]
+        lambda predictor, seed: {
+          'hierarchy': [(predictor, predictor), ('none', 'No predictor'),
+                        ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
+          'do_od': True
         },
-        ('recursive', 'matrix')
+        ('recursive', 'matrix'),
+        seeds(3)
       ),
       product(
-        lambda threshold, predictor: {
+        lambda threshold, predictor, seed: {
           'args': ['--avoid', predictor,
                    '--obstacle-penalty', '3',
                    '--obstacle-threshold', str(threshold)],
           'hierarchy': [
             (predictor, predictor),
-            ('avoid-{}'.format(threshold), 'Threshold {}'.format(threshold))
-          ]
+            ('avoid-{}'.format(threshold), 'Threshold {}'.format(threshold)),
+            ('seed-{}'.format(seed), 'Seed {}'.format(seed))
+          ],
+          'do_od': True
         },
         (0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
-        ('recursive', 'matrix')
+        ('recursive', 'matrix'),
+        seeds(3)
       )
     ),
   'predict_distrib':
@@ -155,7 +212,8 @@ set_runs = {
           ('mean-{}'.format(mean), 'Mean {}'.format(mean)),
           ('seed-{}'.format(seed), 'Seed {}'.format(seed))
         ],
-        'obstacle_move_freq_distr': (mean, 1)
+        'obstacle_move_freq_distr': (mean, 1),
+        'do_od': True
       },
       range(1, 10),
       ('recursive', 'matrix'),
@@ -187,7 +245,8 @@ def make_scenario(map_info, map_path, run):
       }
     },
     'agent_settings': {
-      'random_agents': min(int(run.agents), tiles)
+      'random_agents': min(int(run.agents), tiles),
+      'spawn_mode': run.agents_spawn_mode
     },
     'agents': []
   }
@@ -333,16 +392,14 @@ def main():
       small_maps.append((map_path, info))
 
   sets = {
-    'full': all_maps,
-    'first': [all_maps[0]],
-    'none': [],
     'algos_small': small_maps,
+    'pack_algos': small_maps,
     'rejoin_small': small_maps,
     'predict_penalty': small_maps,
     'predict_threshold': small_maps,
     'predict_distrib': small_maps
   }
-  all_sets = ['full', 'algos_small', 'rejoin_small']
+  all_sets = list(sets.keys())
 
   sets_to_run = []
   if args.set == 'all':
@@ -363,7 +420,8 @@ def main():
 
     for run in set_runs[set_name]:
       print('=== {} ==='.format(
-        ' / '.join(pretty_name for (_, pretty_name) in run.hierarchy)
+        set_name + ' / '
+        + ' / '.join(pretty_name for (_, pretty_name) in run.hierarchy)
       ))
       name = '/'.join(name for (name, _) in run.hierarchy)
 

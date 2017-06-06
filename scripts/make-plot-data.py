@@ -231,11 +231,13 @@ def heuristic_compare(data, out_path, key, has_seed=False):
       out.write(line + '\n')
 
 
-def rejoin_small(data, out_dir):
+def rejoin_small(data, out_dir, has_seed=False):
   heuristic_compare(data, out_dir / 'time.txt',
-                    ('result', 'time_ms'))
+                    ('result', 'time_ms'),
+                    has_seed)
   heuristic_compare(data, out_dir / 'rejoin_success.txt',
-                    ('result', 'algorithm_statistics', 'Rejoin success rate'))
+                    ('result', 'algorithm_statistics', 'Rejoin success rate'),
+                    has_seed)
 
 
 def predict(data, out_dir, has_seed=False):
@@ -258,9 +260,10 @@ def predict_algos(data, out_path, has_seed=False):
 set_plots = {
   'full': scatter,
   'algos_small': algo_compare,
-  'rejoin_small': lambda data, path: rejoin_small(data, path),
+  'pack_algos': algo_compare,
+  'rejoin_small': lambda data, path: rejoin_small(data, path, True),
   'predict_penalty': lambda data, path: predict_algos(data, path, True),
-  'predict_threshold': lambda data, path: predict_algos(data, path),
+  'predict_threshold': lambda data, path: predict_algos(data, path, True),
   'predict_distrib': lambda data, path: predict_algos(data, path, True)
 }
 

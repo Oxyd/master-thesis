@@ -11,10 +11,13 @@
                     "1"
                 ]
             }
-        }
+        },
+        "spawn_points": "",
+        "goal_points": ""
     },
     "agent_settings": {
-        "random_agents": "100"
+        "random_agents": "10",
+        "spawn_mode": "uniform"
     },
     "agents": ""
 }
