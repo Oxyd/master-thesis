@@ -562,6 +562,7 @@ place_pack_agents(world& w, agent_settings settings,
   unsigned to_place = settings.random_agent_number;
   std::queue<position> agent_queue{{agent_start}};
   std::queue<position> goal_queue{{goal_start}};
+  std::unordered_set<position> used_goals;
   while (to_place > 0) {
     if (agent_queue.empty())
       throw bad_world_format{"Can't place random agent"};
@@ -569,19 +570,18 @@ place_pack_agents(world& w, agent_settings settings,
     position agent_pos = agent_queue.front();
     agent_queue.pop();
 
-    if (w.get(agent_pos) == tile::agent)
-      continue;
-
-    assert(w.get(agent_pos) == tile::free);
-
     if (goal_queue.empty())
       throw bad_world_format{"Can't select random agent's goal"};
 
     position agent_goal = goal_queue.front();
     goal_queue.pop();
 
-    w.put_agent(agent_pos, w.create_agent(agent_goal));
-    --to_place;
+    if (w.get(agent_pos) == tile::free && !used_goals.count(agent_goal)) {
+      w.put_agent(agent_pos, w.create_agent(agent_goal));
+      --to_place;
+
+      used_goals.insert(agent_goal);
+    }
 
     for (direction d : all_directions) {
       position new_agent_pos = translate(agent_pos, d);
@@ -589,7 +589,7 @@ place_pack_agents(world& w, agent_settings settings,
         agent_queue.push(new_agent_pos);
 
       position new_goal_pos = translate(agent_goal, d);
-      if (w.get(new_goal_pos) != tile::wall)
+      if (w.get(new_goal_pos) != tile::wall && !used_goals.count(new_goal_pos))
         goal_queue.push(new_goal_pos);
     }
   }
