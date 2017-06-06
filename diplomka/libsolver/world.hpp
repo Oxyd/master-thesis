@@ -60,6 +60,9 @@ struct position {
 std::ostream&
 operator << (std::ostream&, position);
 
+std::string
+to_string(position);
+
 inline bool
 operator == (position lhs, position rhs) {
   return lhs.x == rhs.x && lhs.y == rhs.y;

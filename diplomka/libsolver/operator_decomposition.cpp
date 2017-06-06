@@ -70,6 +70,7 @@ state_successors::get(agents_state const& state, world const& w) {
   };
 
   agent_state_record const& agent = state.agents[state.next_agent];
+  assert(agent.action == agent_action::unassigned);
 
   for (direction d : all_directions) {
     position const destination = translate(agent.position, d);
@@ -524,6 +525,14 @@ operator_decomposition::replan_group(world const& w,
                                 return state.next_agent != 0;
                               }),
                result.end());
+
+  if (result.empty())
+    // We couldn't find any path for the group. In order to make sure conflicts
+    // are checked and that the group gets an entry in the reservation tables,
+    // we'll create a single-step plan consisting of the group members' simply
+    // remaining in position.
+
+    result.push_back(std::move(current_state));
 
 #ifndef NDEBUG
   for (agents_state const& state : result) {

@@ -200,6 +200,13 @@ public:
   State const& from() const { return from_; }
   State const& to() const { return to_; }
 
+  template <typename F>
+  void
+  foreach_closed(F&& f) {
+    for (coordinate_type const& position : closed_)
+      f(position);
+  }
+
 private:
   struct node {
     State pos;

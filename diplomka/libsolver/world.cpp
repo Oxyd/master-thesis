@@ -90,6 +90,13 @@ operator << (std::ostream& out, position p) {
   return out << "[" << p.x << ", " << p.y << "]";
 }
 
+std::string
+to_string(position p) {
+  std::ostringstream os;
+  os << p;
+  return os.str();
+}
+
 position
 translate(position p, direction d) {
   switch (d) {
@@ -120,9 +127,9 @@ direction_to(position from, position to) {
 
 bool
 neighbours(position a, position b) {
-  bool const x = std::abs(a.x - b.x) == 1;
-  bool const y = std::abs(a.y - b.y) == 1;
-  return x != y;
+  return
+    (std::abs(a.x - b.x) == 1 && a.y == b.y)
+    || (std::abs(a.y - b.y) == 1 && a.x == b.x);
 }
 
 unsigned
@@ -377,7 +384,7 @@ world::get_agent(position p) const {
 void
 world::put_agent(position p, agent a) {
   if (get(p) != tile::free)
-    throw std::logic_error{"put_agent: Position not empty"};
+    throw std::logic_error{"put_agent: Position not empty: " + to_string(p)};
 
   agents_.insert({p, a});
 }
