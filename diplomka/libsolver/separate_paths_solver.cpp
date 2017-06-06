@@ -20,6 +20,12 @@ separate_paths_solver<Derived>::separate_paths_solver(
   , obstacle_threshold_(obstacle_threshold)
 { }
 
+static bool
+is_waiting_at_goal(agent a, path<> const& path) {
+  return std::all_of(path.begin(), path.end(),
+                     [&] (position p) { return p == a.target; });
+}
+
 template <typename Derived>
 void
 separate_paths_solver<Derived>::step(
@@ -30,13 +36,43 @@ separate_paths_solver<Derived>::step(
 
   std::unordered_map<agent::id_type, position> agents;
   std::vector<agent::id_type> agent_order;
+  std::unordered_set<agent::id_type> finished_agents;
 
   for (auto const& pos_agent : w.agents()) {
-    agents.insert({std::get<1>(pos_agent).id(), std::get<0>(pos_agent)});
-    agent_order.push_back(std::get<1>(pos_agent).id());
+    agent const& a = std::get<1>(pos_agent);
+    agents.insert({a.id(), std::get<0>(pos_agent)});
+    agent_order.push_back(a.id());
+
+    if (is_waiting_at_goal(a, paths_[a.id()]))
+      finished_agents.insert(a.id());
   }
 
   std::shuffle(agent_order.begin(), agent_order.end(), rng);
+
+  // Agents standing at the goal can be difficult for agents still trying to
+  // reach the goal, especially if the waiting agent is in the way. So, we'll
+  // look if we need to recalculate any non-finished agent at all -- if we do,
+  // we'll discard the plans for the finished agents to force them to
+  // cooperate. We'll also find paths for the finished agents after all
+  // non-finished agents, so that the non-finished ones have priority.
+
+  bool need_recalculate = false;
+  for (auto const& id_path : paths_)
+    if (std::get<1>(id_path).size() < 2
+        && !finished_agents.count(std::get<0>(id_path))) {
+      need_recalculate = true;
+      break;
+    }
+
+  if (need_recalculate) {
+    std::stable_partition(
+      agent_order.begin(), agent_order.end(),
+      [&] (agent::id_type id) { return !finished_agents.count(id); }
+    );
+
+    for (agent::id_type id : finished_agents)
+      paths_[id].clear();
+  }
 
   for (agent::id_type id : agent_order) {
     position const pos = agents[id];
