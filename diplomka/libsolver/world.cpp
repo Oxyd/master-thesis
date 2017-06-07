@@ -493,53 +493,83 @@ parse_agent_settings(boost::property_tree::ptree const& p) {
       throw bad_world_format{"Invalid agent spawn mode"};
   }
 
+  if (p.count("spawn_points"))
+    for (auto point : p.get_child("spawn_points"))
+      result.spawn_points.insert(read_pos(point.second));
+
+  if (p.count("goal_points"))
+    for (auto point : p.get_child("goal_points"))
+      result.goal_points.insert(read_pos(point.second));
+
   return result;
 }
 
+static std::tuple<std::vector<position>, std::vector<position>>
+make_candidates(world const& w, agent_settings const& settings) {
+  std::vector<position> spawn_candidates;
+  std::vector<position> goal_candidates;
+
+  if (!settings.spawn_points.empty()) {
+    for (position p : settings.spawn_points)
+      if (w.get(p) == tile::free)
+        spawn_candidates.push_back(p);
+  } else
+    for (position::coord_type y = 0; y < w.map()->height(); ++y)
+      for (position::coord_type x = 0; x < w.map()->width(); ++x)
+        if (w.get({x, y}) == tile::free)
+          spawn_candidates.push_back({x, y});
+
+  if (!settings.goal_points.empty()) {
+    for (position p : settings.goal_points)
+      if (w.get(p) != tile::wall)
+        goal_candidates.push_back(p);
+  } else
+    for (position::coord_type y = 0; y < w.map()->height(); ++y)
+      for (position::coord_type x = 0; x < w.map()->width(); ++x)
+        if (w.get({x, y}) != tile::wall)
+          goal_candidates.push_back({x, y});
+
+  return {spawn_candidates, goal_candidates};
+}
+
 static void
-place_uniform_agents(world& w, agent_settings settings,
+place_uniform_agents(world& w, agent_settings const& settings,
                      std::default_random_engine& rng) {
-  auto rand_pos = [&] (auto bad_pos) {
-    using uniform_coord = std::uniform_int_distribution<position::coord_type>;
-    uniform_coord x(0, w.map()->width() - 1);
-    uniform_coord y(0, w.map()->height() - 1);
+  std::vector<position> spawn_candidates;
+  std::vector<position> goal_candidates;
+  std::tie(spawn_candidates, goal_candidates) = make_candidates(w, settings);
 
-    position result;
-    do
-      result = position{x(rng), y(rng)};
-    while (w.get(result) == tile::wall || bad_pos(result));
-
-    return result;
-  };
-
-  std::unordered_set<position> goals;
   for (unsigned i = 0; i < settings.random_agent_number; ++i) {
-    position goal = rand_pos([&] (position p) { return goals.count(p); });
-    agent a = w.create_agent(goal);
+    if (spawn_candidates.empty())
+      throw bad_world_format{"Not enough candidate tiles to place agents"};
 
-    position pos = rand_pos([&] (position p) {
-      return w.get(p) == tile::agent || w.get(p) == tile::obstacle;
-    });
+    if (goal_candidates.empty())
+      throw bad_world_format{"Not enough candidate tiles to set agent goals"};
 
-    w.put_agent(pos, a);
-    goals.insert(goal);
+    using uniform_index = std::uniform_int_distribution<std::size_t>;
+    uniform_index position_d(0, spawn_candidates.size() - 1);
+    uniform_index goal_d(0, goal_candidates.size() - 1);
+
+    std::size_t position_index = position_d(rng);
+    std::size_t goal_index = goal_d(rng);
+
+    position pos = spawn_candidates[position_index];
+    position goal = goal_candidates[goal_index];
+
+    spawn_candidates.erase(spawn_candidates.begin() + position_index);
+    goal_candidates.erase(goal_candidates.begin() + goal_index);
+
+    if (w.get(pos) == tile::free)
+      w.put_agent(pos, w.create_agent(goal));
   }
 }
 
 static void
-place_pack_agents(world& w, agent_settings settings,
+place_pack_agents(world& w, agent_settings const& settings,
                   std::default_random_engine& rng) {
   std::vector<position> agent_candidates;
   std::vector<position> goal_candidates;
-
-  for (position::coord_type y = 0; y < w.map()->height(); ++y)
-    for (position::coord_type x = 0; x < w.map()->width(); ++x) {
-      if (w.get({x, y}) == tile::free)
-        agent_candidates.emplace_back(position{x, y});
-
-      if (w.get({x, y}) != tile::wall)
-        goal_candidates.emplace_back(position{x, y});
-    }
+  std::tie(agent_candidates, goal_candidates) = make_candidates(w, settings);
 
   if (agent_candidates.size() < settings.random_agent_number
       || goal_candidates.size() < settings.random_agent_number)
@@ -781,6 +811,22 @@ save_world(world const& world, std::string const& filename) {
   }
 
   agent_settings.add_child("spawn_mode", rand_agent_mode);
+
+  if (!world.agent_settings().spawn_points.empty()) {
+    pt::ptree points;
+    for (position p : world.agent_settings().spawn_points)
+      points.push_back({"", position_to_ptree(p)});
+
+    agent_settings.add_child("spawn_points", points);
+  }
+
+  if (!world.agent_settings().goal_points.empty()) {
+    pt::ptree points;
+    for (position p : world.agent_settings().goal_points)
+      points.push_back({"", position_to_ptree(p)});
+
+    agent_settings.add_child("goal_points", points);
+  }
 
   tree.add_child("agent_settings", agent_settings);
 

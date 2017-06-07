@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>714</width>
-    <height>614</height>
+    <height>780</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -81,7 +81,7 @@
         <item>
          <widget class="QPushButton" name="add_obstacle_spawn_button">
           <property name="text">
-           <string>Add obstacle spawn</string>
+           <string>Add obstacle spawn position</string>
           </property>
           <property name="checkable">
            <bool>true</bool>
@@ -94,7 +94,7 @@
         <item>
          <widget class="QPushButton" name="remove_obstacle_spawn_button">
           <property name="text">
-           <string>Remove obstacle spawn</string>
+           <string>Remove obstacle spawn position</string>
           </property>
           <property name="checkable">
            <bool>true</bool>
@@ -107,7 +107,7 @@
         <item>
          <widget class="QPushButton" name="add_obstacle_goal_button">
           <property name="text">
-           <string>Add obstacle goal</string>
+           <string>Add obstacle goal position</string>
           </property>
           <property name="checkable">
            <bool>true</bool>
@@ -120,7 +120,59 @@
         <item>
          <widget class="QPushButton" name="remove_obstacle_goal_button">
           <property name="text">
-           <string>Remove obstacle goal</string>
+           <string>Remove obstacle goal position</string>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+          <property name="autoExclusive">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="add_agent_spawn_button">
+          <property name="text">
+           <string>Add agent spawn position</string>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+          <property name="autoExclusive">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="remove_agent_spawn_button">
+          <property name="text">
+           <string>Remove agent spawn position</string>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+          <property name="autoExclusive">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="add_agent_goal_button">
+          <property name="text">
+           <string>Add agent goal position</string>
+          </property>
+          <property name="checkable">
+           <bool>true</bool>
+          </property>
+          <property name="autoExclusive">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="remove_agent_goal_button">
+          <property name="text">
+           <string>Remove agent goal position</string>
           </property>
           <property name="checkable">
            <bool>true</bool>

@@ -304,6 +304,9 @@ struct agent_settings {
 
   unsigned random_agent_number = 0;
   random_spawn_mode spawn_mode = random_spawn_mode::uniform;
+
+  std::unordered_set<position> spawn_points;
+  std::unordered_set<position> goal_points;
 };
 
 class world {

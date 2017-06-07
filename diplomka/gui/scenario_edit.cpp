@@ -10,6 +10,8 @@
 
 static const QColor obstacle_spawn_color{255, 128, 128};
 static const QColor obstacle_goal_color{255, 204, 0};
+static const QColor agent_spawn_color{128, 255, 128};
+static const QColor agent_goal_color{0, 204, 255};
 
 scenario_edit::scenario_edit(QWidget* parent)
   : QMainWindow(parent)
@@ -92,6 +94,9 @@ scenario_edit::save_scenario() {
   else if (ui_.agents_spawn_combo->currentText() == "Pack")
     agents.spawn_mode = agent_settings::random_spawn_mode::pack;
 
+  agents.spawn_points = agent_spawn_points_;
+  agents.goal_points = agent_goal_points_;
+
   save_world(*world_, filename.toStdString());
 
   dirty_ = false;
@@ -154,6 +159,26 @@ scenario_edit::clicked(int x, int y) {
 
   else if (ui_.remove_obstacle_goal_button->isChecked()) {
     obstacle_goal_points_.erase({x, y});
+    scene_.dehighlight_tile({x, y});
+  }
+
+  else if (ui_.add_agent_spawn_button->isChecked()) {
+    agent_spawn_points_.insert({x, y});
+    scene_.highlight_tile({x, y}, agent_spawn_color);
+  }
+
+  else if (ui_.remove_agent_spawn_button->isChecked()) {
+    agent_spawn_points_.erase({x, y});
+    scene_.dehighlight_tile({x, y});
+  }
+
+  else if (ui_.add_agent_goal_button->isChecked()) {
+    agent_goal_points_.insert({x, y});
+    scene_.highlight_tile({x, y}, agent_goal_color);
+  }
+
+  else if (ui_.remove_agent_goal_button->isChecked()) {
+    agent_goal_points_.erase({x, y});
     scene_.dehighlight_tile({x, y});
   }
 }
@@ -234,6 +259,18 @@ scenario_edit::attach(world w, QString const& filename) {
   agent_settings const& agents = world_->agent_settings();
   ui_.random_agents_spin->setValue(agents.random_agent_number);
   ui_.agents_spawn_combo->setCurrentIndex(static_cast<int>(agents.spawn_mode));
+
+  agent_spawn_points_.clear();
+  for (position p : agents.spawn_points) {
+    agent_spawn_points_.insert(p);
+    scene_.highlight_tile(p, agent_spawn_color);
+  }
+
+  agent_goal_points_.clear();
+  for (position p : agents.goal_points) {
+    agent_goal_points_.insert(p);
+    scene_.highlight_tile(p, agent_goal_color);
+  }
 
   setWindowTitle(QString(QString("Edit Scenario: %1").arg(filename)));
 

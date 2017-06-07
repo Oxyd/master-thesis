@@ -43,6 +43,8 @@ private:
   bool dirty_ = false;
   std::unordered_set<position> obstacle_spawn_points_;
   std::unordered_set<position> obstacle_goal_points_;
+  std::unordered_set<position> agent_spawn_points_;
+  std::unordered_set<position> agent_goal_points_;
 
   void attach(world, QString const& name);
 };
