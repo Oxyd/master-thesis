@@ -143,13 +143,17 @@ def algo_compare(data, out_dir):
                                     for a in algorithm_configs)},
                 out)
 
-    with out_path.open(mode='w') as out:
+    success_out_path = out_dir / (num_obstacles + '-success.txt')
+
+    with out_path.open(mode='w') as out,\
+         success_out_path.open(mode='w') as success_out:
       for agents in agent_configs:
         num_agents = re.match(r'(\d+)-agents', agents).group(1)
 
         line = '"{}" '.format(num_agents)
 
         algorithm_results = []
+        success_results = []
         for algo in algorithm_configs:
           experiments = find((agents, obst, algo), data.runs)
 
@@ -167,9 +171,10 @@ def algo_compare(data, out_dir):
             avg = 0
 
           algorithm_results.append(str(avg))
+          success_results.append(str(scenarios / len(experiments)))
 
-        line += ' '.join(algorithm_results)
-        out.write(line + '\n')
+        out.write(line + ' '.join(algorithm_results) + '\n')
+        success_out.write(line + ' '.join(success_results) + '\n')
 
 
 def get_path(d, path):
