@@ -119,14 +119,15 @@ def algo_compare(data, out_dir):
   '''Make histogram plot data for comparing algorithms on a small set of
   runs.'''
 
-  # Expected hierarchy is (agents, obstacles, algorithm). We'll make a separate
-  # output file for each obstacle count, so we want to group by that first. Then
-  # we group by agents and compute the average time for the obstacles/agents
-  # combination -- that will give a single line in the output file.
+  # Expected hierarchy is (agents, obstacles, seed, algorithm). We'll make a
+  # separate output file for each obstacle count, so we want to group by that
+  # first. Then we group by agents and compute the average time for the
+  # obstacles/agents combination -- that will give a single line in the output
+  # file.
 
   agent_configs = list(set(run[0][0] for run in data.runs))
   obstacle_configs = set(run[0][1] for run in data.runs)
-  algorithm_configs = list(set(run[0][2] for run in data.runs))
+  algorithm_configs = list(set(run[0][3] for run in data.runs))
 
   agent_configs.sort(key=natural_key)
   algorithm_configs.sort(key=natural_key)
@@ -155,7 +156,7 @@ def algo_compare(data, out_dir):
         algorithm_results = []
         success_results = []
         for algo in algorithm_configs:
-          experiments = find((agents, obst, algo), data.runs)
+          experiments = find((agents, obst, None, algo), data.runs)
 
           total_time = 0
           scenarios = 0

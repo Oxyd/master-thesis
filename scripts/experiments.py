@@ -96,30 +96,36 @@ def join(*args):
 set_runs = {
   'algos_small':
     product(
-      lambda agents, obstacles: {
+      lambda agents, obstacles, seed: {
         'agents': agents, 'obstacles': obstacles,
         'hierarchy': [('{}-agents'.format(agents), '{} agents'.format(agents)),
                       ('{}-obst'.format(obstacles),
-                       '{} obstacles'.format(obstacles))],
+                       '{} obstacles'.format(obstacles)),
+                      ('seed-{}'.format(seed), ('Seed {}'.format(seed)))],
+        'args': ['--seed', str(seed)],
         'do_od': True,
         'do_full_od': True
       },
       (1, 5, 10, 15, 20),
-      (0.01, 0.05, 0.1, 0.2)
+      (0.01, 0.05, 0.1, 0.2),
+      seeds(3)
     ),
   'pack_algos':
     product(
-      lambda agents, obstacles: {
+      lambda agents, obstacles, seed: {
         'agents': agents, 'obstacles': obstacles,
         'hierarchy': [('{}-agents'.format(agents), '{} agents'.format(agents)),
                       ('{}-obst'.format(obstacles),
-                       '{} obstacles'.format(obstacles))],
+                       '{} obstacles'.format(obstacles)),
+                      ('seed-{}'.format(seed), ('Seed {}'.format(seed)))],
+        'args': ['--seed', str(seed)],
         'agents_spawn_mode': 'pack',
         'do_od': True,
         'do_full_od': True
       },
       (1, 5, 10, 15, 20),
-      (0.01, 0.05, 0.1, 0.2)
+      (0.01, 0.05, 0.1, 0.2),
+      seeds(3)
     ),
   'rejoin_small':
     join(
