@@ -133,10 +133,13 @@ whca::find_path(position from, world const& w, std::default_random_engine&) {
   assert(w.get_agent(from));
   agent const& a = *w.get_agent(from);
 
+  heuristic_map_.erase(a.id());
   heuristic_search_type& h_search = heuristic_map_.emplace(
     std::piecewise_construct,
     std::forward_as_tuple(a.id()),
-    std::forward_as_tuple(a.target, from, w)
+    std::forward_as_tuple(a.target, from, w, manhattan_distance_heuristic{from},
+                          predicted_cost{predictor_.get(), w.tick(),
+                                         obstacle_penalty_})
   ).first->second;
   unsigned const old_h_search_nodes = h_search.nodes_expanded();
 
@@ -145,13 +148,13 @@ whca::find_path(position from, world const& w, std::default_random_engine&) {
     position_successors,
     passable_if_not_predicted_obstacle,
     hierarchical_distance,
-    predicted_cost,
+    unitary_step_cost,
     space_time_coordinate
   >;
   search_type as(
     from, a.target, w,
     hierarchical_distance(h_search),
-    predicted_cost(predictor_.get(), w.tick(), obstacle_penalty_),
+    unitary_step_cost{},
     passable_if_not_predicted_obstacle(
       predictor_.get(),
       passable_if_not_reserved(agent_reservations_, a, from),

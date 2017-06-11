@@ -47,7 +47,10 @@ private:
   using reservation_table_type =
     std::unordered_map<position_time, reservation_table_record>;
 
-  using heuristic_search_type = a_star<>;
+  using heuristic_search_type = a_star<
+    position, position_successors, always_passable,
+    manhattan_distance_heuristic, predicted_cost
+  >;
   using heuristic_map_type = std::map<agent::id_type, heuristic_search_type>;
 
   class passable_if_not_reserved {

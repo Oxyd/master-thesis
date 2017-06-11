@@ -1,9 +1,9 @@
 #ifndef OPERATOR_DECOMPOSITION_HPP
 #define OPERATOR_DECOMPOSITION_HPP
 
-#include "solvers.hpp"
-
 #include "a_star.hpp"
+#include "predictor.hpp"
+#include "solvers.hpp"
 
 enum class agent_action : unsigned {
   north = 0, east, south, west, stay, unassigned
@@ -94,34 +94,20 @@ private:
     permanent_reservation_record
   >;
 
+  using heuristic_search_type = a_star<
+    position, position_successors, always_passable,
+    manhattan_distance_heuristic, predicted_cost
+  >;
+  using heuristic_map_type = std::map<agent::id_type, heuristic_search_type>;
+
   struct combined_heuristic_distance {
-    combined_heuristic_distance(
-      std::unordered_map<agent::id_type, a_star<>>& h_searches
-    );
+    combined_heuristic_distance(heuristic_map_type& h_searches);
 
     unsigned
     operator () (agents_state const& state, world const& w) const;
 
   private:
-    std::unordered_map<agent::id_type, a_star<>>& h_searches_;
-  };
-
-  struct predicted_step_cost {
-    predicted_step_cost(predictor* predictor, unsigned obstacle_penalty,
-                        tick_t start_time)
-      : predictor_(predictor)
-      , obstacle_penalty_(obstacle_penalty)
-      , start_time_(start_time)
-    { }
-
-    double
-    operator () (agents_state const& from, agents_state const& to,
-                 tick_t time) const;
-
-  private:
-    predictor* predictor_;
-    unsigned obstacle_penalty_;
-    tick_t start_time_;
+    heuristic_map_type& h_searches_;
   };
 
   struct passable_not_immediate_neighbour {
@@ -134,7 +120,7 @@ private:
                  unsigned);
   };
 
-  std::unordered_map<agent::id_type, a_star<>> hierarchical_distances_;
+  heuristic_map_type heuristic_searches_;
   group_list groups_;
   reservation_table_type reservation_table_;
   permanent_reservation_table_type permanent_reservation_table_;
@@ -188,7 +174,7 @@ private:
   find_permanent_conflict(position, tick_t since) const;
 
   void
-  make_hierarchical_distances(world const&);
+  make_heuristic_searches(world const&);
 };
 
 #endif

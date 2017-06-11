@@ -126,7 +126,7 @@ state_successors::get(agents_state const& state, world const& w) {
 
 operator_decomposition::
 combined_heuristic_distance::combined_heuristic_distance(
-  std::unordered_map<agent::id_type, a_star<>>& h_searches
+  heuristic_map_type& h_searches
 )
   : h_searches_(h_searches)
 {}
@@ -147,24 +147,6 @@ operator_decomposition::combined_heuristic_distance::operator () (
   }
 
   return result;
-}
-
-double
-operator_decomposition::predicted_step_cost::operator () (
-  agents_state const& from,
-  agents_state const& to,
-  tick_t time
-) const {
-  if (!predictor_
-      || from.agents[from.next_agent].position
-         == to.agents[from.next_agent].position)
-    return 1.0;
-
-  return
-    1.0
-    + predictor_->predict_obstacle({to.agents[from.next_agent].position,
-                                    start_time_ + time})
-    * obstacle_penalty_;
 }
 
 namespace std {
@@ -385,10 +367,10 @@ operator_decomposition::replan(world const& w) {
   permanent_reservation_table_.clear();
   last_nonpermanent_reservation_ = 0;
 
-  make_hierarchical_distances(w);
+  make_heuristic_searches(w);
 
   unsigned old_nodes_heuristic = 0;
-  for (auto const& id_search : hierarchical_distances_)
+  for (auto const& id_search : heuristic_searches_)
     old_nodes_heuristic += std::get<1>(id_search).nodes_expanded();
 
   for (auto const& pos_agent : w.agents())
@@ -400,7 +382,7 @@ operator_decomposition::replan(world const& w) {
   while (conflicted);
 
   unsigned new_nodes_heuristic = 0;
-  for (auto const& id_search : hierarchical_distances_)
+  for (auto const& id_search : heuristic_searches_)
     new_nodes_heuristic += std::get<1>(id_search).nodes_expanded();
 
   nodes_heuristic_ += new_nodes_heuristic - old_nodes_heuristic;
@@ -494,7 +476,7 @@ operator_decomposition::replan_group(world const& w,
     state_successors,
     passable_not_immediate_neighbour,
     combined_heuristic_distance,
-    predicted_step_cost,
+    unitary_step_cost,
     space_coordinate<agents_state>,
     no_distance_storage,
     close_full
@@ -503,8 +485,8 @@ operator_decomposition::replan_group(world const& w,
     current_state,
     goal_state,
     w,
-    combined_heuristic_distance(hierarchical_distances_),
-    predicted_step_cost(predictor_.get(), obstacle_penalty_, w.tick()),
+    combined_heuristic_distance(heuristic_searches_),
+    unitary_step_cost{},
     passable_not_immediate_neighbour{current_state, predictor_.get()}
   );
 
@@ -690,15 +672,20 @@ operator_decomposition::find_permanent_conflict(position pos,
 }
 
 void
-operator_decomposition::make_hierarchical_distances(world const& w) {
+operator_decomposition::make_heuristic_searches(world const& w) {
+  heuristic_searches_.clear();
+
   for (auto const& pos_agent : w.agents()) {
     position from = std::get<0>(pos_agent);
     agent const& a = std::get<1>(pos_agent);
 
-    hierarchical_distances_.emplace(
+    heuristic_searches_.emplace(
       std::piecewise_construct,
       std::forward_as_tuple(a.id()),
-      std::forward_as_tuple(a.target, from, w)
+      std::forward_as_tuple(a.target, from, w,
+                            manhattan_distance_heuristic{from},
+                            predicted_cost{predictor_.get(), w.tick(),
+                                           obstacle_penalty_})
     );
   }
 }
