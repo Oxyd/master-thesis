@@ -271,7 +271,8 @@ set_runs = {
           'args': ['--seed', str(seed),
                    '--avoid', predictor,
                    '--obstacle-penalty', '5',
-                   '--obstacle-threshold', '0.9'],
+                   '--obstacle-threshold', '0.9',
+                   '--predictor-cutoff', '10'],
           'hierarchy': [(predictor, predictor),
                         ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
           'do_od': True
@@ -297,7 +298,8 @@ set_runs = {
           'args': ['--seed', str(seed),
                    '--avoid', predictor,
                    '--obstacle-penalty', '5',
-                   '--obstacle-threshold', '0.9'],
+                   '--obstacle-threshold', '0.9',
+                   '--predictor-cutoff', '10'],
           'hierarchy': [(predictor, predictor),
                         ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
           'do_od': True
