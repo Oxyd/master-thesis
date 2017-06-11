@@ -250,6 +250,32 @@ set_runs = {
         ('recursive', 'matrix'),
         seeds(10)
       )
+    ),
+
+  'traffic':
+    join(
+      product(
+        lambda seed: {
+          'args': ['--seed', str(seed)],
+          'hierarchy': [('none', 'No predictor'),
+                        ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
+          'do_od': True
+        },
+        seeds(10)
+      ),
+      product(
+        lambda predictor, seed: {
+          'args': ['--seed', str(seed),
+                   '--avoid', predictor,
+                   '--obstacle-penalty', '5',
+                   '--obstacle-threshold', '0.9'],
+          'hierarchy': [(predictor, predictor),
+                        ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
+          'do_od': True
+        },
+        ('recursive', 'matrix'),
+        seeds(10)
+      )
     )
 }
 
@@ -479,7 +505,8 @@ def main():
     'predict_penalty': (small_maps, None),
     'predict_threshold': (small_maps, None),
     'predict_distrib': (small_maps, None),
-    'choices': (None, 'choices.json')
+    'choices': (None, 'choices.json'),
+    'traffic': (None, 'traffic.json')
   }
   all_sets = list(sets.keys())
 

@@ -131,6 +131,9 @@ set_plots = {
   ),
   'choices': lambda d: avg_histogram(
     d, 'heuristics', ['set xtics rotate by -45\n']
+  ),
+  'traffic': lambda d: avg_histogram(
+    d, 'heuristics', ['set xtics rotate by -45\n']
   )
 }
 

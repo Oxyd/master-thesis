@@ -249,6 +249,8 @@ def rejoin_small(data, out_dir, has_seed=False):
 def predict(data, out_dir, has_seed=False):
   heuristic_compare(data, out_dir / 'time.txt', ('result', 'time_ms'), has_seed)
   heuristic_compare(data, out_dir / 'ticks.txt', ('result', 'ticks'), has_seed)
+  heuristic_compare(data, out_dir / 'success.txt', ('completed',),
+                    has_seed=True, only_completed=False)
 
 
 def predict_algos(data, out_path, has_seed=False):
@@ -264,12 +266,6 @@ def predict_algos(data, out_path, has_seed=False):
     predict(subdata, out_path / p, has_seed)
 
 
-def choices(data, out_dir):
-  predict(data, out_dir, True)
-  heuristic_compare(data, out_dir / 'success.txt', ('completed',),
-                    has_seed=True, only_completed=False)
-
-
 set_plots = {
   'full': scatter,
   'algos_small': algo_compare,
@@ -278,7 +274,8 @@ set_plots = {
   'predict_penalty': lambda data, path: predict_algos(data, path, True),
   'predict_threshold': lambda data, path: predict_algos(data, path, True),
   'predict_distrib': lambda data, path: predict_algos(data, path, True),
-  'choices': lambda data, path: choices(data, path)
+  'choices': lambda data, path: predict(data, path, True),
+  'traffic': lambda data, path: predict(data, path, True)
 }
 
 def main():
