@@ -192,7 +192,7 @@ set_runs = {
       product(
         lambda threshold, predictor, seed: {
           'args': ['--avoid', predictor,
-                   '--obstacle-penalty', '3',
+                   '--obstacle-penalty', '5',
                    '--obstacle-threshold', str(threshold)],
           'hierarchy': [
             (predictor, predictor),
@@ -210,8 +210,8 @@ set_runs = {
     product(
       lambda mean, predictor, seed: {
         'args': ['--avoid', predictor,
-                 '--obstacle-penalty', '4',
-                 '--obstacle-threshold', '0.7',
+                 '--obstacle-penalty', '5',
+                 '--obstacle-threshold', '0.9',
                  '--seed', str(seed)],
         'hierarchy': [
           (predictor, predictor),
@@ -224,13 +224,39 @@ set_runs = {
       range(1, 10),
       ('recursive', 'matrix'),
       seeds(3)
+    ),
+
+  'choices':
+    join(
+      product(
+        lambda seed: {
+          'args': ['--seed', str(seed)],
+          'hierarchy': [('none', 'No predictor'),
+                        ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
+          'do_od': True
+        },
+        seeds(10)
+      ),
+      product(
+        lambda predictor, seed: {
+          'args': ['--seed', str(seed),
+                   '--avoid', predictor,
+                   '--obstacle-penalty', '5',
+                   '--obstacle-threshold', '0.9'],
+          'hierarchy': [(predictor, predictor),
+                        ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
+          'do_od': True
+        },
+        ('recursive', 'matrix'),
+        seeds(10)
+      )
     )
 }
 
 solver_path = Path('../bin/opt/cli')
 maps_path = Path('../da-maps')
 tmp_path = Path('../tmp')
-
+fixed_scenarios = Path('../experiments-scenarios')
 
 def make_scenario(map_info, map_path, run):
   '''Create a scenario for the given map.'''
@@ -326,16 +352,31 @@ def worker():
       sys.exit(1)
 
     result_path.open(mode='w').write(json.dumps(
-      {'map_info': info, 'result': result_data, 'completed': completed},
+      {'map_info': info, 'result': result_data, 'completed': completed,
+       'args': args},
       indent=2
     ))
 
     jobs.task_done()
 
 
-def do_experiments(maps, run, scenarios, dry):
+def run_jobs():
+  '''Run jobs in the job queue in parallel.'''
+
+  print('Starting worker threads')
+
+  workers = [threading.Thread(target=worker) for _ in range(threads)]
+  for w in workers: w.start()
+
+  jobs.join()
+
+  for _ in range(threads): jobs.put(None)
+  for w in workers: w.join()
+
+
+def do_maps(maps, run, scenarios, dry):
   '''Run the experiments for one implementation and one configuration on all
-  available scenarios.
+  available maps.
   '''
 
   reset_jobs()
@@ -356,18 +397,52 @@ def do_experiments(maps, run, scenarios, dry):
               + run.args,
               result_path, info, run.timeout))
 
-  if dry:
-    return
+  if not dry:
+    run_jobs()
 
-  print('Starting worker threads')
 
-  workers = [threading.Thread(target=worker) for _ in range(threads)]
-  for w in workers: w.start()
+def make_out_dirs(set_name, run):
+  '''Make output directories including meta.json files. Returns the output
+  directory path.'''
 
-  jobs.join()
+  parent = tmp_path / set_name
+  for name, pretty_name in run.hierarchy:
+    (parent / name).mkdir(parents=True, exist_ok=True)
 
-  for _ in range(threads): jobs.put(None)
-  for w in workers: w.join()
+    with (parent / name / 'meta.json').open(mode='w') as out:
+      json.dump({'name': pretty_name}, out)
+
+    parent = parent / name
+
+  return parent
+
+
+def do_runs(scenario, runs, set_name, dry):
+  '''Run the experiments for the given scenario on all available runs.'''
+
+  reset_jobs()
+
+  for run in runs:
+    parent = make_out_dirs(set_name, run)
+
+    with scenario.open() as s:
+      scenario_data = json.load(s)
+
+    map_path = scenario.parent / scenario_data['map']
+    map_info_path = map_path.parent / (map_path.stem + '.json')
+
+    with map_info_path.open() as mi:
+      info = json.load(mi)
+
+    result_path = parent / (map_path.stem + '.result.json')
+    jobs.put((' / '.join(pretty_name for name, pretty_name in run.hierarchy),
+              [str(solver_path.resolve()),
+               '--scenario', str(scenario.resolve())]
+              + run.args,
+              result_path, info, run.timeout))
+
+  if not dry:
+    run_jobs()
 
 
 def main():
@@ -398,12 +473,13 @@ def main():
       small_maps.append((map_path, info))
 
   sets = {
-    'algos_small': small_maps,
-    'pack_algos': small_maps,
-    'rejoin_small': small_maps,
-    'predict_penalty': small_maps,
-    'predict_threshold': small_maps,
-    'predict_distrib': small_maps
+    'algos_small': (small_maps, None),
+    'pack_algos': (small_maps, None),
+    'rejoin_small': (small_maps, None),
+    'predict_penalty': (small_maps, None),
+    'predict_threshold': (small_maps, None),
+    'predict_distrib': (small_maps, None),
+    'choices': (None, 'choices.json')
   }
   all_sets = list(sets.keys())
 
@@ -424,23 +500,24 @@ def main():
 
     print('====== {} ======'.format(set_name))
 
-    for run in set_runs[set_name]:
-      print('=== {} ==='.format(
-        set_name + ' / '
-        + ' / '.join(pretty_name for (_, pretty_name) in run.hierarchy)
-      ))
-      name = '/'.join(name for (name, _) in run.hierarchy)
+    maps, scenario = sets[set_name]
+    assert maps is None or scenario is None
 
-      parent = tmp_path / set_name
-      for name, pretty_name in run.hierarchy:
-        (parent / name).mkdir(parents=True, exist_ok=True)
+    if maps is not None:
+      for run in set_runs[set_name]:
+        print('=== {} ==='.format(
+          set_name + ' / '
+          + ' / '.join(pretty_name for (_, pretty_name) in run.hierarchy)
+        ))
+        name = '/'.join(name for (name, _) in run.hierarchy)
 
-        with (parent / name / 'meta.json').open(mode='w') as out:
-          json.dump({'name': pretty_name}, out)
+        parent = make_out_dirs(set_name, run)
+        do_maps(maps, run, parent, args.dry)
 
-        parent = parent / name
-
-      do_experiments(sets[set_name], run, parent, args.dry)
+    else:
+      assert scenario is not None
+      do_runs(fixed_scenarios / scenario, set_runs[set_name], set_name,
+              args.dry)
 
 if __name__ == '__main__':
   main()

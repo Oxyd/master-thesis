@@ -188,7 +188,7 @@ def get_path(d, path):
   return x
 
 
-def heuristic_compare(data, out_path, key, has_seed=False):
+def heuristic_compare(data, out_path, key, has_seed=False, only_completed=True):
   '''Make histogram plot data for comparing the effect of different
   heuristics.'''
 
@@ -221,7 +221,7 @@ def heuristic_compare(data, out_path, key, has_seed=False):
         num = 0
         total = 0.0
         for e in experiments:
-          if not e['completed']: continue
+          if only_completed and not e['completed']: continue
 
           total += float(get_path(e, key))
           num += 1
@@ -263,6 +263,13 @@ def predict_algos(data, out_path, has_seed=False):
     )
     predict(subdata, out_path / p, has_seed)
 
+
+def choices(data, out_dir):
+  predict(data, out_dir, True)
+  heuristic_compare(data, out_dir / 'success.txt', ('completed',),
+                    has_seed=True, only_completed=False)
+
+
 set_plots = {
   'full': scatter,
   'algos_small': algo_compare,
@@ -270,7 +277,8 @@ set_plots = {
   'rejoin_small': lambda data, path: rejoin_small(data, path, True),
   'predict_penalty': lambda data, path: predict_algos(data, path, True),
   'predict_threshold': lambda data, path: predict_algos(data, path, True),
-  'predict_distrib': lambda data, path: predict_algos(data, path, True)
+  'predict_distrib': lambda data, path: predict_algos(data, path, True),
+  'choices': lambda data, path: choices(data, path)
 }
 
 def main():
