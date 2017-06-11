@@ -206,6 +206,35 @@ set_runs = {
         seeds(3)
       )
     ),
+  'predict_cutoff':
+    join(
+      product(
+        lambda predictor, seed: {
+          'hierarchy': [(predictor, predictor), ('none', 'No predictor'),
+                        ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
+          'do_od': True
+        },
+        ('recursive', 'matrix'),
+        seeds(3)
+      ),
+      product(
+        lambda cutoff, predictor, seed: {
+          'args': ['--avoid', predictor,
+                   '--obstacle-penalty', '5',
+                   '--obstacle-threshold', '0.9',
+                   '--predictor-cutoff', str(cutoff)],
+          'hierarchy': [
+            (predictor, predictor),
+            ('cutoff-{}'.format(cutoff), '{} steps'.format(cutoff)),
+            ('seed-{}'.format(seed), 'Seed {}'.format(seed))
+          ],
+          'do_od': True
+        },
+        (1, 5, 10, 15, 20),
+        ('recursive', 'matrix'),
+        seeds(3)
+      )
+    ),
   'predict_distrib':
     product(
       lambda mean, predictor, seed: {
@@ -505,6 +534,7 @@ def main():
     'predict_penalty': (small_maps, None),
     'predict_threshold': (small_maps, None),
     'predict_distrib': (small_maps, None),
+    'predict_cutoff': (small_maps, None),
     'choices': (None, 'choices.json'),
     'traffic': (None, 'traffic.json')
   }

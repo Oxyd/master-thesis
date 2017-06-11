@@ -273,6 +273,7 @@ set_plots = {
   'rejoin_small': lambda data, path: rejoin_small(data, path, True),
   'predict_penalty': lambda data, path: predict_algos(data, path, True),
   'predict_threshold': lambda data, path: predict_algos(data, path, True),
+  'predict_cutoff': lambda data, path: predict_algos(data, path, True),
   'predict_distrib': lambda data, path: predict_algos(data, path, True),
   'choices': lambda data, path: predict(data, path, True),
   'traffic': lambda data, path: predict(data, path, True)

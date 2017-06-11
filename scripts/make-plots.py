@@ -126,6 +126,9 @@ set_plots = {
   'predict_threshold': lambda d: avg_histogram(
     d, 'heuristics', ['set xtics rotate by -45\n']
   ),
+  'predict_cutoff': lambda d: avg_histogram(
+    d, 'heuristics', ['set xtics rotate by -45\n']
+  ),
   'predict_distrib': lambda d: avg_histogram(
     d, 'heuristics', ['set xtics rotate by -45\n']
   ),
