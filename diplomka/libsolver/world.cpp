@@ -270,7 +270,8 @@ move_to_goal(obstacle o, position pos, world& w,
     next = pos;
 
   w.remove_obstacle(pos);
-  o.next_move = w.tick() + std::max(tick_t{1}, (tick_t) o.move_distrib(rng));
+  o.next_move = w.tick() + std::max(1, (int) o.move_distrib(rng));
+  assert(o.next_move > w.tick());
   w.put_obstacle(next, o);
 }
 
@@ -296,9 +297,9 @@ make_obstacles(world& w, obstacle_settings settings,
     if (w.get(p) == ::tile::free && rand() < settings.tile_probability)
     {
       obstacle o = w.create_obstacle(time_to_move);
-      o.next_move = w.tick() + std::max(tick_t{1},
-                                        (tick_t) o.move_distrib(rng));
+      o.next_move = w.tick() + std::max(1, (int) o.move_distrib(rng));
 
+      assert(o.next_move > w.tick());
       w.put_obstacle(p, std::move(o));
     }
 }
