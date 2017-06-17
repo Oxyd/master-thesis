@@ -14,7 +14,7 @@ enum class movement : std::size_t {
   north = 0, east, south, west, stay
 };
 
-constexpr unsigned num_moves = 5;
+constexpr unsigned num_moves = 10;
 
 class movement_estimator {
 public:

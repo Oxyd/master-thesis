@@ -155,7 +155,8 @@ set_runs = {
           'args': ['--seed', str(seed)],
           'hierarchy': [(predictor, predictor), ('none', 'No predictor'),
                         ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
-          'do_od': True
+          'do_od': True,
+          'timeout': 3
         },
         ('recursive', 'matrix'),
         seeds(3)
@@ -171,9 +172,10 @@ set_runs = {
             ('avoid-{}'.format(penalty), 'Penalty {}'.format(penalty)),
             ('seed-{}'.format(seed), 'Seed {}'.format(seed))
           ],
-          'do_od': True
+          'do_od': True,
+          'timeout': 3
         },
-        (1, 2, 3, 4, 5, 10),
+        (5, 10, 15, 20, 25, 30),
         ('recursive', 'matrix'),
         seeds(3)
       )
