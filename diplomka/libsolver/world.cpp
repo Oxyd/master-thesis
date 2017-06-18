@@ -221,16 +221,22 @@ valid_directions(position p, world const& w) {
 
 static void
 move_random(obstacle o, position pos, world& w, std::default_random_engine& rng) {
+  position dest;
+
   std::vector<position> choices = valid_directions(pos, w);
   if (choices.empty())
-    return;
+    dest = pos;
+  else {
+    std::uniform_int_distribution<std::size_t> i(0, choices.size() - 1);
+    dest = choices[i(rng)];
+  }
 
-  std::uniform_int_distribution<std::size_t> i(0, choices.size() - 1);
-  position p = choices[i(rng)];
+  if (w.get(dest) != tile::free)
+    dest = pos;
 
   w.remove_obstacle(pos);
   o.next_move = w.tick() + std::max(1, (int) o.move_distrib(rng));
-  w.put_obstacle(p, o);
+  w.put_obstacle(dest, o);
 }
 
 static void
