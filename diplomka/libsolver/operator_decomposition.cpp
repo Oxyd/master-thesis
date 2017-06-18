@@ -339,10 +339,12 @@ operator_decomposition::passable_not_immediate_neighbour::operator () (
   agents_state const& state, agents_state const&, world const& w,
   unsigned distance
 ) {
+  unsigned distance_steps = 1 + distance / state.agents.size();
+
   for (agent_state_record const& agent : state.agents) {
     if (predictor_ &&
         predictor_->predict_obstacle(
-          {agent.position, w.tick() + distance}
+          {agent.position, w.tick() + distance_steps}
         ) > threshold_)
       return false;
 
