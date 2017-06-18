@@ -212,7 +212,7 @@ valid_directions(position p, world const& w) {
   std::vector<position> result;
   for (auto d : all_directions) {
     position q = translate(p, d);
-    if (in_bounds(q, *w.map()) && traversable(w.get(q)))
+    if (in_bounds(q, *w.map()) && traversable(w.map()->get(q)))
       result.push_back(q);
   }
 
