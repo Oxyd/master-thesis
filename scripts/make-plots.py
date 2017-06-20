@@ -113,14 +113,16 @@ def algo_compare(data, out_dir):
 
   for obst in obstacle_configs:
     num_obstacles = re.match(r'([0-9.]+)-obst', obst).group(1)
-    out_path = out_dir / (num_obstacles + '.png')
-    success_out_path = out_dir / (num_obstacles + '-success.png')
+    out_path = out_dir / (num_obstacles + '.pdf')
+    success_out_path = out_dir / (num_obstacles + '-success.pdf')
+    ticks_out_path = out_dir / (num_obstacles + '-ticks.pdf')
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
     algo_names = list(data.attr_names[a] for a in algorithm_configs)
     algo_results = {}
     success_results = {}
+    ticks_results = {}
 
     agent_nums = []
     for agents in agent_configs:
@@ -128,29 +130,32 @@ def algo_compare(data, out_dir):
       agent_nums.append(num_agents)
 
     for algo in algorithm_configs:
-      time = []
-      success = []
-
       for agents in agent_configs:
         experiments = find((agents, obst, None, algo), data.runs)
 
         total_time = 0
+        total_ticks = 0
         scenarios = 0
         for e in experiments:
           if not e['completed']: continue
 
           total_time += float(e['result']['time_ms'])
+          total_ticks += int(e['result']['ticks'])
           scenarios += 1
 
         if scenarios > 0:
-          avg = total_time / scenarios
+          avg_time = total_time / scenarios
+          avg_ticks = total_ticks / scenarios
         else:
-          avg = 0
+          avg_time = 0
+          avg_ticks = 0
 
         if algo not in algo_results: algo_results[algo] = []
         if algo not in success_results: success_results[algo] = []
+        if algo not in ticks_results: ticks_results[algo] = []
 
-        algo_results[algo].append(avg)
+        algo_results[algo].append(avg_time)
+        ticks_results[algo].append(avg_ticks)
         success_results[algo].append(scenarios / len(experiments))
 
     index = np.arange(len(agent_nums))
@@ -167,10 +172,11 @@ def algo_compare(data, out_dir):
     plt.ylabel('Time (ms)')
     plt.yscale('log')
     plt.xticks(index + len(algo_names) * bar_width / 2, agent_nums)
-    plt.legend(loc='best')
 
-    plt.tight_layout()
-    plt.savefig(str(out_path))
+    lgd = plt.legend(loc='upper left', prop=small_font,
+                     bbox_to_anchor=(1.04, 1.0))
+
+    plt.savefig(str(out_path), bbox_extra_artists=[lgd], bbox_inches='tight')
 
     plt.clf()
 
@@ -183,10 +189,27 @@ def algo_compare(data, out_dir):
     plt.xlabel('Number of agents')
     plt.ylabel('Success rate (%)')
     plt.xticks(index + len(algo_names) * bar_width / 2, agent_nums)
-    plt.legend(loc='lower left')
 
-    plt.tight_layout()
-    plt.savefig(str(success_out_path))
+    lgd = plt.legend(loc='upper left', prop=small_font,
+                     bbox_to_anchor=(1.04, 1.0))
+    plt.savefig(str(success_out_path), bbox_extra_artists=[lgd],
+                bbox_inches='tight')
+
+    plt.clf()
+
+    for i, algo in enumerate(algorithm_configs):
+      plt.bar(index + (i - 1) * bar_width, ticks_results[algo], bar_width,
+              label=data.attr_names[algo],
+              color=cm.Set1(i / len(algorithm_configs)))
+
+    plt.xlabel('Number of agents')
+    plt.ylabel('Length')
+    plt.xticks(index + len(algo_names) * bar_width / 2, agent_nums)
+
+    lgd = plt.legend(loc='upper left', prop=small_font,
+                     bbox_to_anchor=(1.04, 1.0))
+    plt.savefig(str(ticks_out_path), bbox_extra_artists=[lgd],
+                bbox_inches='tight')
 
 
 def get_path(d, path):
