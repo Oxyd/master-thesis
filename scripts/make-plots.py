@@ -21,6 +21,8 @@ var_map = {
 small_font = FontProperties()
 small_font.set_size('small')
 
+plt.figure(figsize=(8, 4))
+
 def algo_compare(data, out_dir):
   '''Make histogram plot data for comparing algorithms on a small set of
   runs.'''

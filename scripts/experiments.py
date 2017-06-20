@@ -46,7 +46,7 @@ def runs(args):
   whca_runs = [
     run(hierarchy=hierarchy + [('whca-{}'.format(n), 'WHCA* ({})'.format(n))],
         args=['--algorithm', 'whca', '--window', '{}'.format(n)] + extra_args)
-    for n in (5, 10, 15, 20)
+    for n in (5, 10, 20)
   ]
 
   if do_od:
@@ -107,7 +107,7 @@ set_runs = {
         'do_full_od': True
       },
       range(1, 10),
-      (0.01, 0.05, 0.1, 0.2),
+      (0.01, 0.2),
       seeds(3)
     ),
   'pack_algos':

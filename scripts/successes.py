@@ -27,14 +27,16 @@ def algos(data):
     print('obst = {}'.format(obst))
     print()
 
-    table = [[data.attr_names[a] for a in algorithm_configs]]
+    table = [['\\rot{Agents}']
+             + ['\\rot{{{}}}'.format(data.attr_names[a])
+                for a in algorithm_configs]]
     for agents in agent_configs:
       table.append([data.attr_names[agents]])
 
       for algo in algorithm_configs:
         a = average((agents, obst, None, algo), data.runs,
                     ('completed',), True)
-        table[-1].append('{:.2f}'.format(100 * a))
+        table[-1].append('{}\\%'.format(int(100 * a)))
 
     print_table(table)
 
