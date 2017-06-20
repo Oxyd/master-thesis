@@ -20,7 +20,10 @@ struct agents_state {
   std::size_t next_agent = 0;
 };
 
-using agents_state_time = std::tuple<agents_state, unsigned>;
+struct agents_state_time {
+  agents_state state;
+  tick_t time;
+};
 
 class operator_decomposition : public solver {
 public:

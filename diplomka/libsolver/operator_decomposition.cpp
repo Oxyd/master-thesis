@@ -14,11 +14,6 @@ operator == (agents_state const& lhs, agents_state const& rhs) {
   return lhs.next_agent == rhs.next_agent && lhs.agents == rhs.agents;
 }
 
-static bool
-operator != (agents_state const& lhs, agents_state const& rhs) {
-  return !operator == (lhs, rhs);
-}
-
 struct state_successors {
   static std::vector<agents_state>
   get(agents_state const& state, world const& w);
@@ -112,7 +107,8 @@ state_successors::get(agents_state const& state, world const& w) {
     if (other_agent.action == agent_action::unassigned)
       break;
 
-    if (other_agent.position == agent.position) {
+    if (other_agent.position == agent.position
+        && other_agent.id != agent.id) {
       needs_vacate = true;
       break;
     }
@@ -137,9 +133,6 @@ operator_decomposition::combined_heuristic_distance::operator () (
 ) const {
   unsigned result = 0;
   for (agent_state_record const& agent : state.agents) {
-    if (w.get(w.get_agent(agent.id).target) == tile::obstacle)
-      continue;
-
     auto h_search = h_searches_.find(agent.id);
     assert(h_search != h_searches_.end());
 
@@ -445,8 +438,8 @@ operator_decomposition::replan_groups(world const& w) {
 
 struct close_full {
   static bool
-  get(agents_state const& state) {
-    return state.next_agent == 0;
+  get(agents_state_time const& state) {
+    return state.state.next_agent == 0;
   }
 };
 
@@ -455,6 +448,42 @@ struct post_move_open_set {
   using type = std::unordered_map<Coord, Handle, partial_state_hash,
                                   partial_state_equal>;
 };
+
+struct agents_state_coordinate {
+  using type = agents_state_time;
+
+  static type
+  make(agents_state const& state, unsigned g) {
+    return agents_state_time{state, g};
+  }
+};
+
+bool
+operator == (agents_state_time const& lhs, agents_state_time const& rhs) {
+  return lhs.state == rhs.state && lhs.time == rhs.time;
+}
+
+bool
+operator != (agents_state_time const& lhs, agents_state_time const& rhs) {
+  return !operator == (lhs, rhs);
+}
+
+namespace std {
+template <>
+struct hash<agents_state_time> {
+  using argument_type = agents_state_time;
+  using result_type = std::size_t;
+
+  result_type
+  operator () (argument_type const& st) const {
+    std::size_t seed{};
+    hash_combine(seed, st.state);
+    hash_combine(seed, st.time);
+
+    return seed;
+  }
+};
+} // namespace std
 
 path<agents_state>
 operator_decomposition::replan_group(world const& w,
@@ -479,7 +508,7 @@ operator_decomposition::replan_group(world const& w,
     passable_not_immediate_neighbour,
     combined_heuristic_distance,
     unitary_step_cost,
-    space_coordinate<agents_state>,
+    agents_state_coordinate,
     no_distance_storage,
     close_full
   >;
