@@ -21,13 +21,6 @@ var_map = {
 small_font = FontProperties()
 small_font.set_size('small')
 
-def natural_key(string_):
-  """See http://www.codinghorror.com/blog/archives/001018.html"""
-  has_no = string_.startswith('No') or string_.startswith('no')
-  return (not has_no, [int(s) if s.isdigit() else s
-                       for s in re.split(r'(\d+)', string_)])
-
-
 def algo_compare(data, out_dir):
   '''Make histogram plot data for comparing algorithms on a small set of
   runs.'''

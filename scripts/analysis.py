@@ -1,6 +1,6 @@
 from collections import namedtuple
 import json
-
+import re
 
 SetData = namedtuple(
   'SetData',
@@ -90,3 +90,10 @@ def average(key, runs, path, include_failed=False):
     return total / num
   else:
     return 0
+
+
+def natural_key(string_):
+  """See http://www.codinghorror.com/blog/archives/001018.html"""
+  has_no = string_.startswith('No') or string_.startswith('no')
+  return (not has_no, [int(s) if s.isdigit() else s
+                       for s in re.split(r'(\d+)', string_)])
