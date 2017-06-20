@@ -39,6 +39,8 @@ def algo_compare(data, out_dir):
 
   for obst in obstacle_configs:
     num_obstacles = re.match(r'([0-9.]+)-obst', obst).group(1)
+    num_obstacles = num_obstacles.translate(str.maketrans({'.': '-'}))
+
     out_path = out_dir / (num_obstacles + '.pdf')
     success_out_path = out_dir / (num_obstacles + '-success.pdf')
     ticks_out_path = out_dir / (num_obstacles + '-ticks.pdf')
