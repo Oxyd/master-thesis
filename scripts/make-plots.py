@@ -95,6 +95,33 @@ def find(key, runs):
   return result
 
 
+def get_path(d, path):
+  '''get_path(d, (a, b, c)) -> d[a][b][c]'''
+
+  x = d
+  for e in path:
+    x = x[e]
+
+  return x
+
+
+def average(key, runs, path, include_failed=False):
+  num = 0
+  total = 0
+
+  experiments = find(key, runs)
+  for e in experiments:
+    if not include_failed and not e['completed']: continue
+
+    num += 1
+    total += float(get_path(e, path))
+
+  if num > 0:
+    return total / num
+  else:
+    return 0
+
+
 def algo_compare(data, out_dir):
   '''Make histogram plot data for comparing algorithms on a small set of
   runs.'''
@@ -131,95 +158,43 @@ def algo_compare(data, out_dir):
 
     for algo in algorithm_configs:
       for agents in agent_configs:
-        experiments = find((agents, obst, None, algo), data.runs)
-
-        total_time = 0
-        total_ticks = 0
-        scenarios = 0
-        for e in experiments:
-          if not e['completed']: continue
-
-          total_time += float(e['result']['time_ms'])
-          total_ticks += int(e['result']['ticks'])
-          scenarios += 1
-
-        if scenarios > 0:
-          avg_time = total_time / scenarios
-          avg_ticks = total_ticks / scenarios
-        else:
-          avg_time = 0
-          avg_ticks = 0
-
         if algo not in algo_results: algo_results[algo] = []
         if algo not in success_results: success_results[algo] = []
         if algo not in ticks_results: ticks_results[algo] = []
 
-        algo_results[algo].append(avg_time)
-        ticks_results[algo].append(avg_ticks)
-        success_results[algo].append(scenarios / len(experiments))
+        key = (agents, obst, None, algo)
+
+        algo_results[algo].append(average(key, data.runs,
+                                          ('result', 'time_ms')))
+        ticks_results[algo].append(average(key, data.runs, ('result', 'ticks')))
+        success_results[algo].append(average(key, data.runs,
+                                             ('completed',), True))
 
     index = np.arange(len(agent_nums))
     bar_width = 0.8 / len(algo_names)
 
-    plt.clf()
+    def plot(f, y_label, log, filename):
+      plt.clf()
 
-    for i, algo in enumerate(algorithm_configs):
-      plt.bar(index + (i - 1) * bar_width, algo_results[algo], bar_width,
-              label=data.attr_names[algo],
-              color=cm.Set1(i / len(algorithm_configs)))
+      for i, algo in enumerate(algorithm_configs):
+        plt.bar(index + (i - 1) * bar_width, f(algo), bar_width,
+                label=data.attr_names[algo],
+                color=cm.Set1(i / len(algorithm_configs)))
 
-    plt.xlabel('Number of agents')
-    plt.ylabel('Time (ms)')
-    plt.yscale('log')
-    plt.xticks(index + len(algo_names) * bar_width / 2, agent_nums)
+      plt.xlabel('Number of agents')
+      plt.ylabel(y_label)
+      if log: plt.yscale('log')
+      plt.xticks(index + len(algo_names) / 2 * bar_width / 2, agent_nums)
 
-    lgd = plt.legend(loc='upper left', prop=small_font,
-                     bbox_to_anchor=(1.04, 1.0))
+      lgd = plt.legend(loc='upper left', prop=small_font,
+                       bbox_to_anchor=(1.04, 1.00))
 
-    plt.savefig(str(out_path), bbox_extra_artists=[lgd], bbox_inches='tight')
+      plt.savefig(filename, bbox_extra_artists=[lgd], bbox_inches='tight')
 
-    plt.clf()
-
-    for i, algo in enumerate(algorithm_configs):
-      plt.bar(index + (i - 1) * bar_width,
-              100 * np.array(success_results[algo]), bar_width,
-              label=data.attr_names[algo],
-              color=cm.Set1(i / len(algorithm_configs)))
-
-    plt.xlabel('Number of agents')
-    plt.ylabel('Success rate (%)')
-    plt.xticks(index + len(algo_names) * bar_width / 2, agent_nums)
-
-    lgd = plt.legend(loc='upper left', prop=small_font,
-                     bbox_to_anchor=(1.04, 1.0))
-    plt.savefig(str(success_out_path), bbox_extra_artists=[lgd],
-                bbox_inches='tight')
-
-    plt.clf()
-
-    for i, algo in enumerate(algorithm_configs):
-      plt.bar(index + (i - 1) * bar_width, ticks_results[algo], bar_width,
-              label=data.attr_names[algo],
-              color=cm.Set1(i / len(algorithm_configs)))
-
-    plt.xlabel('Number of agents')
-    plt.ylabel('Length')
-    plt.xticks(index + len(algo_names) * bar_width / 2, agent_nums)
-
-    lgd = plt.legend(loc='upper left', prop=small_font,
-                     bbox_to_anchor=(1.04, 1.0))
-    plt.savefig(str(ticks_out_path), bbox_extra_artists=[lgd],
-                bbox_inches='tight')
-
-
-def get_path(d, path):
-  '''get_path(d, (a, b, c)) -> d[a][b][c]'''
-
-  x = d
-  for e in path:
-    x = x[e]
-
-  return x
+    plot(lambda algo: algo_results[algo], 'Time (ms)', True, str(out_path))
+    plot(lambda algo: 100 * np.array(success_results[algo]),
+         'Success rate (%)', False, str(success_out_path))
+    plot(lambda algo: ticks_results[algo], 'Length', False, str(ticks_out_path))
 
 
 def heuristic_compare(data, out_path, key, has_seed=False, only_completed=True):
@@ -243,67 +218,41 @@ def heuristic_compare(data, out_path, key, has_seed=False, only_completed=True):
   success_results = {}
 
   for algo in algorithms:
-    time = []
-    success = []
-
     for heuristic in heuristics:
       if has_seed: experiments_key = (heuristic, None, algo)
       else:        experiments_key = (heuristic, algo)
-      experiments = find(experiments_key, data.runs)
-
-      num = 0
-      total = 0.0
-      for e in experiments:
-        if only_completed and not e['completed']: continue
-
-        total += float(get_path(e, key))
-        num += 1
-
-      if num > 0:
-        avg = total / num
-      else:
-        avg = 0
 
       if heuristic not in heuristic_results: heuristic_results[heuristic] = []
       if heuristic not in success_results: success_results[heuristic] = []
 
-      heuristic_results[heuristic].append(avg)
-      success_results[heuristic].append(num / len(experiments))
+      heuristic_results[heuristic].append(average(experiments_key, data.runs,
+                                                  key))
+      success_results[heuristic].append(average(experiments_key, data.runs,
+                                                ('completed',)))
 
   index = np.arange(len(algorithms))
   bar_width = 0.8 / len(heuristics)
 
-  plt.clf()
+  def plot(f, y_label, filename):
+    plt.clf()
 
-  for i, heuristic in enumerate(heuristics):
-    plt.bar(index + (i - 1) * bar_width, heuristic_results[heuristic],
-            bar_width, label=data.attr_names[heuristic],
-            color=cm.Set1(i / len(heuristics)))
+    for i, heuristic in enumerate(heuristics):
+      plt.bar(index + (i - 1) * bar_width, f(heuristic),
+              bar_width, label=data.attr_names[heuristic],
+              color=cm.Set1(i / len(heuristics)))
 
-  plt.xlabel('Algorithm')
-  plt.ylabel('Time (ms)')
-  plt.xticks(index + len(heuristics) / 2 * bar_width / 2, algo_names,
-             rotation=-45)
-  lgd = plt.legend(loc='center left', prop=small_font, bbox_to_anchor=(1.04, 0.5))
+    plt.xlabel('Algorithm')
+    plt.ylabel(y_label)
+    plt.xticks(index + len(heuristics) / 2 * bar_width / 2, algo_names,
+               rotation=-45)
+    lgd = plt.legend(loc='upper left', prop=small_font,
+                     bbox_to_anchor=(1.04, 1.0))
+    plt.savefig(filename, bbox_extra_artists=[lgd], bbox_inches='tight')
 
-  plt.savefig(str(out_path), bbox_extra_artists=[lgd], bbox_inches='tight')
-
-  plt.clf()
-
-  for i, heuristic in enumerate(heuristics):
-    plt.bar(index + (i - 1) * bar_width,
-            100 * np.array(success_results[heuristic]), bar_width,
-            label=data.attr_names[heuristic],
-            color=cm.Set1(i / len(heuristics)))
-
-  plt.xlabel('Algorithm')
-  plt.ylabel('Success rate (%)')
-  plt.xticks(index + len(heuristics) / 2 * bar_width / 2, algo_names,
-             rotation=-45)
-  lgd = plt.legend(loc='center left', prop=small_font, bbox_to_anchor=(1.04, 0.5))
-
-  plt.savefig(str(out_path.parent / (out_path.stem + '-success.png')),
-              bbox_extra_artists=[lgd], bbox_inches='tight')
+  plot(lambda heuristic: heuristic_results[heuristic], 'Time (ms)',
+       str(out_path))
+  plot(lambda heuristic: 100 * np.array(success_results[heuristic]),
+       'Success rate (%)', str(out_path.parent / (out_path.stem + '-success.png')))
 
 
 def rejoin_small(data, out_dir, has_seed=False):
