@@ -29,7 +29,7 @@ def runs(args):
   extra_args = args.get('args', [])
   hierarchy = args.get('hierarchy', [])
   timeout = args.get('timeout', 1)
-  agents = args.get('agents', 10)
+  agents = args.get('agents', 5)
   obstacles = args.get('obstacles', 0.1)
   obstacle_move_freq_distr = args.get('obstacle_move_freq_distr', (5, 1))
   agents_spawn_mode = args.get('agents_spawn_mode', 'uniform')
@@ -106,7 +106,7 @@ set_runs = {
         'do_od': True,
         'do_full_od': True
       },
-      (1, 5, 10, 15, 20),
+      range(1, 10),
       (0.01, 0.05, 0.1, 0.2),
       seeds(3)
     ),
@@ -123,7 +123,7 @@ set_runs = {
         'do_od': True,
         'do_full_od': True
       },
-      (1, 5, 10, 15, 20),
+      range(1, 6),
       (0.01, 0.05, 0.1, 0.2),
       seeds(3)
     ),
@@ -156,7 +156,7 @@ set_runs = {
           'hierarchy': [(predictor, predictor), ('none', 'No predictor'),
                         ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
           'do_od': True,
-          'timeout': 3
+          'timeout': 1
         },
         ('recursive', 'matrix'),
         seeds(3)
@@ -173,9 +173,9 @@ set_runs = {
             ('seed-{}'.format(seed), 'Seed {}'.format(seed))
           ],
           'do_od': True,
-          'timeout': 3
+          'timeout': 1
         },
-        (5, 10, 15, 20, 25, 30),
+        (5, 10, 15, 20),
         ('recursive', 'matrix'),
         seeds(3)
       )
@@ -194,7 +194,7 @@ set_runs = {
       product(
         lambda threshold, predictor, seed: {
           'args': ['--avoid', predictor,
-                   '--obstacle-penalty', '5',
+                   '--obstacle-penalty', '10',
                    '--obstacle-threshold', str(threshold)],
           'hierarchy': [
             (predictor, predictor),
@@ -237,26 +237,6 @@ set_runs = {
         seeds(3)
       )
     ),
-  'predict_distrib':
-    product(
-      lambda mean, predictor, seed: {
-        'args': ['--avoid', predictor,
-                 '--obstacle-penalty', '5',
-                 '--obstacle-threshold', '0.9',
-                 '--seed', str(seed)],
-        'hierarchy': [
-          (predictor, predictor),
-          ('mean-{}'.format(mean), 'Mean {}'.format(mean)),
-          ('seed-{}'.format(seed), 'Seed {}'.format(seed))
-        ],
-        'obstacle_move_freq_distr': (mean, 1),
-        'do_od': True
-      },
-      range(1, 10),
-      ('recursive', 'matrix'),
-      seeds(3)
-    ),
-
   'choices':
     join(
       product(
@@ -515,6 +495,8 @@ def main():
   small_maps = []
 
   for f in maps_path.glob('*.json'):
+    if f.stem == 'arena-choices': continue
+
     map_path = f.parent / (f.stem + '.map')
     if not map_path.exists():
       print('No matching map file for {}'.format(f.name))
@@ -528,7 +510,7 @@ def main():
 
     all_maps.append((map_path, info))
 
-    if 5000 <= info['passable_tiles'] < 6000:
+    if 1000 <= info['passable_tiles'] < 3000:
       small_maps.append((map_path, info))
 
   sets = {

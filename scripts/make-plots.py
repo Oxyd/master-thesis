@@ -261,10 +261,9 @@ def heuristic_compare(data, out_path, key, has_seed=False, only_completed=True):
   plt.ylabel('Time (ms)')
   plt.xticks(index + len(heuristics) / 2 * bar_width / 2, algo_names,
              rotation=-45)
-  plt.legend(loc='upper center', prop=small_font, bbox_to_anchor=(0, 0))
+  lgd = plt.legend(loc='center left', prop=small_font, bbox_to_anchor=(1.04, 0.5))
 
-  plt.tight_layout()
-  plt.savefig(str(out_path))
+  plt.savefig(str(out_path), bbox_extra_artists=[lgd], bbox_inches='tight')
 
   plt.clf()
 
@@ -278,15 +277,18 @@ def heuristic_compare(data, out_path, key, has_seed=False, only_completed=True):
   plt.ylabel('Success rate (%)')
   plt.xticks(index + len(heuristics) / 2 * bar_width / 2, algo_names,
              rotation=-45)
-  plt.legend(loc='upper center', prop=small_font, bbox_to_anchor=(0, 0))
+  lgd = plt.legend(loc='center left', prop=small_font, bbox_to_anchor=(1.04, 0.5))
 
-  plt.tight_layout()
-  plt.savefig(str(out_path.parent / (out_path.stem + '-success.png')))
+  plt.savefig(str(out_path.parent / (out_path.stem + '-success.png')),
+              bbox_extra_artists=[lgd], bbox_inches='tight')
 
 
 def rejoin_small(data, out_dir, has_seed=False):
   heuristic_compare(data, out_dir / 'time.png',
                     ('result', 'time_ms'),
+                    has_seed)
+  heuristic_compare(data, out_dir / 'ticks.png',
+                    ('result', 'ticks'),
                     has_seed)
   heuristic_compare(data, out_dir / 'rejoin_success.png',
                     ('result', 'algorithm_statistics', 'Rejoin success rate'),
