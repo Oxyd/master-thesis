@@ -41,8 +41,32 @@ def algos(data):
     print_table(table)
 
 
+def heuristics(data):
+  heuristics = list(set(run[0][0] for run in data.runs))
+  algorithms = list(set(run[0][2] for run in data.runs))
+
+  heuristics.sort(key=natural_key)
+  algorithms.sort(key=natural_key)
+
+  table = [['\\rot{Algorithm}']
+           + ['\\rot{{{}}}'.format(data.attr_names[h])
+              for h in heuristics]]
+
+  for algo in algorithms:
+    table.append([data.attr_names[algo]])
+
+    for heuristic in heuristics:
+      a = average((heuristic, None, algo), data.runs,
+                  ('completed',), True)
+      table[-1].append('{}\\%'.format(int(100 * a)))
+
+  print_table(table)
+
+
 set_configs = {
-  'algos_small': algos
+  'algos_small': algos,
+  'pack_algos': algos,
+  'rejoin_small': heuristics
 }
 
 def main():

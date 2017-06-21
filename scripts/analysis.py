@@ -84,7 +84,11 @@ def average(key, runs, path, include_failed=False):
     if not include_failed and not e['completed']: continue
 
     num += 1
-    total += float(get_path(e, path))
+
+    if callable(path):
+      total += float(path(e))
+    else:
+      total += float(get_path(e, path))
 
   if num > 0:
     return total / num
@@ -97,3 +101,22 @@ def natural_key(string_):
   has_no = string_.startswith('No') or string_.startswith('no')
   return (not has_no, [int(s) if s.isdigit() else s
                        for s in re.split(r'(\d+)', string_)])
+
+
+def nodes_expanded(experiment):
+  '''Get the total number of expanded nodes in an experiment. This includes
+  primary search nodes, heuristic search nodes and rejoin search nodes.
+  '''
+
+  stats = get_path(experiment, ('result', 'algorithm_statistics'))
+  result = 0
+
+  def add(name):
+    nonlocal result
+    if name in stats: result += int(stats[name])
+
+  add('Total nodes expanded')
+  add('Rejoin nodes expanded')
+  add('Nodes expanded')
+
+  return result

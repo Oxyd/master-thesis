@@ -123,8 +123,8 @@ set_runs = {
         'do_od': True,
         'do_full_od': True
       },
-      range(1, 6),
-      (0.01, 0.05, 0.1, 0.2),
+      range(1, 10),
+      (0.01, 0.2),
       seeds(3)
     ),
   'rejoin_small':
@@ -144,7 +144,7 @@ set_runs = {
           'hierarchy': [('rejoin-{}'.format(n), '{} steps'.format(n)),
                         ('seed-{}'.format(seed), 'Seed {}'.format(seed))]
         },
-        (5, 10, 20),
+        (5, 10, 20, 40, 80),
         seeds(3)
       )
     ),

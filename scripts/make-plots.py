@@ -100,7 +100,8 @@ def algo_compare(data, out_dir):
     plot(lambda algo: ticks_results[algo], 'Length', False, str(ticks_out_path))
 
 
-def heuristic_compare(data, out_path, key, has_seed=False, only_completed=True):
+def heuristic_compare(data, out_path, key, y_label, has_seed=False,
+                      only_completed=True, rotate=True):
   '''Make histogram plot data for comparing the effect of different
   heuristics.'''
 
@@ -136,7 +137,7 @@ def heuristic_compare(data, out_path, key, has_seed=False, only_completed=True):
   index = np.arange(len(algorithms))
   bar_width = 0.8 / len(heuristics)
 
-  def plot(f, y_label, filename):
+  def plot(f, filename):
     plt.clf()
 
     for i, heuristic in enumerate(heuristics):
@@ -147,34 +148,38 @@ def heuristic_compare(data, out_path, key, has_seed=False, only_completed=True):
     plt.xlabel('Algorithm')
     plt.ylabel(y_label)
     plt.xticks(index + len(heuristics) / 2 * bar_width / 2, algo_names,
-               rotation=-45)
+               rotation=-45 if rotate else 0)
     lgd = plt.legend(loc='upper left', prop=small_font,
                      bbox_to_anchor=(1.04, 1.0))
     plt.savefig(filename, bbox_extra_artists=[lgd], bbox_inches='tight')
 
-  plot(lambda heuristic: heuristic_results[heuristic], 'Time (ms)',
-       str(out_path))
-  plot(lambda heuristic: 100 * np.array(success_results[heuristic]),
-       'Success rate (%)', str(out_path.parent / (out_path.stem + '-success.png')))
+  plot(lambda heuristic: heuristic_results[heuristic], str(out_path))
 
 
 def rejoin_small(data, out_dir, has_seed=False):
-  heuristic_compare(data, out_dir / 'time.png',
-                    ('result', 'time_ms'),
-                    has_seed)
-  heuristic_compare(data, out_dir / 'ticks.png',
-                    ('result', 'ticks'),
-                    has_seed)
-  heuristic_compare(data, out_dir / 'rejoin_success.png',
+  heuristic_compare(data, out_dir / 'time.pdf',
+                    ('result', 'time_ms'), 'Time (ms)',
+                    has_seed, rotate=False)
+  heuristic_compare(data, out_dir / 'ticks.pdf',
+                    ('result', 'ticks'), 'Length',
+                    has_seed, rotate=False)
+  heuristic_compare(data, out_dir / 'rejoin-success-rate.pdf',
                     ('result', 'algorithm_statistics', 'Rejoin success rate'),
+                    'Rejoin success rate',
+                    has_seed)
+  heuristic_compare(data, out_dir / 'success.pdf',
+                    ('completed',), 'Solved %', has_seed, only_completed=False)
+  heuristic_compare(data, out_dir / 'nodes.pdf', nodes_expanded, 'Nodes',
                     has_seed)
 
 
 def predict(data, out_dir, has_seed=False):
-  heuristic_compare(data, out_dir / 'time.png', ('result', 'time_ms'), has_seed)
-  heuristic_compare(data, out_dir / 'ticks.png', ('result', 'ticks'), has_seed)
-  heuristic_compare(data, out_dir / 'success.png', ('completed',),
-                    has_seed=True, only_completed=False)
+  heuristic_compare(data, out_dir / 'time.pdf', ('result', 'time_ms'),
+                    'Time (ms)', has_seed)
+  heuristic_compare(data, out_dir / 'ticks.pdf', ('result', 'ticks'), 'Length',
+                    has_seed)
+  heuristic_compare(data, out_dir / 'success.pdf', ('completed',),
+                    'Success rate', has_seed=True, only_completed=False)
 
 
 def predict_algos(data, out_path, has_seed=False):
