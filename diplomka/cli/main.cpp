@@ -19,15 +19,14 @@
 static std::unique_ptr<predictor>
 make_predictor(std::string const& name,
                boost::program_options::variables_map const& vm,
-               world const& world,
-               unsigned window) {
+               world const& world) {
   using boost::algorithm::iequals;
 
   unsigned cutoff = vm["predictor-cutoff"].as<unsigned>();
   if (iequals(name, "recursive"))
     return make_recursive_predictor(world, cutoff);
   else if (iequals(name, "matrix"))
-    return make_matrix_predictor(world, cutoff, window > 0 ? window : 5);
+    return make_matrix_predictor(world, cutoff);
   else
     throw std::runtime_error{std::string{"Unknown obstacle predictor: "} + name};
 }
@@ -46,8 +45,7 @@ make_solver(std::string const& name,
   bool avoid_obstacles = vm.count("avoid");
 
   if (avoid_obstacles) {
-    predictor = make_predictor(vm["avoid"].as<std::string>(), vm,
-                               world, window);
+    predictor = make_predictor(vm["avoid"].as<std::string>(), vm, world);
     obstacle_penalty = vm["obstacle-penalty"].as<unsigned>();
     obstacle_threshold = vm["obstacle-threshold"].as<double>();
   }

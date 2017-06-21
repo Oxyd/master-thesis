@@ -18,11 +18,15 @@ constexpr unsigned num_moves = 10;
 
 class movement_estimator {
 public:
+  using estimates_type = std::array<double, num_moves>;
+
   explicit
   movement_estimator(world const&);
 
   void update(world const&);
   double estimate(movement) const;
+
+  estimates_type estimates() const { return estimate_; }
 
 private:
   using obstacle_positions = std::unordered_map<obstacle::id_type, position>;
@@ -32,6 +36,7 @@ private:
 
   obstacle_positions last_obstacles_;
   std::array<unsigned, num_moves> move_count_;
+  std::array<double, num_moves> estimate_{0.0, 0.0, 0.0, 0.0, 1.0};
   unsigned num_moves_ = 0;
 
 #ifndef NDEBUG
@@ -80,15 +85,15 @@ movement_estimator::update(world const& w) {
     sum += estimate(m);
   assert(std::abs(sum - 1.0) < 1e-6);
 #endif
+
+  if (num_moves_ > 0)
+    for (std::size_t m = 0; m <= (std::size_t) movement::stay; ++m)
+      estimate_[m] = (double) move_count_[m] / (double) num_moves_;
 }
 
 double
 movement_estimator::estimate(movement m) const {
-  std::size_t move = static_cast<std::size_t>(m);
-  if (num_moves_ > 0)
-    return (double) move_count_[move] / (double) num_moves_;
-  else
-    return m == movement::stay ? 1.0 : 0.0;
+  return estimate_[static_cast<std::size_t>(m)];
 }
 
 void
@@ -111,6 +116,17 @@ movement_estimator::store_positions(world const& w) {
 #ifndef NDEBUG
   last_tick_ = w.tick();
 #endif
+}
+
+static double
+estimates_diff(movement_estimator::estimates_type const& x,
+               movement_estimator::estimates_type const& y) {
+  double result = 0.0;
+
+  for (std::size_t i = 0; i < x.size(); ++i)
+    result += std::abs(x[i] - y[i]);
+
+  return result;
 }
 
 namespace {
@@ -248,7 +264,7 @@ using obstacle_state_vector_type = Eigen::VectorXd;
 
 class matrix_predictor : public predictor {
 public:
-  matrix_predictor(world const&, unsigned cutoff, tick_t update_frequency);
+  matrix_predictor(world const&, unsigned cutoff);
 
   void update_obstacles(world const&) override;
   double predict_obstacle(position_time) override;
@@ -256,12 +272,13 @@ public:
 
 private:
   movement_estimator estimator_;
+  movement_estimator::estimates_type last_estimate_;
+
   transition_matrix_type transition_;
   std::vector<obstacle_state_vector_type> states_;
   tick_t last_update_time_ = 0;
   map::coord_type width_ = 0;
   unsigned cutoff_ = 0;
-  tick_t matrix_update_frequency_;
 
   position::coord_type
   linear(position p) const { return p.y * width_ + p.x; }
@@ -279,17 +296,20 @@ make_transition_matrix(world const& w, movement_estimator const& estimator) {
   std::vector<Eigen::Triplet<double>> transitions;
   transitions.reserve(5 * map_size);
 
+  std::vector<position> neighbours;
+  neighbours.reserve(4);
+
   for (position::coord_type from_y = 0; from_y < m.height(); ++from_y)
     for (position::coord_type from_x = 0; from_x < m.width(); ++from_x) {
       position from{from_x, from_y};
       if (w.get(from) == tile::wall || w.get(from) == tile::agent)
         continue;
 
-      std::vector<position> neighbours;
-      neighbours.reserve(4);
+      neighbours.clear();
+
       for (direction d : all_directions) {
         position to = translate(from, d);
-        if (!in_bounds(to, m))
+        if (!in_bounds(to, m) || w.get(to) == tile::wall)
           continue;
 
         neighbours.push_back(to);
@@ -338,18 +358,16 @@ make_transition_matrix(world const& w, movement_estimator const& estimator) {
 }
 
 std::unique_ptr<predictor>
-make_matrix_predictor(world const& w, unsigned cutoff,
-                      tick_t update_frequency) {
-  return std::make_unique<matrix_predictor>(w, cutoff, update_frequency);
+make_matrix_predictor(world const& w, unsigned cutoff) {
+  return std::make_unique<matrix_predictor>(w, cutoff);
 }
 
-matrix_predictor::matrix_predictor(world const& w, unsigned cutoff,
-                                   tick_t update_frequency)
+matrix_predictor::matrix_predictor(world const& w, unsigned cutoff)
   : estimator_(w)
+  , last_estimate_{estimator_.estimates()}
   , transition_(make_transition_matrix(w, estimator_))
   , width_(w.map()->width())
   , cutoff_(cutoff)
-  , matrix_update_frequency_(update_frequency)
 {
   assert(matrix_update_frequency_ > 0);
 }
@@ -362,8 +380,11 @@ matrix_predictor::update_obstacles(world const& w) {
   estimator_.update(w);
   states_.clear();
 
-  if (w.tick() % matrix_update_frequency_ == 0)
+  if (estimates_diff(estimator_.estimates(), last_estimate_) > 0.01
+      && last_update_time_ % 5 == 0) {
     transition_ = make_transition_matrix(w, estimator_);
+    last_estimate_ = estimator_.estimates();
+  }
 
   obstacle_state_vector_type known_state(w.map()->width() * w.map()->height());
   known_state.fill(0.0);

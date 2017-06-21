@@ -391,6 +391,16 @@ private:
   obstacle::id_type next_obstacle_id_ = 0;
 };
 
+inline tile
+world::get(position p) const {
+  if (agents_.count(p))
+    return tile::agent;
+  else if (obstacles_.count(p))
+    return tile::obstacle;
+  else
+    return map_->get(p);
+}
+
 struct bad_world_format : std::runtime_error {
   bad_world_format() : std::runtime_error{"Bad map file format"} { }
 

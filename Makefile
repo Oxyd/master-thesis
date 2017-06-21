@@ -20,6 +20,10 @@ ifeq ($(mode),opt)
 	CXXFLAGS += -O3 -DNDEBUG
 endif
 
+ifeq ($(mode),profile)
+	CXXFLAGS += -O3 -DNDEBUG -ggdb3
+endif
+
 ifeq ($(mode),debug)
 	CXXFLAGS += -ggdb3
 endif

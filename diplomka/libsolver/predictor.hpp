@@ -17,7 +17,7 @@ std::unique_ptr<predictor>
 make_recursive_predictor(world const&, unsigned cutoff);
 
 std::unique_ptr<predictor>
-make_matrix_predictor(world const&, unsigned cutoff, tick_t update_frequency);
+make_matrix_predictor(world const&, unsigned cutoff);
 
 struct predicted_cost {
   predicted_cost(predictor* p, tick_t start_tick, unsigned obstacle_penalty)

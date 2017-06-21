@@ -339,16 +339,6 @@ world::next_tick(std::default_random_engine& rng) {
   }
 }
 
-tile
-world::get(position p) const {
-  if (agents_.count(p))
-    return tile::agent;
-  else if (obstacles_.count(p))
-    return tile::obstacle;
-  else
-    return map_->get(p);
-}
-
 boost::optional<agent&>
 world::get_agent(position p) {
   auto const a = agents_.find(p);
