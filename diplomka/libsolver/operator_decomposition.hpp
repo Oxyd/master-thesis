@@ -43,7 +43,7 @@ public:
   std::vector<std::string>
   stat_names() const override {
     return {"Replans", "Plan invalid", "Nodes primary", "Nodes heuristic",
-            "Max group size"};
+            "Total nodes expanded", "Max group size"};
   }
 
   std::vector<std::string>
@@ -53,6 +53,7 @@ public:
       std::to_string(plan_invalid_),
       std::to_string(nodes_primary_),
       std::to_string(nodes_heuristic_),
+      std::to_string(nodes_primary_ + nodes_heuristic_),
       std::to_string(max_group_size_)
     };
   }
