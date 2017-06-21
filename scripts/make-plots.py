@@ -100,16 +100,57 @@ def algo_compare(data, out_dir):
     plot(lambda algo: ticks_results[algo], 'Length', False, str(ticks_out_path))
 
 
-def heuristic_compare(data, out_path, key, y_label, has_seed=False,
-                      only_completed=True, rotate=True):
-  '''Make histogram plot data for comparing the effect of different
-  heuristics.'''
+def average_compare(algorithms, heuristics, seeds, key, data):
+  '''Compare the averages of each algorithm-heuristic combination.'''
 
-  # Expected hierarchy is (heuristic, seed?, algorithm). We will produce one
+  results = {}
+
+  for algo in algorithms:
+    for heuristic in heuristics:
+      experiments_key = (heuristic, None, algo)
+      if heuristic not in results: results[heuristic] = []
+      results[heuristic].append(average(experiments_key, data.runs,
+                                        key))
+
+  return results
+
+
+def percent_compare(algorithms, heuristics, seeds, key, data, base_heuristic):
+  '''Compare percent improvement against a base heuristic.'''
+
+  results = {}
+
+  for algo in algorithms:
+    for heuristic in heuristics:
+      if heuristic == base_heuristic: continue
+      if heuristic not in results: results[heuristic] = []
+
+      total = 0
+
+      for seed in seeds:
+        base_key = (base_heuristic, seed, algo)
+        experiment_key = (heuristic, seed, algo)
+
+        b = average(base_key, data.runs, key)
+        e = average(experiment_key, data.runs, key)
+
+        if b > 0:
+          total += e / b
+
+      results[heuristic].append(total / len(seeds))
+
+  return results
+
+
+def heuristic_plot(data, out_path, key, y_label, compare, only_completed=True,
+                   rotate=True, exclude_heuristics=[], compare_kwargs={}):
+
+  # Expected hierarchy is (heuristic, seed, algorithm). We will produce one
   # output file.
 
   heuristics = list(set(run[0][0] for run in data.runs))
-  algorithms = list(set(run[0][2 if has_seed else 1] for run in data.runs))
+  seeds = list(set(run[0][1] for run in data.runs))
+  algorithms = list(set(run[0][2] for run in data.runs))
 
   heuristics.sort(key=natural_key)
   algorithms.sort(key=natural_key)
@@ -118,36 +159,28 @@ def heuristic_compare(data, out_path, key, y_label, has_seed=False,
 
   algo_names = list(data.attr_names[a] for a in algorithms)
   heuristic_names = list(data.attr_names[h] for h in heuristics)
-  heuristic_results = {}
-  success_results = {}
 
-  for algo in algorithms:
-    for heuristic in heuristics:
-      if has_seed: experiments_key = (heuristic, None, algo)
-      else:        experiments_key = (heuristic, algo)
-
-      if heuristic not in heuristic_results: heuristic_results[heuristic] = []
-      if heuristic not in success_results: success_results[heuristic] = []
-
-      heuristic_results[heuristic].append(average(experiments_key, data.runs,
-                                                  key))
-      success_results[heuristic].append(average(experiments_key, data.runs,
-                                                ('completed',)))
+  heuristic_results = compare(algorithms, heuristics, seeds, key, data,
+                              **compare_kwargs)
 
   index = np.arange(len(algorithms))
   bar_width = 0.8 / len(heuristics)
 
+  plot_heuristics = heuristics.copy()
+  for exclude in exclude_heuristics:
+    plot_heuristics.remove(exclude)
+
   def plot(f, filename):
     plt.clf()
 
-    for i, heuristic in enumerate(heuristics):
+    for i, heuristic in enumerate(plot_heuristics):
       plt.bar(index + (i - 1) * bar_width, f(heuristic),
               bar_width, label=data.attr_names[heuristic],
-              color=cm.Set1(i / len(heuristics)))
+              color=cm.Set1(i / len(plot_heuristics)))
 
     plt.xlabel('Algorithm')
     plt.ylabel(y_label)
-    plt.xticks(index + len(heuristics) / 2 * bar_width / 2, algo_names,
+    plt.xticks(index + len(plot_heuristics) / 2 * bar_width / 2, algo_names,
                rotation=-45 if rotate else 0)
     lgd = plt.legend(loc='upper left', prop=small_font,
                      bbox_to_anchor=(1.04, 1.0))
@@ -156,34 +189,59 @@ def heuristic_compare(data, out_path, key, y_label, has_seed=False,
   plot(lambda heuristic: heuristic_results[heuristic], str(out_path))
 
 
-def rejoin_small(data, out_dir, has_seed=False):
+def heuristic_compare(data, out_path, key, y_label, only_completed=True,
+                      rotate=True):
+  '''Make histogram plot for comparing the effect of different
+  heuristics.'''
+
+  heuristic_plot(data, out_path, key, y_label, average_compare, only_completed,
+                 rotate)
+
+
+def heuristic_percent_compare(data, out_path, key, y_label, base_heuristic,
+                              rotate=True):
+  '''Make histogram plot for comparing the relative improvement of various
+  heuristics over a base heuristic.
+  '''
+
+  heuristic_plot(data, out_path, key, y_label, percent_compare,
+                 only_completed=True, rotate=rotate,
+                 exclude_heuristics=[base_heuristic],
+                 compare_kwargs={'base_heuristic': base_heuristic})
+
+
+def rejoin_small(data, out_dir):
   heuristic_compare(data, out_dir / 'time.pdf',
                     ('result', 'time_ms'), 'Time (ms)',
-                    has_seed, rotate=False)
+                    rotate=False)
   heuristic_compare(data, out_dir / 'ticks.pdf',
                     ('result', 'ticks'), 'Length',
-                    has_seed, rotate=False)
+                    rotate=False)
   heuristic_compare(data, out_dir / 'rejoin-success-rate.pdf',
                     ('result', 'algorithm_statistics', 'Rejoin success rate'),
-                    'Rejoin success rate',
-                    has_seed)
+                    'Rejoin success rate')
   heuristic_compare(data, out_dir / 'success.pdf',
-                    ('completed',), 'Solved %', has_seed, only_completed=False)
-  heuristic_compare(data, out_dir / 'nodes.pdf', nodes_expanded, 'Nodes',
-                    has_seed)
+                    ('completed',), 'Solved %', only_completed=False)
+  heuristic_compare(data, out_dir / 'nodes.pdf', nodes_expanded, 'Nodes')
 
 
-def predict(data, out_dir, has_seed=False):
+def predict(data, out_dir):
   heuristic_compare(data, out_dir / 'time.pdf', ('result', 'time_ms'),
-                    'Time (ms)', has_seed)
-  heuristic_compare(data, out_dir / 'ticks.pdf', ('result', 'ticks'), 'Length',
-                    has_seed)
+                    'Time (ms)')
+  heuristic_compare(data, out_dir / 'ticks.pdf', ('result', 'ticks'), 'Length')
   heuristic_compare(data, out_dir / 'success.pdf', ('completed',),
-                    'Success rate', has_seed=True, only_completed=False)
+                    'Success rate', only_completed=False)
+  heuristic_compare(data, out_dir / 'recalcs.pdf', recalculations,
+                    'Recalculations')
+  heuristic_compare(data, out_dir / 'invalids.pdf', invalids,
+                    'Times plan was invalid')
+  heuristic_percent_compare(data, out_dir / 'ticks-percent.pdf',
+                            ('result', 'ticks'), 'Length %',
+                            base_heuristic='none')
 
 
-def predict_algos(data, out_path, has_seed=False):
-  # Expected hierarchy is (predictor, setting, seed?, algorithm). We will
+def predict_algos(data, out_path):
+  # Expected hierarchy is (predictor, setting, algorithm). We will
   # produce an output for each predictor setting.
 
   predictors = set(run[0][0] for run in data.runs)
@@ -192,19 +250,19 @@ def predict_algos(data, out_path, has_seed=False):
       runs=[(run[0][1 :], run[1]) for run in data.runs if run[0][0] == p],
       attr_names=data.attr_names
     )
-    predict(subdata, out_path / p, has_seed)
+    predict(subdata, out_path / p)
 
 
 set_plots = {
   'algos_small': algo_compare,
   'pack_algos': algo_compare,
-  'rejoin_small': lambda data, path: rejoin_small(data, path, True),
-  'predict_penalty': lambda data, path: predict_algos(data, path, True),
-  'predict_threshold': lambda data, path: predict_algos(data, path, True),
-  'predict_cutoff': lambda data, path: predict_algos(data, path, True),
-  'predict_distrib': lambda data, path: predict_algos(data, path, True),
-  'choices': lambda data, path: predict(data, path, True),
-  'traffic': lambda data, path: predict(data, path, True)
+  'rejoin_small': lambda data, path: rejoin_small(data, path),
+  'predict_penalty': lambda data, path: predict_algos(data, path),
+  'predict_threshold': lambda data, path: predict_algos(data, path),
+  'predict_cutoff': lambda data, path: predict_algos(data, path),
+  'predict_distrib': lambda data, path: predict_algos(data, path),
+  'choices': lambda data, path: predict(data, path),
+  'traffic': lambda data, path: predict(data, path)
 }
 
 def main():

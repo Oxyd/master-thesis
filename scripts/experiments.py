@@ -152,7 +152,8 @@ set_runs = {
     join(
       product(
         lambda predictor, seed: {
-          'args': ['--seed', str(seed)],
+          'args': ['--seed', str(seed),
+                   '--predictor-cutoff', '10'],
           'hierarchy': [(predictor, predictor), ('none', 'No predictor'),
                         ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
           'do_od': True,
@@ -165,7 +166,7 @@ set_runs = {
         lambda penalty, predictor, seed: {
           'args': ['--avoid', predictor,
                    '--obstacle-penalty', str(penalty),
-                   '--obstacle-threshold', '1.0',
+                   '--obstacle-threshold', '0.75',
                    '--seed', str(seed)],
           'hierarchy': [
             (predictor, predictor),
@@ -180,34 +181,35 @@ set_runs = {
         seeds(3)
       )
     ),
-  'predict_threshold':
-    join(
-      product(
-        lambda predictor, seed: {
-          'hierarchy': [(predictor, predictor), ('none', 'No predictor'),
-                        ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
-          'do_od': True
-        },
-        ('recursive', 'matrix'),
-        seeds(3)
-      ),
-      product(
-        lambda threshold, predictor, seed: {
-          'args': ['--avoid', predictor,
-                   '--obstacle-penalty', '10',
-                   '--obstacle-threshold', str(threshold)],
-          'hierarchy': [
-            (predictor, predictor),
-            ('avoid-{}'.format(threshold), 'Threshold {}'.format(threshold)),
-            ('seed-{}'.format(seed), 'Seed {}'.format(seed))
-          ],
-          'do_od': True
-        },
-        (0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
-        ('recursive', 'matrix'),
-        seeds(3)
-      )
-    ),
+
+  # 'predict_threshold':
+  #   join(
+  #     product(
+  #       lambda predictor, seed: {
+  #         'hierarchy': [(predictor, predictor), ('none', 'No predictor'),
+  #                       ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
+  #         'do_od': True
+  #       },
+  #       ('recursive', 'matrix'),
+  #       seeds(3)
+  #     ),
+  #     product(
+  #       lambda threshold, predictor, seed: {
+  #         'args': ['--avoid', predictor,
+  #                  '--obstacle-penalty', '10',
+  #                  '--obstacle-threshold', str(threshold)],
+  #         'hierarchy': [
+  #           (predictor, predictor),
+  #           ('avoid-{}'.format(threshold), 'Threshold {}'.format(threshold)),
+  #           ('seed-{}'.format(seed), 'Seed {}'.format(seed))
+  #         ],
+  #         'do_od': True
+  #       },
+  #       (0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
+  #       ('recursive', 'matrix'),
+  #       seeds(3)
+  #     )
+  #   ),
   'predict_cutoff':
     join(
       product(
@@ -222,8 +224,8 @@ set_runs = {
       product(
         lambda cutoff, predictor, seed: {
           'args': ['--avoid', predictor,
-                   '--obstacle-penalty', '5',
-                   '--obstacle-threshold', '0.9',
+                   '--obstacle-penalty', '10',
+                   '--obstacle-threshold', '0.75',
                    '--predictor-cutoff', str(cutoff)],
           'hierarchy': [
             (predictor, predictor),
@@ -252,15 +254,15 @@ set_runs = {
         lambda predictor, seed: {
           'args': ['--seed', str(seed),
                    '--avoid', predictor,
-                   '--obstacle-penalty', '5',
-                   '--obstacle-threshold', '0.9',
-                   '--predictor-cutoff', '10'],
+                   '--obstacle-penalty', '10',
+                   '--obstacle-threshold', '0.75',
+                   '--predictor-cutoff', '5'],
           'hierarchy': [(predictor, predictor),
                         ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
           'do_od': True
         },
         ('recursive', 'matrix'),
-        seeds(10)
+        seeds(50)
       )
     ),
 
@@ -271,7 +273,8 @@ set_runs = {
           'args': ['--seed', str(seed)],
           'hierarchy': [('none', 'No predictor'),
                         ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
-          'do_od': True
+          'do_od': True,
+          'timeout': 3
         },
         seeds(10)
       ),
@@ -279,15 +282,16 @@ set_runs = {
         lambda predictor, seed: {
           'args': ['--seed', str(seed),
                    '--avoid', predictor,
-                   '--obstacle-penalty', '5',
-                   '--obstacle-threshold', '0.9',
-                   '--predictor-cutoff', '10'],
+                   '--obstacle-penalty', '10',
+                   '--obstacle-threshold', '0.75',
+                   '--predictor-cutoff', '5'],
           'hierarchy': [(predictor, predictor),
                         ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
-          'do_od': True
+          'do_od': True,
+          'timeout': 3
         },
         ('recursive', 'matrix'),
-        seeds(10)
+        seeds(50)
       )
     )
 }

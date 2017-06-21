@@ -120,3 +120,25 @@ def nodes_expanded(experiment):
   add('Nodes expanded')
 
   return result
+
+
+def recalculations(experiment):
+  '''Get the total number of recalculations or replans.'''
+
+  stats = get_path(experiment, ('result', 'algorithm_statistics'))
+
+  if 'Recalculations' in stats: return int(stats['Recalculations'])
+  if 'Replans' in stats: return int(stats['Replans'])
+
+  raise KeyError('Neither recalculations nor replans found')
+
+
+def invalids(experiment):
+  '''Get the total number of times the plan was invalid.'''
+
+  stats = get_path(experiment, ('result', 'algorithm_statistics'))
+
+  if 'Plan invalid' in stats: return int(stats['Plan invalid'])
+  if 'Path invalid' in stats: return int(stats['Path invalid'])
+
+  raise KeyError('Neither plan nor path invalid found')
