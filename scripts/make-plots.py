@@ -257,9 +257,9 @@ set_plots = {
   'algos_small': algo_compare,
   'pack_algos': algo_compare,
   'rejoin_small': lambda data, path: rejoin_small(data, path),
-  'predict_penalty': lambda data, path: predict_algos(data, path),
-  'predict_threshold': lambda data, path: predict_algos(data, path),
-  'predict_cutoff': lambda data, path: predict_algos(data, path),
+  'predict_penalty': lambda data, path: predict(data, path),
+  'predict_threshold': lambda data, path: predict(data, path),
+  'predict_cutoff': lambda data, path: predict(data, path),
   'predict_distrib': lambda data, path: predict_algos(data, path),
   'choices': lambda data, path: predict(data, path),
   'traffic': lambda data, path: predict(data, path)

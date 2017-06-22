@@ -67,7 +67,8 @@ set_configs = {
   'algos_small': algos,
   'pack_algos': algos,
   'rejoin_small': heuristics,
-  'traffic': heuristics
+  'traffic': heuristics,
+  'choices': heuristics
 }
 
 def main():
