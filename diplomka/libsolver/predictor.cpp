@@ -8,44 +8,6 @@
 #include <memory>
 #include <stack>
 
-namespace {
-
-enum class movement : std::size_t {
-  north = 0, east, south, west, stay
-};
-
-constexpr unsigned num_moves = 10;
-
-class movement_estimator {
-public:
-  using estimates_type = std::array<double, num_moves>;
-
-  explicit
-  movement_estimator(world const&);
-
-  void update(world const&);
-  double estimate(movement) const;
-
-  estimates_type estimates() const { return estimate_; }
-
-private:
-  using obstacle_positions = std::unordered_map<obstacle::id_type, position>;
-
-  void clear();
-  void store_positions(world const&);
-
-  obstacle_positions last_obstacles_;
-  std::array<unsigned, num_moves> move_count_;
-  std::array<double, num_moves> estimate_{0.0, 0.0, 0.0, 0.0, 1.0};
-  unsigned num_moves_ = 0;
-
-#ifndef NDEBUG
-  tick_t last_tick_ = 0;
-#endif
-};
-
-} // anonymous namespace
-
 static movement
 direction_to_movement(direction d) {
   return static_cast<movement>(static_cast<unsigned>(d));
@@ -368,9 +330,7 @@ matrix_predictor::matrix_predictor(world const& w, unsigned cutoff)
   , transition_(make_transition_matrix(w, estimator_))
   , width_(w.map()->width())
   , cutoff_(cutoff)
-{
-  assert(matrix_update_frequency_ > 0);
-}
+{ }
 
 void
 matrix_predictor::update_obstacles(world const& w) {
