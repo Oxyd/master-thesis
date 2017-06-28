@@ -97,7 +97,8 @@ def algo_compare(data, out_dir):
     plot(lambda algo: algo_results[algo], 'Time (ms)', True, str(out_path))
     plot(lambda algo: 100 * np.array(success_results[algo]),
          'Success rate (%)', False, str(success_out_path))
-    plot(lambda algo: ticks_results[algo], 'Length', False, str(ticks_out_path))
+    plot(lambda algo: ticks_results[algo], 'Makespan', False,
+         str(ticks_out_path))
 
 
 def average_compare(algorithms, heuristics, seeds, key, data):
@@ -215,7 +216,7 @@ def rejoin_small(data, out_dir):
                     ('result', 'time_ms'), 'Time (ms)',
                     rotate=False)
   heuristic_compare(data, out_dir / 'ticks.pdf',
-                    ('result', 'ticks'), 'Length',
+                    ('result', 'ticks'), 'Makespan',
                     rotate=False)
   heuristic_compare(data, out_dir / 'rejoin-success-rate.pdf',
                     ('result', 'algorithm_statistics', 'Rejoin success rate'),
@@ -228,15 +229,17 @@ def rejoin_small(data, out_dir):
 def predict(data, out_dir):
   heuristic_compare(data, out_dir / 'time.pdf', ('result', 'time_ms'),
                     'Time (ms)')
-  heuristic_compare(data, out_dir / 'ticks.pdf', ('result', 'ticks'), 'Length')
+  heuristic_compare(data, out_dir / 'ticks.pdf', ('result', 'ticks'),
+                    'Makespan')
   heuristic_compare(data, out_dir / 'success.pdf', ('completed',),
                     'Success rate', only_completed=False)
   heuristic_compare(data, out_dir / 'recalcs.pdf', recalculations,
                     'Recalculations')
   heuristic_compare(data, out_dir / 'invalids.pdf', invalids,
                     'Times plan was invalid')
+  heuristic_compare(data, out_dir / 'nodes.pdf', nodes_expanded, 'Nodes')
   heuristic_percent_compare(data, out_dir / 'ticks-percent.pdf',
-                            ('result', 'ticks'), 'Length %',
+                            ('result', 'ticks'), 'Makespan %',
                             base_heuristic='none')
 
 
