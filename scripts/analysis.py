@@ -119,6 +119,10 @@ def nodes_expanded(experiment):
   add('Rejoin nodes expanded')
   add('Nodes expanded')
 
+  if result == 0:
+    add('Nodes heuristic')
+    add('Nodes primary')
+
   return result
 
 

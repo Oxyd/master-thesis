@@ -46,6 +46,8 @@ def algo_compare(data, out_dir):
     out_path = out_dir / (num_obstacles + '.pdf')
     success_out_path = out_dir / (num_obstacles + '-success.pdf')
     ticks_out_path = out_dir / (num_obstacles + '-ticks.pdf')
+    recalcs_out_path = out_dir / (num_obstacles + '-recalcs.pdf')
+    nodes_out_path = out_dir / (num_obstacles + '-nodes.pdf')
 
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -53,6 +55,8 @@ def algo_compare(data, out_dir):
     algo_results = {}
     success_results = {}
     ticks_results = {}
+    recalc_results = {}
+    nodes_results = {}
 
     agent_nums = []
     for agents in agent_configs:
@@ -64,6 +68,8 @@ def algo_compare(data, out_dir):
         if algo not in algo_results: algo_results[algo] = []
         if algo not in success_results: success_results[algo] = []
         if algo not in ticks_results: ticks_results[algo] = []
+        if algo not in recalc_results: recalc_results[algo] = []
+        if algo not in nodes_results: nodes_results[algo] = []
 
         key = (agents, obst, None, algo)
 
@@ -72,6 +78,8 @@ def algo_compare(data, out_dir):
         ticks_results[algo].append(average(key, data.runs, ('result', 'ticks')))
         success_results[algo].append(average(key, data.runs,
                                              ('completed',), True))
+        recalc_results[algo].append(average(key, data.runs, recalculations))
+        nodes_results[algo].append(average(key, data.runs, nodes_expanded))
 
     index = np.arange(len(agent_nums))
     bar_width = 0.8 / len(algo_names)
@@ -99,6 +107,10 @@ def algo_compare(data, out_dir):
          'Success rate (%)', False, str(success_out_path))
     plot(lambda algo: ticks_results[algo], 'Makespan', False,
          str(ticks_out_path))
+    plot(lambda algo: recalc_results[algo], 'Recalculations', False,
+         str(recalcs_out_path))
+    plot(lambda algo: nodes_results[algo], 'Nodes', False,
+         str(nodes_out_path))
 
 
 def average_compare(algorithms, heuristics, seeds, key, data):
