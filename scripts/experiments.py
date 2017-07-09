@@ -502,11 +502,11 @@ def main():
       small_maps.append((map_path, info))
 
   sets = {
-    'algos_small': (small_maps, None),
-    'pack_algos': (small_maps, None),
-    'rejoin_small': (small_maps, None),
-    'predict_penalty': (small_maps, None),
-    'predict_cutoff': (small_maps, None),
+    'standard': (small_maps, None),
+    'pack': (small_maps, None),
+    'rejoin': (small_maps, None),
+    'penalty': (small_maps, None),
+    'cutoff': (small_maps, None),
     'choices': (None, 'choices.json'),
     'traffic': (None, 'traffic.json')
   }
