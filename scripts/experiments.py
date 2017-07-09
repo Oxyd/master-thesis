@@ -268,7 +268,7 @@ set_runs = {
 
 solver_path = Path('../bin/opt/cli')
 maps_path = Path('../da-maps')
-tmp_path = Path('../tmp')
+experiments_path = Path('../experiments')
 fixed_scenarios = Path('../experiments-scenarios')
 
 def make_scenario(map_info, map_path, run):
@@ -418,7 +418,7 @@ def make_out_dirs(set_name, run):
   '''Make output directories including meta.json files. Returns the output
   directory path.'''
 
-  parent = tmp_path / set_name
+  parent = experiments_path / set_name
   for name, pretty_name in run.hierarchy:
     (parent / name).mkdir(parents=True, exist_ok=True)
 

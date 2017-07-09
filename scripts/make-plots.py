@@ -9,7 +9,7 @@ import re
 
 from analysis import *
 
-input_dir = Path('../tmp/')
+input_dir = Path('../experiments/')
 plot_dir = Path('../plots')
 
 var_map = {

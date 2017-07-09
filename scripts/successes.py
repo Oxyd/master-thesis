@@ -5,7 +5,7 @@ import sys
 
 from analysis import *
 
-input_dir = Path('../tmp/')
+input_dir = Path('../experiments/')
 
 def print_table(table):
   '''Prints a table -- a list of lists -- as a LaTeX table.'''
