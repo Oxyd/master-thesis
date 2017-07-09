@@ -15,6 +15,8 @@ def print_table(table):
 
 
 def algos(data):
+  '''Print the success rate for an 'algos' run.'''
+
   agent_configs = list(set(run[0][0] for run in data.runs))
   obstacle_configs = set(run[0][1] for run in data.runs)
   algorithm_configs = list(set(run[0][3] for run in data.runs))
@@ -42,6 +44,8 @@ def algos(data):
 
 
 def heuristics(data):
+  '''Print the success rate for a 'heuristics' run.'''
+
   heuristics = list(set(run[0][0] for run in data.runs))
   algorithms = list(set(run[0][2] for run in data.runs))
 

@@ -157,7 +157,6 @@ def percent_compare(algorithms, heuristics, seeds, key, data, base_heuristic):
 
 def heuristic_plot(data, out_path, key, y_label, compare, only_completed=True,
                    rotate=True, exclude_heuristics=[], compare_kwargs={}):
-
   # Expected hierarchy is (heuristic, seed, algorithm). We will produce one
   # output file.
 

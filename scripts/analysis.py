@@ -76,6 +76,11 @@ def get_path(d, path):
 
 
 def average(key, runs, path, include_failed=False):
+  '''Return the average value of the result given by `key' in the given runs. If
+  `include_failed' is True, unsuccessful experiments are included in the
+  calculation.
+  '''
+
   num = 0
   total = 0
 

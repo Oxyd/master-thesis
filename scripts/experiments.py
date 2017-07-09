@@ -13,6 +13,10 @@ import threading
 threads = 8
 
 def seeds(num):
+  '''Get a list of `num' seeds. This list is always the same for reproducibility
+  reasons.
+  '''
+
   r = random.Random(0)
   return tuple(r.randint(0, 2**32 - 1) for _ in range(num))
 
@@ -26,6 +30,8 @@ Run = namedtuple(
 )
 
 def runs(args):
+  '''Build a list of runs with given parameters.'''
+
   extra_args = args.get('args', [])
   hierarchy = args.get('hierarchy', [])
   timeout = args.get('timeout', 1)
@@ -71,6 +77,10 @@ def runs(args):
 
 
 def product(f, *args):
+  '''Given a function f(x1, x2, ..., xn) and n lists l1, l2, ..., ln, produce
+  the list [f(v1, v2, ..., vn) for each vi in li].
+  '''
+
   def do(bound, unbound):
     if len(unbound) == 0:
       return runs(f(*bound))
@@ -85,6 +95,10 @@ def product(f, *args):
 
 
 def join(*args):
+  '''Given a list of lists [L1, L2, ..., LN], return the list that is the
+  concatenation L1 + L2 + ... + LN.
+  '''
+
   result = []
 
   for l in args:
@@ -92,7 +106,7 @@ def join(*args):
 
   return result
 
-
+# Definitions of experiment sets.
 set_runs = {
   'algos_small':
     product(
