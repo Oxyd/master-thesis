@@ -28,7 +28,7 @@ ifeq ($(mode),debug)
 	CXXFLAGS += -ggdb3
 endif
 
-project_dir = diplomka
+project_dir = src
 build_dir = build/$(mode)
 bin_dir = bin/$(mode)
 
