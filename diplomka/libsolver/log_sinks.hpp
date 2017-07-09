@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 
+// Interface for logging planner execution.
 class log_sink {
 public:
   virtual
@@ -30,11 +31,13 @@ operator << (log_sink& log, T const& t) {
   return log;
 }
 
+// Sink that logs to the standard output.
 class stdout_log_sink : public log_sink {
   void
   do_put(std::string msg) override;
 };
 
+// Sink that discards all messages.
 class null_log_sink_t : public log_sink {
   void
   do_put(std::string) override { };

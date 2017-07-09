@@ -3,6 +3,7 @@
 
 #include <QGraphicsView>
 
+// A QGraphicsView that emits zoom_changed on Ctrl+Scroll.
 class zoomable_graphics_view : public QGraphicsView {
   Q_OBJECT
 

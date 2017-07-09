@@ -14,6 +14,7 @@ class world;
 class world_scene;
 class zoomable_graphics_view;
 
+// Controls the bottom bar present in the progress and scenario-edit views.
 class bottom_bar_controller : public QObject {
   Q_OBJECT
 

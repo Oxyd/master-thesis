@@ -3,6 +3,9 @@
 
 #include "solvers.hpp"
 
+// Base class for decoupled solvers: LRA* and WHCA*. This calls the derived
+// class for finding a plan for a single agent and then puts those plans
+// together into joint actions. It also implements the path rejoining heuristic.
 template <typename Derived>
 class separate_paths_solver : public solver {
 public:

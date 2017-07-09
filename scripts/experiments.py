@@ -247,7 +247,7 @@ set_runs = {
                         ('seed-{}'.format(seed), 'Seed {}'.format(seed))],
           'do_od': True
         },
-        seeds(10)
+        seeds(100)
       ),
       product(
         lambda predictor, seed: {
@@ -261,7 +261,7 @@ set_runs = {
           'do_od': True
         },
         ('recursive', 'matrix'),
-        seeds(50)
+        seeds(100)
       )
     ),
 
@@ -275,7 +275,7 @@ set_runs = {
           'do_od': True,
           'timeout': 3
         },
-        seeds(10)
+        seeds(100)
       ),
       product(
         lambda predictor, seed: {
@@ -290,7 +290,7 @@ set_runs = {
           'timeout': 3
         },
         ('recursive', 'matrix'),
-        seeds(50)
+        seeds(100)
       )
     )
 }

@@ -107,6 +107,37 @@ struct coord_open_set {
 constexpr unsigned
 infinity = std::numeric_limits<unsigned>::max();
 
+// Implementation of the A* search algorithm. This algorithm is used in many
+// variants in this work, so we have a generic implementation for all those
+// variants.
+//
+// Template parameters:
+//   * State: The state-space the algorithm will search. This can be `position`
+//            for plain A* search or `agents_state` for operator decomposition.
+//   * SuccessorsFunc: Policy type for getting the successors of a State. Either
+//                     `position_successors` or `state_successors`.
+//   * Passable: Policy type for determining whether to add a successor to the
+//               heap or whether to consider it impassable. Can be used to
+//               consider obstacles in the immediate neighbourhood to be
+//               impassable, or to consider predicted obstacles to be
+//               impassable.
+//   * Distance: Distance heuristic. Can be either plain Manhattan distance,
+//               agitated distance (with LRA*), heuristic distance (WHCA*) or
+//               combined Manhattan distance of all agents (OD).
+//   * StepCost: Cost of taking a step. Can be either unitary cost or cost that
+//               depends on predictor results.
+//   * Coordinate: State coordinates the algorithm will use. Can either be the
+//                 State or a State-time combination, where "time" is the number
+//                 of steps from the start of the search. Using a State-time
+//                 coordinate means that the algorithm will consider empty moves
+//                 since even though the state is the same, the time is
+//                 different, so the post-move coordinate of an empty move is
+//                 not the same as the pre-move coordinate.
+//   * DistanceStorage: Policy for storing distances from start of search to any
+//                      node in the closed set.
+//   * ShouldClosePred: Whether a node should be inserted into the closed set.
+//                      Used with OD to close only full states.
+//   * OpenSetType: Type of the open set.
 template <
   typename State = position,
   typename SuccessorsFunc = position_successors,
@@ -148,11 +179,15 @@ public:
   a_star(a_star&&) = default;
   a_star& operator = (a_star&&) = default;
 
+  // Find path from the starting position to the goal position the search was
+  // initialised with.
   path<State>
   find_path(world const& w) {
     return do_find_path(w, [&] (node const* n) { return n->pos == to_; });
   }
 
+  // Find path either to the goal or to any coordinate that is `window` steps
+  // away from the starting position.
   path<State>
   find_path_to_goal_or_window(world const& w, unsigned window) {
     return do_find_path(
@@ -162,6 +197,8 @@ public:
     );
   }
 
+  // Find path to any node that is `window` steps away from the starting
+  // position.
   path<State>
   find_path(world const& w, unsigned window) {
     return do_find_path(
@@ -171,6 +208,9 @@ public:
     );
   }
 
+  // Find goal to a position that satisfies the given predicate. `limit` is the
+  // furthest number of steps the algorithm will search before returning the
+  // empty path.
   template <typename PositionPred>
   path<State>
   find_path(world const& w, PositionPred goal,
@@ -178,6 +218,8 @@ public:
     return do_find_path(w, [&] (node const* n) { return goal(n->pos); }, limit);
   }
 
+  // Find distance from start to the given position. If the given position is
+  // not closed, the algorithm is run until the position becomes closed.
   double
   find_distance(State const& p, world const& w) {
     auto const& shortest_paths = distance_storage_.get();
@@ -200,6 +242,7 @@ public:
   State const& from() const { return from_; }
   State const& to() const { return to_; }
 
+  // Call a function on each node in the closed set.
   template <typename F>
   void
   foreach_closed(F&& f) {
@@ -210,9 +253,9 @@ public:
 private:
   struct node {
     State pos;
-    double g;
+    double g; // Sum of step costs.
     double h;
-    unsigned steps_distance;
+    unsigned steps_distance; // Number of nodes from start to this node.
 
     node* come_from = nullptr;
 

@@ -12,24 +12,41 @@
 class predictor;
 class log_sink;
 
+// Is the scenario finished? I.e. are all agents at their goals?
 bool
 solved(world const& w);
 
 using obstacle_field_type = std::unordered_map<position_time, double>;
 
+// Interface for the planning algorithm. This is called each time-step to
+// provide a joint action for the agents.
 class solver {
 public:
   virtual
   ~solver() { }
 
+  // Move the agents in the world.
   virtual void step(world& w, std::default_random_engine&) = 0;
+
+  // Name of this solver.
   virtual std::string name() const = 0;
+
+  // Names for values in the stat_values() vector.
   virtual std::vector<std::string> stat_names() const { return {}; }
+
+  // Statistics about the algorithm performance.
   virtual std::vector<std::string> stat_values() const { return {}; };
+
+  // Get the path for an agent.
   virtual std::vector<position> get_path(agent::id_type) const { return {}; }
+
+  // Get the predicted obstacle field, if any.
   virtual obstacle_field_type get_obstacle_field() const {
     return {};
   }
+
+  // Change the window of the algorithm. If the algorithm doesn't use a window,
+  // doesn't do anything.
   virtual void window(unsigned /*new_window*/) {}
 };
 

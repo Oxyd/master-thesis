@@ -10,6 +10,8 @@
 
 #include "world.hpp"
 
+// Displays the world plus any additional tile highlights that can be used to
+// represent spawn or goal points.
 class world_scene : public QGraphicsScene {
   Q_OBJECT
 

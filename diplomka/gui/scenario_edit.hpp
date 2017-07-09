@@ -15,6 +15,7 @@
 
 namespace Ui { class ScenarioEdit; }
 
+// Scenario editor dialog.
 class scenario_edit : public QMainWindow {
   Q_OBJECT
 

@@ -6,12 +6,16 @@
 
 #include "world.hpp"
 
+// Type for representing obstacle movements. Unlike direction, this also allows
+// the stay move.
 enum class movement : std::size_t {
   north = 0, east, south, west, stay
 };
 
-constexpr unsigned num_moves = 10;
+constexpr unsigned num_moves = 5;
 
+// Estimates obstacle movement based on observed past movements using
+// maximum-likelihood estimation.
 class movement_estimator {
 public:
   using estimates_type = std::array<double, num_moves>;
@@ -19,9 +23,13 @@ public:
   explicit
   movement_estimator(world const&);
 
+  // Observe the movement of obstacles and update the estimate.
   void update(world const&);
+
+  // Estimate the probability of an obstacle making the given move.
   double estimate(movement) const;
 
+  // Current estimates of all possible moves.
   estimates_type estimates() const { return estimate_; }
 
 private:
@@ -40,6 +48,7 @@ private:
 #endif
 };
 
+// Predicts obstacle movement.
 class predictor {
 public:
   virtual void update_obstacles(world const&) = 0;
@@ -47,12 +56,15 @@ public:
   virtual std::unordered_map<position_time, double> field() const = 0;
 };
 
+// Make a predictor that uses the recursive algorithm for prediction.
 std::unique_ptr<predictor>
 make_recursive_predictor(world const&, unsigned cutoff);
 
+// Make a predictor that predicts by multiplying a transition matrix.
 std::unique_ptr<predictor>
 make_matrix_predictor(world const&, unsigned cutoff);
 
+// Step-cost for a_star that adds the obstacle probability to the cost.
 struct predicted_cost {
   predicted_cost(predictor* p, tick_t start_tick, unsigned obstacle_penalty)
     : predictor_(p)

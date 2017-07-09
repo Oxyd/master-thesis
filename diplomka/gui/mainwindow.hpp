@@ -23,6 +23,8 @@ namespace Ui {
 class MainWindow;
 }
 
+// Algorithm progress view. Allows setting various algorithm settings, viewing
+// algorithm performance statistics and the current world state.
 class main_window : public QMainWindow
 {
   Q_OBJECT
