@@ -108,7 +108,7 @@ def join(*args):
 
 # Definitions of experiment sets.
 set_runs = {
-  'algos_small':
+  'standard':
     product(
       lambda agents, obstacles, seed: {
         'agents': agents, 'obstacles': obstacles,
@@ -124,7 +124,7 @@ set_runs = {
       (0.01, 0.2),
       seeds(3)
     ),
-  'pack_algos':
+  'pack':
     product(
       lambda agents, obstacles, seed: {
         'agents': agents, 'obstacles': obstacles,
@@ -141,7 +141,7 @@ set_runs = {
       (0.01, 0.2),
       seeds(3)
     ),
-  'rejoin_small':
+  'rejoin':
     join(
       product(
         lambda seed: {
@@ -162,7 +162,7 @@ set_runs = {
         seeds(3)
       )
     ),
-  'predict_penalty':
+  'penalty':
     join(
       product(
         lambda seed: {
@@ -194,7 +194,7 @@ set_runs = {
         seeds(3)
       )
     ),
-  'predict_cutoff':
+  'cutoff':
     join(
       product(
         lambda predictor, seed: {

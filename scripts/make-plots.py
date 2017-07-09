@@ -268,11 +268,11 @@ def predict_algos(data, out_path):
 
 
 set_plots = {
-  'algos_small': algo_compare,
-  'pack_algos': algo_compare,
-  'rejoin_small': lambda data, path: rejoin_small(data, path),
-  'predict_penalty': lambda data, path: predict(data, path),
-  'predict_cutoff': lambda data, path: predict(data, path),
+  'standard': algo_compare,
+  'pack': algo_compare,
+  'rejoin': lambda data, path: rejoin_small(data, path),
+  'penalty': lambda data, path: predict(data, path),
+  'cutoff': lambda data, path: predict(data, path),
   'choices': lambda data, path: predict(data, path),
   'traffic': lambda data, path: predict(data, path)
 }

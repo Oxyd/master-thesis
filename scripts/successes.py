@@ -68,9 +68,9 @@ def heuristics(data):
 
 
 set_configs = {
-  'algos_small': algos,
-  'pack_algos': algos,
-  'rejoin_small': heuristics,
+  'standard': algos,
+  'pack': algos,
+  'rejoin': heuristics,
   'traffic': heuristics,
   'choices': heuristics
 }
