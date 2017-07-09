@@ -282,6 +282,8 @@ make_action(agents_state const& from, agents_state const& to) {
 
 void
 operator_decomposition::step(world& w, std::default_random_engine&) {
+  should_stop_ = false;
+
   if (predictor_)
     predictor_->update_obstacles(w);
 
@@ -292,6 +294,9 @@ operator_decomposition::step(world& w, std::default_random_engine&) {
 
     replan(w);
   }
+
+  if (should_stop_)
+    return;
 
   joint_action result;
   for (group& group : groups_) {
@@ -374,7 +379,7 @@ operator_decomposition::replan(world const& w) {
   bool conflicted;
   do
     conflicted = replan_groups(w);
-  while (conflicted);
+  while (conflicted && !should_stop_);
 
   unsigned new_nodes_heuristic = 0;
   for (auto const& id_search : heuristic_searches_)
@@ -390,6 +395,9 @@ operator_decomposition::replan_groups(world const& w) {
       continue;
 
     group->plan = replan_group(w, *group);
+
+    if (should_stop_)
+      return false;
 
     tick_t time = w.tick();
     std::vector<group_id> conflicts;
@@ -516,6 +524,7 @@ operator_decomposition::replan_group(world const& w,
     current_state,
     goal_state,
     w,
+    should_stop_,
     combined_heuristic_distance(heuristic_searches_),
     unitary_step_cost{},
     passable_not_immediate_neighbour{current_state, predictor_.get()}
@@ -528,6 +537,9 @@ operator_decomposition::replan_group(world const& w,
     );
   else
     result = search.find_path(w);
+
+  if (should_stop_)
+    return {};
 
   assert(result.empty() || result.back().next_agent == 0);
 
@@ -714,6 +726,7 @@ operator_decomposition::make_heuristic_searches(world const& w) {
       std::piecewise_construct,
       std::forward_as_tuple(a.id()),
       std::forward_as_tuple(a.target, from, w,
+                            should_stop_,
                             manhattan_distance_heuristic{from},
                             predicted_cost{predictor_.get(), w.tick(),
                                            obstacle_penalty_})

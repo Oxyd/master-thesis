@@ -31,6 +31,8 @@ void
 separate_paths_solver<Derived>::step(
   world& w, std::default_random_engine& rng
 ) {
+  should_stop_ = false;
+
   if (predictor_)
     predictor_->update_obstacles(w);
 
@@ -91,6 +93,9 @@ separate_paths_solver<Derived>::step(
     if (pos == *maybe_next)
       continue;
 
+    if (should_stop_)
+      return;
+
     direction dir = direction_to(pos, *maybe_next);
     if (!valid(action{pos, dir}, w)) {
       log_ << "Path invalid for " << pos << '\n';
@@ -103,6 +108,9 @@ separate_paths_solver<Derived>::step(
 
     if (!maybe_next || pos == *maybe_next)
       continue;
+
+    if (should_stop_)
+      return;
 
     dir = direction_to(pos, *maybe_next);
     action a{pos, dir};
@@ -173,6 +181,9 @@ separate_paths_solver<Derived>::recalculate(
       }
   }
 
+  if (should_stop_)
+    return {};
+
   if (new_path.empty()) {
     log_ << "Recalculating for " << w.get_agent(from)->id()
          << '@' << from << '\n';
@@ -240,7 +251,7 @@ separate_paths_solver<Derived>::rejoin_path(position from, world const& w,
 
   nodes_rejoin_ += as->nodes_expanded();
 
-  if (join_path.empty())
+  if (join_path.empty() || should_stop_)
     return {};
 
   assert(target_positions.count(join_path.front()));

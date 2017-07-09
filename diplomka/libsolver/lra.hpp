@@ -38,7 +38,7 @@ public:
 
   std::unique_ptr<rejoin_search_type>
   make_rejoin_search(position from, position to, world const& w,
-                     agent const& agent) const;
+                     agent const& agent);
 
 private:
   struct agent_data {

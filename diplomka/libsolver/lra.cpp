@@ -36,10 +36,10 @@ lra::get_obstacle_field() const {
 
 auto
 lra::make_rejoin_search(position from, position to, world const& w,
-                        agent const&) const
+                        agent const&)
   -> std::unique_ptr<rejoin_search_type> {
   return std::make_unique<rejoin_search_type>(
-    from, to, w,
+    from, to, w, should_stop_,
     manhattan_distance_heuristic{to},
     predicted_cost(predictor_.get(), w.tick(), obstacle_penalty_),
     passable_if_not_predicted_obstacle(from, predictor_.get(),
@@ -89,7 +89,7 @@ lra::find_path(position from, world const& w, std::default_random_engine& rng) {
     passable_if_not_predicted_obstacle, agitated_distance,
     predicted_cost
   > as(
-    from, a.target, w,
+    from, a.target, w, should_stop_,
     agitated_distance{a.target, data_[a.id()].agitation, rng},
     predicted_cost(predictor_.get(), w.tick(), obstacle_penalty_),
     passable_if_not_predicted_obstacle{

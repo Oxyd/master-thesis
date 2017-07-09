@@ -245,7 +245,7 @@
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2">
          <item>
-          <widget class="QPushButton" name="pushButton">
+          <widget class="QPushButton" name="single_step_button">
            <property name="text">
             <string>Single Step</string>
            </property>
@@ -517,21 +517,21 @@
           </spacer>
          </item>
          <item>
-          <widget class="QPushButton" name="pushButton_2">
+          <widget class="QPushButton" name="reset_button">
            <property name="text">
             <string>Reset</string>
            </property>
           </widget>
          </item>
         </layout>
-        <zorder>pushButton</zorder>
+        <zorder>single_step_button</zorder>
         <zorder>start_stop_button</zorder>
         <zorder></zorder>
         <zorder></zorder>
         <zorder></zorder>
         <zorder></zorder>
         <zorder></zorder>
-        <zorder>pushButton_2</zorder>
+        <zorder>reset_button</zorder>
         <zorder>verticalSpacer</zorder>
         <zorder>avoid_obstacles_groupbox</zorder>
        </widget>
@@ -615,6 +615,29 @@
          </size>
         </property>
        </spacer>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_2">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeType">
+         <enum>QSizePolicy::Fixed</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>30</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QLabel" name="planner_running_label">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
       </item>
       <item>
        <widget class="QLabel" name="text_label">
@@ -748,8 +771,8 @@
    <slot>visualisation_params_changed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>160</x>
-     <y>134</y>
+     <x>150</x>
+     <y>148</y>
     </hint>
     <hint type="destinationlabel">
      <x>610</x>
@@ -758,14 +781,14 @@
    </hints>
   </connection>
   <connection>
-   <sender>pushButton</sender>
+   <sender>single_step_button</sender>
    <signal>clicked()</signal>
    <receiver>MainWindow</receiver>
    <slot>step()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1048</x>
-     <y>80</y>
+     <x>968</x>
+     <y>81</y>
     </hint>
     <hint type="destinationlabel">
      <x>760</x>
@@ -780,8 +803,8 @@
    <slot>run()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>867</x>
-     <y>116</y>
+     <x>968</x>
+     <y>115</y>
     </hint>
     <hint type="destinationlabel">
      <x>680</x>
@@ -790,14 +813,14 @@
    </hints>
   </connection>
   <connection>
-   <sender>pushButton_2</sender>
+   <sender>reset_button</sender>
    <signal>clicked()</signal>
    <receiver>MainWindow</receiver>
    <slot>reset_world()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1048</x>
-     <y>749</y>
+     <x>968</x>
+     <y>538</y>
     </hint>
     <hint type="destinationlabel">
      <x>603</x>
@@ -812,8 +835,8 @@
    <slot>visualisation_params_changed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>264</x>
-     <y>137</y>
+     <x>261</x>
+     <y>150</y>
     </hint>
     <hint type="destinationlabel">
      <x>712</x>
@@ -828,12 +851,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>160</x>
-     <y>134</y>
+     <x>150</x>
+     <y>148</y>
     </hint>
     <hint type="destinationlabel">
-     <x>264</x>
-     <y>137</y>
+     <x>261</x>
+     <y>150</y>
     </hint>
    </hints>
   </connection>
@@ -844,8 +867,8 @@
    <slot>change_run_interval(double)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1047</x>
-     <y>153</y>
+     <x>967</x>
+     <y>151</y>
     </hint>
     <hint type="destinationlabel">
      <x>827</x>
@@ -860,8 +883,8 @@
    <slot>window_changed(int)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1047</x>
-     <y>267</y>
+     <x>967</x>
+     <y>260</y>
     </hint>
     <hint type="destinationlabel">
      <x>371</x>
@@ -876,8 +899,8 @@
    <slot>make_random_seed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1047</x>
-     <y>228</y>
+     <x>967</x>
+     <y>223</y>
     </hint>
     <hint type="destinationlabel">
      <x>616</x>
@@ -892,8 +915,8 @@
    <slot>algorithm_changed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>1047</x>
-     <y>189</y>
+     <x>967</x>
+     <y>187</y>
     </hint>
     <hint type="destinationlabel">
      <x>353</x>
@@ -908,8 +931,8 @@
    <slot>visualisation_params_changed()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>265</x>
-     <y>100</y>
+     <x>262</x>
+     <y>114</y>
     </hint>
     <hint type="destinationlabel">
      <x>566</x>
@@ -924,12 +947,12 @@
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>925</x>
-     <y>302</y>
+     <x>845</x>
+     <y>295</y>
     </hint>
     <hint type="destinationlabel">
-     <x>1047</x>
-     <y>305</y>
+     <x>967</x>
+     <y>297</y>
     </hint>
    </hints>
   </connection>
@@ -940,8 +963,8 @@
    <slot>show_targets_changed(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>95</x>
-     <y>153</y>
+     <x>116</x>
+     <y>183</y>
     </hint>
     <hint type="destinationlabel">
      <x>284</x>

@@ -4,6 +4,7 @@
 #include "action.hpp"
 #include "world.hpp"
 
+#include <atomic>
 #include <random>
 #include <string>
 #include <unordered_map>
@@ -48,6 +49,13 @@ public:
   // Change the window of the algorithm. If the algorithm doesn't use a window,
   // doesn't do anything.
   virtual void window(unsigned /*new_window*/) {}
+
+  // Interrupt the algorithm execution. This should be called from another
+  // thread whilst step is running in order to force it to fail.
+  void kill() { should_stop_ = true; }
+
+protected:
+  std::atomic<bool> should_stop_{false};
 };
 
 std::unique_ptr<solver>

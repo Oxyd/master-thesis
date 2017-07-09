@@ -8,6 +8,7 @@
 #include <boost/pool/object_pool.hpp>
 #include <boost/pool/pool.hpp>
 
+#include <atomic>
 #include <limits>
 #include <unordered_map>
 #include <unordered_set>
@@ -154,10 +155,11 @@ template <
 class a_star {
 public:
   a_star(State const& from, State const& to, world const& w,
-         Passable passable = Passable{})
-    : a_star(from, to, w, Distance{to}, StepCost{}, passable) { }
+         std::atomic<bool>& stop_flag, Passable passable = Passable{})
+    : a_star(from, to, w, stop_flag, Distance{to}, StepCost{}, passable) { }
 
   a_star(State const& from, State const& to, world const& w,
+         std::atomic<bool>& stop_flag,
          Distance distance, StepCost step_cost,
          Passable passable = Passable{})
     : from_(from)
@@ -165,6 +167,7 @@ public:
     , passable_(std::move(passable))
     , distance_(std::move(distance))
     , step_cost_(std::move(step_cost))
+    , stop_flag_{&stop_flag}
   {
     node* start = node_pool_.construct(
       node(from, 0.0, distance_(from, w), 0u)
@@ -296,6 +299,7 @@ private:
   Passable passable_;
   Distance distance_;
   StepCost step_cost_;
+  std::atomic<bool>* stop_flag_;
 
   template <typename EndPred>
   path<State>
@@ -320,6 +324,9 @@ private:
   expand_until(EndF end, world const& w,
                unsigned limit = std::numeric_limits<unsigned>::max()) {
     while (!heap_.empty()) {
+      if (stop_flag_ && *stop_flag_)
+        return nullptr;
+
       node* const current = heap_.top();
       coordinate_type const current_coord =
         Coordinate::make(current->pos, current->steps_distance);

@@ -8,8 +8,9 @@
 #include <QDateTime>
 #include <QFileDialog>
 #include <QGraphicsView>
-#include <QPlainTextEdit>
 #include <QMessageBox>
+#include <QMutexLocker>
+#include <QPlainTextEdit>
 #include <QStandardItem>
 #include <QString>
 
@@ -19,8 +20,6 @@
 #include <memory>
 #include <sstream>
 #include <unordered_map>
-
-#include <iostream>
 
 static QColor agent_path_color{0x33, 0x66, 0xff, 0x80};
 
@@ -40,7 +39,7 @@ main_window::main_window(QWidget *parent)
 
   run_timer_.setSingleShot(false);
   run_timer_.setInterval(100);
-  connect(&run_timer_, &QTimer::timeout, this, &main_window::step);
+  connect(&run_timer_, &QTimer::timeout, this, &main_window::make_step);
 
   ui_.algorithm_combo->addItem("WHCA*");
   ui_.algorithm_combo->addItem("OD");
@@ -51,6 +50,9 @@ main_window::main_window(QWidget *parent)
 
   ui_.predictor_method_combo->addItem("Recursive");
   ui_.predictor_method_combo->addItem("Matrix");
+
+  connect(&log_sink_, &gui_log_sink::add_line,
+          this, &main_window::add_log_line);
 
   showMaximized();
 }
@@ -66,10 +68,32 @@ main_window::open_map() {
 
 void
 main_window::step() {
+  {
+    QMutexLocker lock{&runner_mutex_};
+    if (runner_) {
+      lock.unlock();
+      stop();
+      return;
+    }
+  }
+
+  ui_.start_stop_button->setEnabled(false);
+  ui_.single_step_button->setText("Interrupt");
+
+  make_step();
+}
+
+void
+main_window::make_step() {
+  QMutexLocker lock{&runner_mutex_};
+  if (runner_)
+    return;
+
   if (!world_)
     return;
 
   if (solved(*world_)) {
+    lock.unlock();
     stop();
     return;
   }
@@ -80,16 +104,25 @@ main_window::step() {
     update_stats_headers();
   }
 
-  world_->next_tick(rng_);
-  solver_->step(*world_, rng_);
+  runner_ = std::make_unique<solver_runner>(*world_, *solver_, rng_);
+  connect(runner_.get(), &QThread::finished,
+          this, &main_window::step_finished);
+  runner_->start();
 
-  world_scene_.update();
-  update_stats();
-  visualisation_params_changed();
+  ui_.planner_running_label->setText("Planner running…");
 }
 
 void
 main_window::run() {
+  {
+    QMutexLocker lock{&runner_mutex_};
+    if (runner_) {
+      lock.unlock();
+      stop();
+      return;
+    }
+  }
+
   if (!run_timer_.isActive()) {
     run_timer_.start();
     ui_.start_stop_button->setText("Stop");
@@ -105,6 +138,8 @@ main_window::change_run_interval(double d) {
 
 void
 main_window::reset_world() {
+  stop();
+
   if (!world_file_.empty()) {
     load_world(world_file_);
     solver_.reset();
@@ -154,19 +189,68 @@ main_window::algorithm_changed() {
 }
 
 void
-main_window::gui_log_sink::clear() {
-  text_field_->clear();
+main_window::window_changed(int new_window) {
+  if (!solver_)
+    return;
+
+  solver_->window(new_window);
 }
 
 void
-main_window::gui_log_sink::do_put(std::string msg) {
-  text_field_->moveCursor(QTextCursor::End);
-  text_field_->insertPlainText(QString::fromStdString(std::move(msg)));
-  text_field_->moveCursor(QTextCursor::End);
+main_window::visualisation_params_changed() {
+  world_scene_.remove_all_highlights();
+
+  if (ui_.visualise_paths_check->isChecked())
+    highlight_paths();
+
+  if (ui_.obstacle_field_check->isChecked())
+    highlight_obstacle_field();
+
+  bottom_bar_controller_.set_obstacle_field(solver_->get_obstacle_field(),
+                                            ui_.obstacle_field_spin->value());
+}
+
+void
+main_window::show_targets_changed(bool show) {
+  world_scene_.show_goal_arrows(show);
+  visualisation_params_changed();
+}
+
+void
+main_window::step_finished() {
+  QMutexLocker lock{&runner_mutex_};
+
+  ui_.single_step_button->setText("Single Step");
+  ui_.planner_running_label->setText("");
+  ui_.start_stop_button->setEnabled(true);
+
+  if (!runner_)
+    return;
+
+  *world_ = runner_->move_result();
+  runner_->wait();
+  runner_.reset();
+
+  world_scene_.update();
+  update_stats();
+  visualisation_params_changed();
+}
+
+void main_window::add_log_line(QString msg) {
+  log_sink_.text_field_->moveCursor(QTextCursor::End);
+  log_sink_.text_field_->insertPlainText(std::move(msg));
+  log_sink_.text_field_->moveCursor(QTextCursor::End);
+}
+
+void main_window::closeEvent(QCloseEvent* event) {
+  stop();
+  QMainWindow::closeEvent(event);
 }
 
 void
 main_window::stop() {
+  interrupt_runner();
+
   run_timer_.stop();
   ui_.start_stop_button->setText("Run");
 }
@@ -329,30 +413,11 @@ main_window::highlight_obstacle_field() {
   }
 }
 
-void
-main_window::window_changed(int new_window) {
-  if (!solver_)
-    return;
-
-  solver_->window(new_window);
-}
-
-void
-main_window::visualisation_params_changed() {
-  world_scene_.remove_all_highlights();
-
-  if (ui_.visualise_paths_check->isChecked())
-    highlight_paths();
-
-  if (ui_.obstacle_field_check->isChecked())
-    highlight_obstacle_field();
-
-  bottom_bar_controller_.set_obstacle_field(solver_->get_obstacle_field(),
-                                            ui_.obstacle_field_spin->value());
-}
-
-void
-main_window::show_targets_changed(bool show) {
-  world_scene_.show_goal_arrows(show);
-  visualisation_params_changed();
+void main_window::interrupt_runner() {
+  QMutexLocker lock{&runner_mutex_};
+  if (runner_) {
+    runner_->interrupt();
+    runner_->wait();
+    runner_.reset();
+  }
 }

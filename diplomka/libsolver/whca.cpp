@@ -37,10 +37,10 @@ whca::stat_values() const {
 
 auto
 whca::make_rejoin_search(position from, position to, world const& w,
-                         agent const& agent) const
+                         agent const& agent)
   -> std::unique_ptr<rejoin_search_type> {
   return std::make_unique<rejoin_search_type>(
-    from, to, w,
+    from, to, w, should_stop_,
     manhattan_distance_heuristic{to},
     predicted_cost(predictor_.get(), w.tick(), obstacle_penalty_),
     passable_if_not_predicted_obstacle(
@@ -137,7 +137,8 @@ whca::find_path(position from, world const& w, std::default_random_engine&) {
   heuristic_search_type& h_search = heuristic_map_.emplace(
     std::piecewise_construct,
     std::forward_as_tuple(a.id()),
-    std::forward_as_tuple(a.target, from, w, manhattan_distance_heuristic{from},
+    std::forward_as_tuple(a.target, from, w, should_stop_,
+                          manhattan_distance_heuristic{from},
                           predicted_cost{predictor_.get(), w.tick(),
                                          obstacle_penalty_})
   ).first->second;
@@ -152,7 +153,7 @@ whca::find_path(position from, world const& w, std::default_random_engine&) {
     space_time_coordinate
   >;
   search_type as(
-    from, a.target, w,
+    from, a.target, w, should_stop_,
     hierarchical_distance(h_search),
     unitary_step_cost{},
     passable_if_not_predicted_obstacle(
