@@ -1,5 +1,5 @@
 {
-    "map": "maps\/den501d.map",
+    "map": "..\/da-maps\/arena.txt",
     "obstacles": {
         "mode": "random",
         "tile_probability": "0.050000000000000003",
@@ -11,10 +11,13 @@
                     "1"
                 ]
             }
-        }
+        },
+        "spawn_points": "",
+        "goal_points": ""
     },
     "agent_settings": {
-        "random_agents": "100"
+        "random_agents": "5",
+        "spawn_mode": "pack"
     },
     "agents": ""
 }

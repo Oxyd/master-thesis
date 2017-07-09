@@ -1,5 +1,5 @@
 {
-    "map": "maps\/switch.map",
+    "map": "maps\/switch.txt",
     "obstacles": {
         "mode": "random",
         "tile_probability": "0",
@@ -11,22 +11,18 @@
                     "1"
                 ]
             }
-        }
+        },
+        "spawn_points": "",
+        "goal_points": ""
+    },
+    "agent_settings": {
+        "random_agents": "0",
+        "spawn_mode": "uniform"
     },
     "agents": [
         {
             "position": [
                 "19",
-                "2"
-            ],
-            "goal": [
-                "1",
-                "2"
-            ]
-        },
-        {
-            "position": [
-                "19",
                 "3"
             ],
             "goal": [
@@ -37,21 +33,11 @@
         {
             "position": [
                 "1",
-                "2"
-            ],
-            "goal": [
-                "19",
-                "3"
-            ]
-        },
-        {
-            "position": [
-                "1",
                 "3"
             ],
             "goal": [
                 "19",
-                "2"
+                "3"
             ]
         }
     ]

@@ -1,5 +1,5 @@
 {
-    "map": "maps\/den203d-narrow.map",
+    "map": "..\/da-maps\/den203d.txt",
     "obstacles": {
         "mode": "random",
         "tile_probability": "0.050000000000000003",

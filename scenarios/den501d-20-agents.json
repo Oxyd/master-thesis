@@ -1,8 +1,8 @@
 {
-    "map": "maps\/arena.map",
+    "map": "..\/da-maps\/den501d.txt",
     "obstacles": {
         "mode": "random",
-        "tile_probability": "0",
+        "tile_probability": "0.050000000000000003",
         "obstacle_movement": {
             "move_probability": {
                 "distribution": "normal",
@@ -16,18 +16,8 @@
         "goal_points": ""
     },
     "agent_settings": {
-        "random_agents": "0"
+        "random_agents": "20",
+        "spawn_mode": "uniform"
     },
-    "agents": [
-        {
-            "position": [
-                "9",
-                "25"
-            ],
-            "goal": [
-                "39",
-                "25"
-            ]
-        }
-    ]
+    "agents": ""
 }
