@@ -1,5 +1,5 @@
 {
-    "map": "..\/da-maps\/arena-wide-clear.map",
+    "map": "..\/da-maps\/arena-wide-clear.txt",
     "obstacles": {
         "mode": "spawn_to_goal",
         "tile_probability": "0.10000000000000001",

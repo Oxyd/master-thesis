@@ -500,7 +500,7 @@ def main():
   for f in maps_path.glob('*.json'):
     if f.stem == 'arena-choices': continue
 
-    map_path = f.parent / (f.stem + '.map')
+    map_path = f.parent / (f.stem + '.txt')
     if not map_path.exists():
       print('No matching map file for {}'.format(f.name))
       continue

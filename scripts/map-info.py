@@ -116,7 +116,7 @@ def passable_tiles(m):
 
 def main(dir):
   maps_dir = Path(dir)
-  for m in (f for f in maps_dir.iterdir() if f.suffix == '.map'):
+  for m in (f for f in maps_dir.iterdir() if f.suffix == '.txt'):
     print('{}'.format(m.name))
 
     map = Map(m.open())

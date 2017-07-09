@@ -1,5 +1,5 @@
 {
-    "map": "..\/da-maps\/arena-choices.map",
+    "map": "..\/da-maps\/arena-choices.txt",
     "obstacles": {
         "mode": "random",
         "tile_probability": "0.10000000000000001",
