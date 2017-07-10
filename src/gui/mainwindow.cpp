@@ -207,8 +207,9 @@ main_window::visualisation_params_changed() {
   if (ui_.obstacle_field_check->isChecked())
     highlight_obstacle_field();
 
-  bottom_bar_controller_.set_obstacle_field(solver_->get_obstacle_field(),
-                                            ui_.obstacle_field_spin->value());
+  if (solver_)
+    bottom_bar_controller_.set_obstacle_field(solver_->get_obstacle_field(),
+                                              ui_.obstacle_field_spin->value());
 }
 
 void
@@ -293,6 +294,9 @@ main_window::load_world(std::string const& filename) {
 
     update_stats_headers();
     update_stats();
+
+    ui_.start_stop_button->setEnabled(true);
+    ui_.single_step_button->setEnabled(true);
 
   } catch (bad_world_format& e) {
     QMessageBox::critical(this, "Error", e.what());

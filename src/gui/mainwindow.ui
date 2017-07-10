@@ -246,6 +246,9 @@
         <layout class="QVBoxLayout" name="verticalLayout_2">
          <item>
           <widget class="QPushButton" name="single_step_button">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="text">
             <string>Single Step</string>
            </property>
@@ -253,6 +256,9 @@
          </item>
          <item>
           <widget class="QPushButton" name="start_stop_button">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="text">
             <string>Run</string>
            </property>
