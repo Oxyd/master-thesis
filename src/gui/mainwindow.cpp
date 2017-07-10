@@ -271,6 +271,8 @@ make_seed(QString const& seed_str) {
 
 void
 main_window::load_world(std::string const& filename) {
+  stop();
+
   try {
     rng_.seed(make_seed(ui_.seed_edit->text()));
 
