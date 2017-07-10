@@ -31,6 +31,7 @@ endif
 project_dir = src
 build_dir = build/$(mode)
 bin_dir = bin/$(mode)
+distrib_dir = distrib
 
 find_sources = $(wildcard $(1)/*.cpp)
 find_headers = $(wildcard $(1)/*.hpp)
@@ -91,6 +92,23 @@ cli: $(cli_executable)
 
 .PHONY: gui
 gui: $(gui_executable)
+
+.PHONY: distrib
+distrib:
+	rm -rf $(distrib_dir)
+	mkdir $(distrib_dir)
+
+	rm -rf scripts/__pycache__
+
+	cp -r da-maps $(distrib_dir)
+	cp -r experiments $(distrib_dir)
+	cp -r experiments-scenarios $(distrib_dir)
+	cp -r plots $(distrib_dir)
+	cp -r scenarios $(distrib_dir)
+	cp -r scripts $(distrib_dir)
+	cp -r src $(distrib_dir)
+	cp Makefile $(distrib_dir)
+	cp site-config-msys2-example.make $(distrib_dir)
 
 $(libsolver_lib) : $(libsolver_objects)
 	$(call delete,$(libsolver_lib))

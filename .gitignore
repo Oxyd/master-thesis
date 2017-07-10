@@ -5,3 +5,4 @@ plots/
 site-config.make
 /gnuplot
 /scripts/__pycache__/analysis.cpython-35.pyc
+/distrib
