@@ -3,7 +3,7 @@ eigen_include_dir = /msys64/mingw64/include/eigen3
 boost_system_lib = boost_system-mt
 boost_filesystem_lib = boost_filesystem-mt
 boost_program_options_lib = boost_program_options-mt
-qt_include_dir = /msys64/mingw64/include
+qt_include_dir = /mingw64/include
 moc = moc
 uic = uic
 
