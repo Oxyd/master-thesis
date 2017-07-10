@@ -125,6 +125,7 @@ main_window::run() {
 
   if (!run_timer_.isActive()) {
     run_timer_.start();
+    ui_.single_step_button->setEnabled(false);
     ui_.start_stop_button->setText("Stop");
   } else {
     stop();
@@ -252,6 +253,8 @@ main_window::stop() {
   interrupt_runner();
 
   run_timer_.stop();
+
+  ui_.single_step_button->setEnabled(true);
   ui_.start_stop_button->setText("Run");
 }
 
