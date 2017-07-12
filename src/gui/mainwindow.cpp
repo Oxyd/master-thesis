@@ -234,6 +234,7 @@ main_window::step_finished() {
 
   world_scene_.update();
   update_stats();
+  update_paths();
   visualisation_params_changed();
 }
 
@@ -399,7 +400,7 @@ main_window::highlight_paths() {
     return;
 
   for (auto pos_agent : world_->agents())
-    for (position p : solver_->get_path(std::get<1>(pos_agent).id()))
+    for (position p : paths_[std::get<1>(pos_agent).id()])
       world_scene_.highlight_tile(p, agent_path_color);
 }
 
@@ -427,5 +428,16 @@ void main_window::interrupt_runner() {
     runner_->interrupt();
     runner_->wait();
     runner_.reset();
+  }
+}
+
+void main_window::update_paths() {
+  if (!world_ || !solver_)
+    return;
+
+  paths_.clear();
+  for (auto pos_agent : world_->agents()) {
+    agent::id_type id = std::get<1>(pos_agent).id();
+    paths_[id] = solver_->get_path(id);
   }
 }

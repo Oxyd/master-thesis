@@ -69,6 +69,7 @@ private:
   std::thread step_thread_;
   std::unique_ptr<solver_runner> runner_;
   QMutex runner_mutex_;
+  std::unordered_map<agent::id_type, std::vector<position>> paths_;
 
   void stop();
   void load_world(std::string const&);
@@ -79,6 +80,7 @@ private:
   void highlight_paths();
   void highlight_obstacle_field();
   void interrupt_runner();
+  void update_paths();
 };
 
 #endif // MAINWINDOW_HPP
