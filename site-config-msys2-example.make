@@ -9,7 +9,11 @@ uic = uic
 
 gui_ldflags = -Wl,-subsystem,windows
 
+platform_plugin = /mingw64/share/qt5/plugins/platforms/qwindows.dll
+
 post_build = ldd $1 | sed -n '/\/mingw64\//s/.*=> \([^ ]*\).*/\1/p' | \
              while read f; do \
                cp "$$f" $(dir $1); \
-             done
+             done; \
+             mkdir -p $(dir $1)/platforms; \
+             cp $(platform_plugin) $(dir $1)/platforms
