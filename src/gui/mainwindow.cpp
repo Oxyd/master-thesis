@@ -44,7 +44,6 @@ main_window::main_window(QWidget *parent)
   ui_.algorithm_combo->addItem("WHCA*");
   ui_.algorithm_combo->addItem("OD");
   ui_.algorithm_combo->addItem("LRA*");
-  ui_.algorithm_combo->addItem("Greedy");
 
   ui_.stats_view->setModel(&stats_);
 
