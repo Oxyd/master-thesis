@@ -103,7 +103,6 @@ distrib:
 	cp -r da-maps $(distrib_dir)
 	cp -r experiments $(distrib_dir)
 	cp -r experiments-scenarios $(distrib_dir)
-	cp -r plots $(distrib_dir)
 	cp -r scenarios $(distrib_dir)
 	cp -r scripts $(distrib_dir)
 	cp -r src $(distrib_dir)
